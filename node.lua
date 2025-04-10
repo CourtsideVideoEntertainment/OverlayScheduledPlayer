@@ -835,8 +835,9 @@ local function Streams()
                     raw = true,
                 },
                 last_used = frame,
-                url = url
+                url = url,  -- Store URL for debugging
             }
+            -- Keep stream running but hidden
             streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
         end
         streams[key].last_used = frame
@@ -867,6 +868,7 @@ local function Streams()
         tick = tick;
     }
 end
+
 local streams = Streams()
 
 local function StreamTile(asset, config, x1, y1, x2, y2)
