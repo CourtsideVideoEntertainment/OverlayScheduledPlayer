@@ -835,7 +835,7 @@ local function Streams()
                     raw = true,
                 },
                 last_used = frame,
-                url = url,  -- Store URL for debugging
+                url = url
             }
             -- Keep stream running but hidden
             streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
@@ -853,7 +853,7 @@ local function Streams()
 
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
-            if frame_delta > 1800 then  -- About 30 seconds at 60fps
+            if frame_delta > 300 then  -- About 5 seconds at 60fps
                 print("[stream] disposing stream", stream.url)
                 if stream.vid then
                     stream.vid:dispose()
@@ -876,11 +876,10 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local audio = config.audio
 
     return function(starts, ends)
-        local vid = streams.get_stream(url, audio)
-        if vid then
-            -- Pre-position the stream before it's needed
-            vid:layer(layer)
-            for now in helper.frame_between(starts, ends) do
+        -- player
+        for now in helper.frame_between(starts, ends) do
+            local vid = streams.get_stream(url, audio)
+            if vid then
                 screen.place_video(vid, layer, 1, x1, y1, x2, y2)
             end
         end
