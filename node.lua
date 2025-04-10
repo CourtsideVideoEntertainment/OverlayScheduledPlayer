@@ -769,18 +769,11 @@ local function VideoTile(asset, config, x1, y1, x2, y2)
 end
 
 local function RawVideoTile(asset, config, x1, y1, x2, y2)
-    -- config:
-    --   asset_name: 'foo.mp4'
-    --   fit: aspect fit or scale?
-    --   fade_time: 0-1
-    --   looped
-    --   layer: video layer for raw videos
-
     local file = resource.open_file(asset.asset_name)
     local fade_time = config.fade_time or 0.5
     local looped = config.looped
     local audio = config.audio
-    local layer = config.layer or 5
+    local layer = config.layer or 5  -- Keep this positive
 
     return function(starts, ends)
         helper.wait_t(starts - 2)
@@ -792,7 +785,8 @@ local function RawVideoTile(asset, config, x1, y1, x2, y2)
             audio = audio,
             raw = true,
         }
-        vid:layer(-10)
+        -- Remove the negative layer
+        vid:layer(layer)  -- Use the positive layer value
 
         for now in helper.frame_between(starts, ends) do
             screen.place_video(vid, layer, helper.ramp(
@@ -825,7 +819,8 @@ local function Streams()
                 url = url,
                 is_rtsp = is_rtsp_stream(url)
             }
-            streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
+            -- Initialize with full visibility and proper layer
+            streams[key].vid:layer(5):place(0, 0, 0, 0):alpha(1):start()
         end
         streams[key].last_used = frame
         return streams[key].vid
@@ -838,10 +833,10 @@ local function Streams()
             pp(streams)
         end
 
+        -- Increase the frame delta threshold significantly
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
-            -- Don't dispose RTSP streams
-            if not stream.is_rtsp and frame_delta > 300 then
+            if not stream.is_rtsp and frame_delta > 600 then  -- Increased to 10 seconds
                 print("[stream] disposing non-RTSP stream", stream.url)
                 if stream.vid then
                     stream.vid:dispose()
@@ -865,13 +860,12 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local audio = config.audio
 
     return function(starts, ends)
-        -- Remove the wait_t call since stream should already be running
-        
         -- player
         for now in helper.frame_between(starts, ends) do
             local vid = streams.get_stream(url, audio)
             if vid then
-                screen.place_video(vid, layer, 1, x1, y1, x2, y2)
+                -- Ensure proper visibility
+                screen.place_video(vid, layer, 1, x1, y1, x2, y2):alpha(1)
             end
         end
     end
@@ -2135,7 +2129,26 @@ local function init_streams(config)
 end
 
 util.json_watch("config.json", function(config)
-    init_streams(config)  -- Initialize streams when config is loaded
+    print("Loading configuration...")
+    print("Number of schedules:", #(config.schedules or {}))
+    
+    -- Debug print schedules
+    for idx, schedule in ipairs(config.schedules or {}) do
+        print(string.format("Schedule %d: %s", idx, schedule.name))
+        print("Number of pages:", #(schedule.pages or {}))
+        
+        -- Debug print pages
+        for pidx, page in ipairs(schedule.pages or {}) do
+            print(string.format("  Page %d: %d tiles", pidx, #(page.tiles or {})))
+            
+            -- Debug print tiles
+            for tidx, tile in ipairs(page.tiles or {}) do
+                print(string.format("    Tile %d: type=%s", tidx, tile.type))
+            end
+        end
+    end
+    
+    init_streams(config)
     node.dispatch("config_updated", config)
     node.gc()
 end)
