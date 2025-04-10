@@ -808,55 +808,22 @@ local function Streams()
     local frame = 0
     local streams = {}
 
-    local MIN_LOAD_INTERVAL = 5
-    local LOADING_TIMEOUT = 10
-
-    local function stream_key(url, audio)
-        return string.format("%s|%s", url, audio)
-    end
-
-    local function get_stream(url, audio, immediate_reload)
-        local now = sys.now()
+    local function get_stream(url, audio)
         local key = stream_key(url, audio)
         if not streams[key] then
             streams[key] = {
-                last_used = now,
-                next_load = now,
-                last_load = nil,
-                url = url,
-                vid = nil,
-            }
-        end
-        local stream = streams[key]
-
-        local state = stream.vid and stream.vid:state()
-        local need_reload = (
-            not stream.vid
-            or state == "finished" or state == "error"
-            or (state == "loading" and now - stream.last_load > LOADING_TIMEOUT)
-        )
-
-        if need_reload then
-            print("[stream] needs reload", url)
-            if stream.vid then
-                print "[stream] disposing current stream instance"
-                stream.vid:dispose()
-                stream.vid = nil
-            end
-            if now >= stream.next_load or immediate_reload then
-                stream.next_load = now + MIN_LOAD_INTERVAL
-                stream.last_load = now
-                stream.vid = resource.load_video{
+                vid = resource.load_video{
                     file = url,
                     audio = audio,
                     raw = true,
-                }
-                stream.vid:layer(-10):place(0, 0, 0, 0):alpha(0)
-            end
+                },
+                last_used = frame,
+            }
+            streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0)  -- Initialize the stream
         end
 
-        stream.last_used = frame
-        return stream.vid
+        streams[key].last_used = frame
+        return streams[key].vid
     end
 
     local function tick()
@@ -869,7 +836,7 @@ local function Streams()
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
             if frame_delta > 1 then
-                print("[stream] disposing stream", stream.url)
+                print("[stream] disposing stream", key)
                 if stream.vid then
                     stream.vid:dispose()
                 end
@@ -883,6 +850,7 @@ local function Streams()
         tick = tick;
     }
 end
+
 local streams = Streams()
 
 local function StreamTile(asset, config, x1, y1, x2, y2)
@@ -891,20 +859,9 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local audio = config.audio
 
     return function(starts, ends)
-        -- Increase the wait time to allow for more buffering
-        helper.wait_t(starts - 3)  -- Wait 3 seconds before starting
-
-        -- force load
-        streams.get_stream(url, audio, true)  -- Initialize the stream
-
-        -- keepalive before start
-        for now in helper.frame_between(0, starts) do
-            streams.get_stream(url, audio)  -- Ensure the stream is active
-        end
-
-        -- player
+        -- Display the already running stream
         for now in helper.frame_between(starts, ends) do
-            local vid = streams.get_stream(url, audio)  -- Retrieve the stream
+            local vid = streams.get_stream(url, audio)  -- Retrieve the already running stream
             if vid then
                 screen.place_video(vid, layer, 1, x1, y1, x2, y2)  -- Play the stream
             end
