@@ -837,7 +837,6 @@ local function Streams()
                 last_used = frame,
                 url = url
             }
-            -- Keep stream running but hidden
             streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
         end
         streams[key].last_used = frame
@@ -1501,7 +1500,6 @@ end
 
 local function Scheduler(page_source, job_queue)
     local SCHEDULE_LOOKAHEAD = 2
-
     local scheduled_until = sys.now()
 
     local showing_fallback = false
@@ -2184,7 +2182,6 @@ function node.render()
     FontCache.tick()
     ImageCache.tick()
     screen.setup()
-
     gl.clear(background.r, background.g, background.b, background.a)
 
     local now = sys.now()
