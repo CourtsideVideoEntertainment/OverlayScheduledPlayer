@@ -891,23 +891,22 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local audio = config.audio
 
     return function(starts, ends)
-        helper.wait_t(starts - 1)
+        -- Increase the wait time to allow for more buffering
+        helper.wait_t(starts - 3)  -- Wait 3 seconds before starting
 
         -- force load
-        streams.get_stream(url, audio, true)
+        streams.get_stream(url, audio, true)  -- Initialize the stream
 
         -- keepalive before start
         for now in helper.frame_between(0, starts) do
-            streams.get_stream(url, audio)
+            streams.get_stream(url, audio)  -- Ensure the stream is active
         end
-
-        streams.get_stream(url, audio)
 
         -- player
         for now in helper.frame_between(starts, ends) do
-            local vid = streams.get_stream(url, audio)
+            local vid = streams.get_stream(url, audio)  -- Retrieve the stream
             if vid then
-                screen.place_video(vid, layer, 1, x1, y1, x2, y2)
+                screen.place_video(vid, layer, 1, x1, y1, x2, y2)  -- Play the stream
             end
         end
     end
