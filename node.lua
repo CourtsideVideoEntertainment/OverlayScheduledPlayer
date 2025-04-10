@@ -815,48 +815,23 @@ local function Streams()
         return string.format("%s|%s", url, audio)
     end
 
-    local function get_stream(url, audio, immediate_reload)
-        local now = sys.now()
+    local function get_stream(url, audio)
         local key = stream_key(url, audio)
         if not streams[key] then
             streams[key] = {
-                last_used = now,
-                next_load = now,
-                last_load = nil,
-                url = url,
-                vid = nil,
-            }
-        end
-        local stream = streams[key]
-
-        local state = stream.vid and stream.vid:state()
-        local need_reload = (
-            not stream.vid
-            or state == "finished" or state == "error"
-            or (state == "loading" and now - stream.last_load > LOADING_TIMEOUT)
-        )
-
-        if need_reload then
-            print("[stream] needs reload", url)
-            if stream.vid then
-                print "[stream] disposing current stream instance"
-                stream.vid:dispose()
-                stream.vid = nil
-            end
-            if now >= stream.next_load or immediate_reload then
-                stream.next_load = now + MIN_LOAD_INTERVAL
-                stream.last_load = now
-                stream.vid = resource.load_video{
+                vid = resource.load_video{
                     file = url,
                     audio = audio,
                     raw = true,
-                }
-                stream.vid:layer(-10):place(0, 0, 0, 0):alpha(0)
-            end
+                },
+                last_used = frame,
+                url = url,  -- Store URL for debugging
+            }
+            -- Keep stream running but hidden
+            streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
         end
-
-        stream.last_used = frame
-        return stream.vid
+        streams[key].last_used = frame
+        return streams[key].vid
     end
 
     local function tick()
@@ -868,7 +843,7 @@ local function Streams()
 
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
-            if frame_delta > 1 then
+            if frame_delta > 300 then  -- About 5 seconds at 60fps
                 print("[stream] disposing stream", stream.url)
                 if stream.vid then
                     stream.vid:dispose()
@@ -891,22 +866,13 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local audio = config.audio
 
     return function(starts, ends)
-        -- Increase the wait time to allow for more buffering
-        helper.wait_t(starts - 3)  -- Wait 3 seconds before starting
-
-        -- force load
-        streams.get_stream(url, audio, true)  -- Initialize the stream
-
-        -- keepalive before start
-        for now in helper.frame_between(0, starts) do
-            streams.get_stream(url, audio)  -- Ensure the stream is active
-        end
-
+        -- Remove the wait_t call since stream should already be running
+        
         -- player
         for now in helper.frame_between(starts, ends) do
-            local vid = streams.get_stream(url, audio)  -- Retrieve the stream
+            local vid = streams.get_stream(url, audio)
             if vid then
-                screen.place_video(vid, layer, 1, x1, y1, x2, y2)  -- Play the stream
+                screen.place_video(vid, layer, 1, x1, y1, x2, y2)
             end
         end
     end
@@ -1748,8 +1714,7 @@ local function PageSource()
         schedules = config.schedules
 
         for _, schedule in ipairs(schedules) do
-            for page_id = #schedule.pages, 1, -1 do
-                local page = schedule.pages[page_id]
+            for _, page in ipairs(schedule.pages) do
                 page.is_fallback = false
                 if page.duration == -1 then
                     -- disabled page? then remove it
@@ -2156,7 +2121,22 @@ local page_source = PageSource()
 local job_queue = JobQueue()
 local scheduler = Scheduler(page_source, job_queue)
 
+local function init_streams(config)
+    -- Initialize all configured streams
+    for _, schedule in ipairs(config.schedules) do
+        for _, page in ipairs(schedule.pages) do
+            for _, tile in ipairs(page.tiles) do
+                if tile.type == "stream" and tile.config.url then
+                    -- Pre-initialize the stream
+                    streams.get_stream(tile.config.url, tile.config.audio)
+                end
+            end
+        end
+    end
+end
+
 util.json_watch("config.json", function(config)
+    init_streams(config)  -- Initialize streams when config is loaded
     node.dispatch("config_updated", config)
     node.gc()
 end)
