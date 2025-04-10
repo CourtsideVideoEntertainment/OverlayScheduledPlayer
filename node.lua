@@ -807,12 +807,9 @@ end
 local function Streams()
     local frame = 0
     local streams = {}
-
-    local MIN_LOAD_INTERVAL = 5
-    local LOADING_TIMEOUT = 10
-
-    local function stream_key(url, audio)
-        return string.format("%s|%s", url, audio)
+    
+    local function is_rtsp_stream(url)
+        return url:match("^rtsp://") ~= nil
     end
 
     local function get_stream(url, audio)
@@ -825,9 +822,9 @@ local function Streams()
                     raw = true,
                 },
                 last_used = frame,
-                url = url,  -- Store URL for debugging
+                url = url,
+                is_rtsp = is_rtsp_stream(url)
             }
-            -- Keep stream running but hidden
             streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
         end
         streams[key].last_used = frame
@@ -843,8 +840,9 @@ local function Streams()
 
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
-            if frame_delta > 300 then  -- About 5 seconds at 60fps
-                print("[stream] disposing stream", stream.url)
+            -- Don't dispose RTSP streams
+            if not stream.is_rtsp and frame_delta > 300 then
+                print("[stream] disposing non-RTSP stream", stream.url)
                 if stream.vid then
                     stream.vid:dispose()
                 end
@@ -858,6 +856,7 @@ local function Streams()
         tick = tick;
     }
 end
+
 local streams = Streams()
 
 local function StreamTile(asset, config, x1, y1, x2, y2)
