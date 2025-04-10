@@ -745,7 +745,7 @@ local function VideoTile(asset, config, x1, y1, x2, y2)
     }
 
     return function(starts, ends)
-        helper.wait_t(starts - 2)
+        helper.wait_t(starts - 3)
 
         local vid = resource.load_video{
             file = file,
@@ -753,6 +753,14 @@ local function VideoTile(asset, config, x1, y1, x2, y2)
             looped = looped,
             audio = audio,
         }
+
+        -- force load
+        streams.get_stream(file, audio, true)
+
+        -- keepalive before start
+        for now in helper.frame_between(0, starts) do
+            streams.get_stream(file, audio)
+        end
 
         for now in helper.frame_between(starts, ends) do
             if transparency then
@@ -771,11 +779,18 @@ local function VideoTile(asset, config, x1, y1, x2, y2)
 end
 
 local function RawVideoTile(asset, config, x1, y1, x2, y2)
+    -- config:
+    --   asset_name: 'foo.mp4'
+    --   fit: aspect fit or scale?
+    --   fade_time: 0-1
+    --   looped
+    --   layer: video layer for raw videos
+
     local file = resource.open_file(asset.asset_name)
     local fade_time = config.fade_time or 0.5
     local looped = config.looped
     local audio = config.audio
-    local layer = config.layer or 5  -- Keep this positive
+    local layer = config.layer or 5
 
     return function(starts, ends)
         helper.wait_t(starts - 2)
@@ -787,8 +802,7 @@ local function RawVideoTile(asset, config, x1, y1, x2, y2)
             audio = audio,
             raw = true,
         }
-        -- Remove the negative layer
-        vid:layer(layer)  -- Use the positive layer value
+        vid:layer(-10)
 
         for now in helper.frame_between(starts, ends) do
             screen.place_video(vid, layer, helper.ramp(
@@ -803,9 +817,12 @@ end
 local function Streams()
     local frame = 0
     local streams = {}
-    
-    local function is_rtsp_stream(url)
-        return url:match("^rtsp://") ~= nil
+
+    local MIN_LOAD_INTERVAL = 5
+    local LOADING_TIMEOUT = 10
+
+    local function stream_key(url, audio)
+        return string.format("%s|%s", url, audio)
     end
 
     local function get_stream(url, audio)
@@ -852,7 +869,6 @@ local function Streams()
         tick = tick;
     }
 end
-
 local streams = Streams()
 
 local function StreamTile(asset, config, x1, y1, x2, y2)
@@ -1709,7 +1725,8 @@ local function PageSource()
         schedules = config.schedules
 
         for _, schedule in ipairs(schedules) do
-            for _, page in ipairs(schedule.pages) do
+            for page_id = #schedule.pages, 1, -1 do
+                local page = schedule.pages[page_id]
                 page.is_fallback = false
                 if page.duration == -1 then
                     -- disabled page? then remove it
@@ -2130,27 +2147,9 @@ local function init_streams(config)
     end
 end
 
+-- Add to your config update handler
 util.json_watch("config.json", function(config)
-    print("Loading configuration...")
-    print("Number of schedules:", #(config.schedules or {}))
-    
-    -- Debug print schedules
-    for idx, schedule in ipairs(config.schedules or {}) do
-        print(string.format("Schedule %d: %s", idx, schedule.name))
-        print("Number of pages:", #(schedule.pages or {}))
-        
-        -- Debug print pages
-        for pidx, page in ipairs(schedule.pages or {}) do
-            print(string.format("  Page %d: %d tiles", pidx, #(page.tiles or {})))
-            
-            -- Debug print tiles
-            for tidx, tile in ipairs(page.tiles or {}) do
-                print(string.format("    Tile %d: type=%s", tidx, tile.type))
-            end
-        end
-    end
-    
-    init_streams(config)
+    init_streams(config)  -- Initialize streams when config is loaded
     node.dispatch("config_updated", config)
     node.gc()
 end)
