@@ -77,6 +77,8 @@ local function Music()
             }
         end
     end)
+
+    return music
 end
 
 local music = Music()
@@ -816,11 +818,10 @@ local function Streams()
                     raw = true,
                 },
                 last_used = frame,
-                url = url,
-                is_rtsp = is_rtsp_stream(url)
+                url = url,  -- Store URL for debugging
             }
-            -- Initialize with full visibility and proper layer
-            streams[key].vid:layer(5):place(0, 0, 0, 0):alpha(1):start()
+            -- Keep stream running but hidden
+            streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
         end
         streams[key].last_used = frame
         return streams[key].vid
@@ -833,11 +834,11 @@ local function Streams()
             pp(streams)
         end
 
-        -- Increase the frame delta threshold significantly
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
-            if not stream.is_rtsp and frame_delta > 600 then  -- Increased to 10 seconds
-                print("[stream] disposing non-RTSP stream", stream.url)
+            -- Increase this value significantly, maybe 300 frames or more
+            if frame_delta > 300 then  -- About 5 seconds at 60fps
+                print("[stream] disposing stream", stream.url)
                 if stream.vid then
                     stream.vid:dispose()
                 end
@@ -860,12 +861,13 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local audio = config.audio
 
     return function(starts, ends)
+        -- Remove the wait_t call since stream should already be running
+        
         -- player
         for now in helper.frame_between(starts, ends) do
             local vid = streams.get_stream(url, audio)
             if vid then
-                -- Ensure proper visibility
-                screen.place_video(vid, layer, 1, x1, y1, x2, y2):alpha(1)
+                screen.place_video(vid, layer, 1, x1, y1, x2, y2)
             end
         end
     end
