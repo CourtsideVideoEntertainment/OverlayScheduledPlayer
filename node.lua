@@ -811,6 +811,7 @@ local function Streams()
     local function get_stream(url, audio)
         local key = stream_key(url, audio)
         if not streams[key] then
+            -- Initialize the stream only once
             streams[key] = {
                 vid = resource.load_video{
                     file = url,
@@ -819,7 +820,7 @@ local function Streams()
                 },
                 last_used = frame,
             }
-            streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0)  -- Initialize the stream
+            streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0)  -- Keep the stream running
         end
 
         streams[key].last_used = frame
@@ -828,11 +829,6 @@ local function Streams()
 
     local function tick()
         frame = frame + 1
-        if frame % 300 == 0 then
-            print "[stream] active streams"
-            pp(streams)
-        end
-
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
             if frame_delta > 1 then
