@@ -853,8 +853,7 @@ local function Streams()
 
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
-            -- Increase this value significantly, maybe 300 frames or more
-            if frame_delta > 300 then  -- About 5 seconds at 60fps
+            if frame_delta > 1800 then  -- About 30 seconds at 60fps
                 print("[stream] disposing stream", stream.url)
                 if stream.vid then
                     stream.vid:dispose()
@@ -877,12 +876,11 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local audio = config.audio
 
     return function(starts, ends)
-        -- Remove the wait_t call since stream should already be running
-        
-        -- player
-        for now in helper.frame_between(starts, ends) do
-            local vid = streams.get_stream(url, audio)
-            if vid then
+        local vid = streams.get_stream(url, audio)
+        if vid then
+            -- Pre-position the stream before it's needed
+            vid:layer(layer)
+            for now in helper.frame_between(starts, ends) do
                 screen.place_video(vid, layer, 1, x1, y1, x2, y2)
             end
         end
@@ -1725,9 +1723,8 @@ local function PageSource()
         schedules = config.schedules
 
         for _, schedule in ipairs(schedules) do
-            for page_id = #schedule.pages, 1, -1 do
-                local page = schedule.pages[page_id]
-                page.is_fallback = false
+            for _, page in ipairs(schedule.pages) do
+                local page = Page(page)
                 if page.duration == -1 then
                     -- disabled page? then remove it
                     table.remove(schedule.pages, page_id)
@@ -2139,8 +2136,9 @@ local function init_streams(config)
         for _, page in ipairs(schedule.pages) do
             for _, tile in ipairs(page.tiles) do
                 if tile.type == "stream" and tile.config.url then
-                    -- Pre-initialize the stream
-                    streams.get_stream(tile.config.url, tile.config.audio)
+                    -- Pre-initialize the stream and keep it running
+                    local stream = streams.get_stream(tile.config.url, tile.config.audio)
+                    stream:start()  -- Ensure the stream is running
                 end
             end
         end
