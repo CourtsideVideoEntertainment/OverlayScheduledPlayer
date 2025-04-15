@@ -77,6 +77,8 @@ local function Music()
             }
         end
     end)
+
+    return music
 end
 
 local music = Music()
@@ -743,7 +745,7 @@ local function VideoTile(asset, config, x1, y1, x2, y2)
     }
 
     return function(starts, ends)
-        helper.wait_t(starts - 2)
+        helper.wait_t(starts - 3)
 
         local vid = resource.load_video{
             file = file,
@@ -751,6 +753,14 @@ local function VideoTile(asset, config, x1, y1, x2, y2)
             looped = looped,
             audio = audio,
         }
+
+        -- force load
+        streams.get_stream(file, audio, true)
+
+        -- keepalive before start
+        for now in helper.frame_between(0, starts) do
+            streams.get_stream(file, audio)
+        end
 
         for now in helper.frame_between(starts, ends) do
             if transparency then
@@ -866,13 +876,21 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local audio = config.audio
 
     return function(starts, ends)
-        -- Remove the wait_t call since stream should already be running
-        
+        helper.wait_t(starts - 1)  -- Wait until the start time
+
+        -- force load
+        streams.get_stream(url, audio, true)  -- Initialize the stream
+
+        -- keepalive before start
+        for now in helper.frame_between(0, starts) do
+            streams.get_stream(url, audio)  -- Ensure the stream is active
+        end
+
         -- player
         for now in helper.frame_between(starts, ends) do
-            local vid = streams.get_stream(url, audio)
+            local vid = streams.get_stream(url, audio)  -- Retrieve the stream
             if vid then
-                screen.place_video(vid, layer, 1, x1, y1, x2, y2)
+                screen.place_video(vid, layer, 1, x1, y1, x2, y2)  -- Play the stream
             end
         end
     end
@@ -1493,7 +1511,6 @@ end
 
 local function Scheduler(page_source, job_queue)
     local SCHEDULE_LOOKAHEAD = 2
-
     local scheduled_until = sys.now()
 
     local showing_fallback = false
@@ -1715,7 +1732,7 @@ local function PageSource()
 
         for _, schedule in ipairs(schedules) do
             for _, page in ipairs(schedule.pages) do
-                page.is_fallback = false
+                local page = Page(page)
                 if page.duration == -1 then
                     -- disabled page? then remove it
                     table.remove(schedule.pages, page_id)
@@ -2127,14 +2144,16 @@ local function init_streams(config)
         for _, page in ipairs(schedule.pages) do
             for _, tile in ipairs(page.tiles) do
                 if tile.type == "stream" and tile.config.url then
-                    -- Pre-initialize the stream
-                    streams.get_stream(tile.config.url, tile.config.audio)
+                    -- Pre-initialize the stream and keep it running
+                    local stream = streams.get_stream(tile.config.url, tile.config.audio)
+                    stream:start()  -- Ensure the stream is running
                 end
             end
         end
     end
 end
 
+-- Add to your config update handler
 util.json_watch("config.json", function(config)
     init_streams(config)  -- Initialize streams when config is loaded
     node.dispatch("config_updated", config)
@@ -2174,7 +2193,6 @@ function node.render()
     FontCache.tick()
     ImageCache.tick()
     screen.setup()
-
     gl.clear(background.r, background.g, background.b, background.a)
 
     local now = sys.now()
