@@ -77,8 +77,6 @@ local function Music()
             }
         end
     end)
-
-    return music
 end
 
 local music = Music()
@@ -320,7 +318,7 @@ local function Clock()
         day_of_week = function()
             return time.dow
         end;
-        since_midnight = since_midnight,
+        since_midnight = since_midnight;
         today = function()
             return {
                 day = time.day;
@@ -745,7 +743,7 @@ local function VideoTile(asset, config, x1, y1, x2, y2)
     }
 
     return function(starts, ends)
-        helper.wait_t(starts - 3)
+        helper.wait_t(starts - 2)
 
         local vid = resource.load_video{
             file = file,
@@ -753,14 +751,6 @@ local function VideoTile(asset, config, x1, y1, x2, y2)
             looped = looped,
             audio = audio,
         }
-
-        -- force load
-        streams.get_stream(file, audio, true)
-
-        -- keepalive before start
-        for now in helper.frame_between(0, starts) do
-            streams.get_stream(file, audio)
-        end
 
         for now in helper.frame_between(starts, ends) do
             if transparency then
@@ -828,6 +818,7 @@ local function Streams()
     local function get_stream(url, audio)
         local key = stream_key(url, audio)
         if not streams[key] then
+            -- Initialize the stream only once
             streams[key] = {
                 vid = resource.load_video{
                     file = url,
@@ -840,6 +831,7 @@ local function Streams()
             -- Keep stream running but hidden
             streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
         end
+
         streams[key].last_used = frame
         return streams[key].vid
     end
@@ -853,6 +845,7 @@ local function Streams()
 
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
+            -- Increase this value significantly, maybe 300 frames or more
             if frame_delta > 300 then  -- About 5 seconds at 60fps
                 print("[stream] disposing stream", stream.url)
                 if stream.vid then
@@ -876,21 +869,11 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local audio = config.audio
 
     return function(starts, ends)
-        helper.wait_t(starts - 1)  -- Wait until the start time
-
-        -- force load
-        streams.get_stream(url, audio, true)  -- Initialize the stream
-
-        -- keepalive before start
-        for now in helper.frame_between(0, starts) do
-            streams.get_stream(url, audio)  -- Ensure the stream is active
-        end
-
         -- player
         for now in helper.frame_between(starts, ends) do
-            local vid = streams.get_stream(url, audio)  -- Retrieve the stream
+            local vid = streams.get_stream(url, audio)
             if vid then
-                screen.place_video(vid, layer, 1, x1, y1, x2, y2)  -- Play the stream
+                screen.place_video(vid, layer, 1, x1, y1, x2, y2)
             end
         end
     end
@@ -1511,6 +1494,7 @@ end
 
 local function Scheduler(page_source, job_queue)
     local SCHEDULE_LOOKAHEAD = 2
+
     local scheduled_until = sys.now()
 
     local showing_fallback = false
@@ -1731,8 +1715,9 @@ local function PageSource()
         schedules = config.schedules
 
         for _, schedule in ipairs(schedules) do
-            for _, page in ipairs(schedule.pages) do
-                local page = Page(page)
+            for page_id = #schedule.pages, 1, -1 do
+                local page = schedule.pages[page_id]
+                page.is_fallback = false
                 if page.duration == -1 then
                     -- disabled page? then remove it
                     table.remove(schedule.pages, page_id)
@@ -2144,9 +2129,8 @@ local function init_streams(config)
         for _, page in ipairs(schedule.pages) do
             for _, tile in ipairs(page.tiles) do
                 if tile.type == "stream" and tile.config.url then
-                    -- Pre-initialize the stream and keep it running
-                    local stream = streams.get_stream(tile.config.url, tile.config.audio)
-                    stream:start()  -- Ensure the stream is running
+                    -- Pre-initialize the stream
+                    streams.get_stream(tile.config.url, tile.config.audio)
                 end
             end
         end
@@ -2193,6 +2177,7 @@ function node.render()
     FontCache.tick()
     ImageCache.tick()
     screen.setup()
+
     gl.clear(background.r, background.g, background.b, background.a)
 
     local now = sys.now()
