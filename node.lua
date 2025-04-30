@@ -2249,7 +2249,7 @@ function node.render()
     streams.tick()
     FontCache.tick()
     ImageCache.tick()
-    Scroller.tick()
+    -- Scroller.tick()
     screen.setup()
 
     gl.clear(background.r, background.g, background.b, background.a)
