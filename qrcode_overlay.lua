@@ -39,56 +39,16 @@ local function generate_qr_code_file(data)
     if not qrencode then
         debug_print("Loading qrencode module")
         
-        local file, err = io.open(base_dir .. "qrencode.lua", "r")
-        if not file then
-            debug_print("ERROR: Could not open qrencode.lua file: " .. tostring(err))
-            return false
-        end
-        
-        debug_print("Reading qrencode.lua file content")
-        local content = file:read("*all")
-        file:close()
-        
-        if not content or #content == 0 then
-            debug_print("ERROR: qrencode.lua file is empty or couldn't be read")
-            return false
-        end
-        
-        debug_print("File size is " .. #content .. " bytes")
-        
         -- Try loading the module directly with require
         debug_print("Attempting to load qrencode with require")
-        local success, module = pcall(function() return require("qrencode") end)
+        local success, result = pcall(function() return require("qrencode") end)
         
-        if success and module then
+        if success and result then
             debug_print("Successfully loaded qrencode with require")
-            qrencode = module
+            qrencode = result
         else
-            debug_print("Failed to load with require: " .. tostring(module))
-            
-            -- Fall back to parse manually with load()
-            debug_print("Parsing qrencode.lua with load()")
-            local chunk, err = load(content, "qrencode", "t", _G)
-            if not chunk then
-                debug_print("ERROR: Failed to parse qrencode.lua: " .. tostring(err))
-                return false
-            end
-            
-            debug_print("Executing qrencode module")
-            local ok, module_result = pcall(chunk)
-            if not ok then
-                debug_print("ERROR: Failed to execute qrencode module: " .. tostring(module_result))
-                return false
-            end
-            
-            qrencode = module_result
-            
-            if not qrencode then
-                debug_print("ERROR: qrencode module loader returned nil")
-                return false
-            end
-            
-            debug_print("Loaded qrencode module, type: " .. type(qrencode))
+            debug_print("Failed to load with require: " .. tostring(result))
+            return false
         end
         
         -- Verify the module has the qrcode function
@@ -125,58 +85,30 @@ local function generate_qr_code_file(data)
     
     debug_print("QR matrix generated successfully, size: " .. #matrix .. "x" .. #matrix[1])
     
-    local filepath = base_dir .. "qr_matrix.txt"
-    debug_print("Writing QR matrix to file: " .. filepath)
+    -- Save the matrix directly as a Lua table - no file I/O needed
+    -- Convert to a simple representation
+    local qr_matrix = {}
+    for y = 1, #matrix do
+        qr_matrix[y] = {}
+        for x = 1, #matrix[y] do
+            qr_matrix[y][x] = matrix[y][x] > 0 and 1 or 0
+        end
+    end
     
-    local file, err = io.open(filepath, "w")
-    if not file then
-        debug_print("ERROR: Failed to open file for writing: " .. filepath .. " - " .. tostring(err))
+    debug_print("Successfully created QR code matrix in memory")
+    
+    -- Draw the QR code directly without saving to a file
+    qr_draw_function = convert_qr_to_image(qr_matrix)
+    if qr_draw_function then
+        debug_print("QR draw function created successfully")
+        return true
+    else
+        debug_print("ERROR: Failed to create QR draw function")
         return false
     end
-    
-    for y = 1, #matrix do
-        local row = ""
-        for x = 1, #matrix[y] do
-            row = row .. (matrix[y][x] > 0 and "1" or "0")
-        end
-        file:write(row .. "\n")
-    end
-    file:close()
-    
-    debug_print("Successfully saved QR code matrix to " .. filepath)
-    return true
 end
 
--- Function to read QR matrix from file
-local function read_qr_matrix(file_path)
-    debug_print("Reading QR matrix from file: " .. file_path)
-    
-    local qr_matrix = {}
-    local file, err = io.open(file_path, "r")
-    if not file then
-        debug_print("ERROR: Failed to open QR matrix file: " .. file_path .. " - " .. tostring(err))
-        return nil
-    end
-
-    for line in file:lines() do
-        local row = {}
-        for char in line:gmatch(".") do
-            table.insert(row, char == "1" and 1 or 0)  -- Convert '1' to 1 and '0' to 0
-        end
-        table.insert(qr_matrix, row)
-    end
-    file:close()
-    
-    if #qr_matrix == 0 then
-        debug_print("ERROR: QR matrix is empty")
-        return nil
-    end
-    
-    debug_print("Successfully read QR matrix, size: " .. #qr_matrix .. "x" .. #qr_matrix[1])
-    return qr_matrix
-end
-
--- Function to convert ASCII QR matrix to image
+-- Function to convert QR matrix to image
 local function convert_qr_to_image(qr_matrix)
     debug_print("Converting QR matrix to drawable function")
     
@@ -260,35 +192,17 @@ function M.handle_remote_trigger(data)
         debug_print("QR code generation result: " .. tostring(qr_generated))
         
         if qr_generated then
-            -- Read the QR matrix
-            debug_print("Starting QR matrix reading")
-            local qr_matrix = read_qr_matrix(base_dir .. "qr_matrix.txt")
-            debug_print("QR matrix reading result: " .. tostring(qr_matrix ~= nil))
+            -- Set flag to show QR code
+            show_qr_code = true
+            debug_print("Setting show_qr_code flag to true")
             
-            if qr_matrix then
-                -- Convert to drawing function
-                debug_print("Creating QR draw function")
-                qr_draw_function = convert_qr_to_image(qr_matrix)
-                debug_print("QR draw function created: " .. tostring(qr_draw_function ~= nil))
-                
-                if qr_draw_function then
-                    -- Set flag to show QR code
-                    show_qr_code = true
-                    debug_print("Setting show_qr_code flag to true")
-                    
-                    -- Set expiry time
-                    qr_expiry_time = sys.now() + QR_DISPLAY_DURATION
-                    debug_print("QR code ready to display for " .. QR_DISPLAY_DURATION .. " seconds")
-                    debug_print("QR code state: show_qr_code=" .. tostring(show_qr_code) .. ", qr_draw_function_exists=" .. tostring(qr_draw_function ~= nil))
-                    return true
-                else
-                    debug_print("ERROR: Failed to create QR draw function")
-                end
-            else
-                debug_print("ERROR: Failed to read QR matrix")
-            end
+            -- Set expiry time
+            qr_expiry_time = sys.now() + QR_DISPLAY_DURATION
+            debug_print("QR code ready to display for " .. QR_DISPLAY_DURATION .. " seconds")
+            debug_print("QR code state: show_qr_code=" .. tostring(show_qr_code) .. ", qr_draw_function_exists=" .. tostring(qr_draw_function ~= nil))
+            return true
         else
-            debug_print("ERROR: Failed to generate QR code file")
+            debug_print("ERROR: Failed to generate QR code")
         end
     else
         debug_print("Trigger " .. data .. " is not handled by QR code module")
