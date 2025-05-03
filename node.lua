@@ -1646,14 +1646,8 @@ local function Scheduler(page_source, job_queue)
         local qr_result = qrcode_overlay.handle_remote_trigger(remote)
         print("QR code handling result:", qr_result)
         
-        -- Process normal page navigation
-        local pages = page_source.find_by_remote(remote)
-        if not pages then
-            print("No pages found for remote trigger:", remote)
-            return
-        end
-        print("Enqueuing pages for remote trigger:", remote)
-        enqueue_interactive(pages)
+        -- Call the scheduler handler for regular page display
+        return scheduler.handle_remote_trigger(remote)
     end
 
     local function handle_cec(cec_key)
@@ -2169,6 +2163,13 @@ util.data_mapper{
         return scheduler.handle_gpio(event)
     end,
     ["remote/trigger"] = function(data)
+        print("Remote trigger received:", data)
+        
+        -- Try to handle the trigger with the QR code module first
+        local qr_result = qrcode_overlay.handle_remote_trigger(data)
+        print("QR code handling result:", qr_result)
+        
+        -- Call the scheduler handler for regular page display
         return scheduler.handle_remote_trigger(data)
     end,
     ["sys/cec/key"] = scheduler.handle_cec,
@@ -2207,11 +2208,17 @@ function node.render()
     local marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
     marker:draw(10, 10, 30, 30)  -- Small red square in corner to confirm rendering is working
     
+    -- Print QR status more frequently during testing
+    if math.floor(now) % 2 == 0 then
+        print("DEBUG RENDER: QR display attempt at", os.date("%H:%M:%S"))
+    end
+    
     -- Try to draw the QR code
     local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
     
     -- Print debugging info every few seconds
     if math.floor(now) % 5 == 0 then
-        print("DEBUG RENDER: QR code drawn: " .. tostring(drawn))
+        print("DEBUG RENDER: QR code drawn:", tostring(drawn))
+        print("DEBUG RENDER: Marker drawn at position 10,10 (check for red square)")
     end
 end
