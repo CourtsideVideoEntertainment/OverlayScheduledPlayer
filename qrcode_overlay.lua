@@ -213,36 +213,12 @@ end
 
 -- Function to check if QR code should be displayed
 function M.show_qr()
-    local now = sys.now()
-    
-    -- Debug state information on first call and every few seconds
-    if M.last_check_time == nil or now - M.last_check_time > 3 then
-        debug_print("Checking QR display status: show_flag=" .. tostring(show_qr_code) .. 
-                   ", draw_func=" .. tostring(qr_draw_function ~= nil))
-        
-        if show_qr_code and qr_draw_function ~= nil then
-            if now > qr_expiry_time then
-                debug_print("QR code expired, time now: " .. tostring(now) .. ", expiry: " .. tostring(qr_expiry_time))
-            else
-                debug_print("QR code valid, remaining time: " .. tostring(math.floor(qr_expiry_time - now)) .. " seconds")
-            end
-        end
-        
-        M.last_check_time = now
-    end
-    
-    -- Check if code should be displayed
     if show_qr_code and qr_draw_function ~= nil then
-        if now > qr_expiry_time then
-            debug_print("QR code display expired, hiding QR code")
-            show_qr_code = false
-            return false
-        end
-        
         debug_print("QR code is ready to be displayed")
         return true
     end
-    
+    debug_print("QR code not ready to be displayed. show_qr_code=" .. tostring(show_qr_code) .. 
+                ", qr_draw_function=" .. tostring(qr_draw_function ~= nil))
     return false
 end
 
