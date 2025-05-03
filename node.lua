@@ -1646,12 +1646,25 @@ local function Scheduler(page_source, job_queue)
         local qr_result = qrcode_overlay.handle_remote_trigger(remote)
         print("QR code handling result:", qr_result)
         
-        -- Process normal page navigation
+        -- Process normal page navigation regardless of QR code result
+        -- The QR code will overlay on top of whatever page is shown
         local pages = page_source.find_by_remote(remote)
         if not pages then
-            return false
+            print("No pages found for remote trigger:", remote)
+            -- Even if no page is found, if QR code was activated, consider it a success
+            return qr_result
         end
+        
+        print("Found pages for remote trigger:", remote, "#pages:", #pages)
+        if pages[1].title then
+            print("First page title:", pages[1].title)
+        end
+        
+        -- Reset the scheduler and enqueue the found pages
+        reset_scheduler()
         enqueue_interactive(pages)
+        
+        -- Success if either QR code or page navigation worked
         return true
     end
 
@@ -2174,8 +2187,26 @@ util.data_mapper{
         local qr_result = qrcode_overlay.handle_remote_trigger(data)
         print("QR code handling result:", qr_result)
         
-        -- Call the scheduler handler for regular page display
-        return scheduler.handle_remote_trigger(data)
+        -- Process normal page navigation regardless of QR code result
+        -- The QR code will overlay on top of whatever page is shown
+        local pages = page_source.find_by_remote(data)
+        if not pages then
+            print("No pages found for remote trigger:", data)
+            -- Even if no page is found, if QR code was activated, consider it a success
+            return qr_result
+        end
+        
+        print("Found pages for remote trigger:", data, "#pages:", #pages)
+        if pages[1].title then
+            print("First page title:", pages[1].title)
+        end
+        
+        -- Reset the scheduler and enqueue the found pages
+        reset_scheduler()
+        enqueue_interactive(pages)
+        
+        -- Success if either QR code or page navigation worked
+        return true
     end,
     ["sys/cec/key"] = scheduler.handle_cec,
     ["plugin/(.*)/(.*)"] = function(tile_name, path, data)
@@ -2204,26 +2235,37 @@ function node.render()
 
     dispatch_to_all_tiles("overlay")
     
-    -- Draw QR code after everything else if needed
-    -- Show QR code at the center of the screen for maximum visibility
-    local qr_x = NATIVE_WIDTH / 2 - 370  -- Center horizontally (370 is approximate QR width with border)
-    local qr_y = NATIVE_HEIGHT / 2 - 370 -- Center vertically (370 is approximate QR height with border)
+    -- Always check QR code status before drawing
+    local should_show_qr = qrcode_overlay.show_qr()
+    
+    -- Debug QR display state every second
+    if math.floor(now) % 1 == 0 then
+        print("DEBUG: QR should show:", tostring(should_show_qr), "at time", os.date("%H:%M:%S"))
+    end
     
     -- Draw a test marker to verify rendering is working (small red dot in corner)
     local marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
     marker:draw(10, 10, 30, 30)  -- Small red square in corner to confirm rendering is working
     
-    -- Print QR status more frequently during testing
-    if math.floor(now) % 2 == 0 then
-        print("DEBUG RENDER: QR display attempt at", os.date("%H:%M:%S"))
+    -- Draw another marker with a different color to verify z-ordering
+    local marker2 = resource.create_colored_texture(0, 1, 0, 1) -- Green square
+    marker2:draw(40, 10, 60, 30) -- Another colored square to confirm rendering
+    
+    if should_show_qr then
+        -- Show QR code at the center of the screen for maximum visibility
+        local qr_x = NATIVE_WIDTH / 2 - 370  -- Center horizontally (370 is approximate QR width with border)
+        local qr_y = NATIVE_HEIGHT / 2 - 370 -- Center vertically (370 is approximate QR height with border)
+        
+        -- Try to draw the QR code and report result
+        local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
+        
+        -- Always print QR draw attempts when QR should be shown
+        print("DEBUG RENDER: QR code draw attempt result:", tostring(drawn), "at position", qr_x, qr_y)
     end
     
-    -- Try to draw the QR code
-    local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
-    
-    -- Print debugging info every few seconds
+    -- Print additional debug info every 5 seconds
     if math.floor(now) % 5 == 0 then
-        print("DEBUG RENDER: QR code drawn:", tostring(drawn))
-        print("DEBUG RENDER: Marker drawn at position 10,10 (check for red square)")
+        print("DEBUG RENDER: Marker drawn at position 10,10 (red) and 40,10 (green)")
+        print("DEBUG RENDER: Screen dimensions", NATIVE_WIDTH, "x", NATIVE_HEIGHT)
     end
 end
