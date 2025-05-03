@@ -1643,13 +1643,16 @@ local function Scheduler(page_source, job_queue)
         print("Remote trigger received:", remote)
         
         -- Try to handle the trigger with the QR code module first
-        qrcode_overlay.handle_remote_trigger(remote)
+        local qr_result = qrcode_overlay.handle_remote_trigger(remote)
+        print("QR code handling result:", qr_result)
         
         -- Process normal page navigation
         local pages = page_source.find_by_remote(remote)
         if not pages then
+            print("No pages found for remote trigger:", remote)
             return
         end
+        print("Enqueuing pages for remote trigger:", remote)
         enqueue_interactive(pages)
     end
 

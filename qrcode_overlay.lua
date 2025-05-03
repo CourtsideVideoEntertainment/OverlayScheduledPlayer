@@ -182,6 +182,7 @@ end
 -- Function to draw QR code at specified position
 function M.draw_qr(x, y)
     if not show_qr_code then
+        print("DEBUG: QR code not set to show")
         return false
     end
     
@@ -195,11 +196,7 @@ function M.draw_qr(x, y)
         show_qr_code = false
         return false
     else
-        -- Debug print every 60 frames to avoid log spam
-        if math.floor(sys.now()) % 5 == 0 then
-            print("DEBUG: Drawing QR code, expires in: " .. math.floor(qr_expiry_time - sys.now()) .. " seconds")
-        end
-        
+        print("DEBUG: Drawing QR code at position: " .. x .. "," .. y)
         qr_draw_function(x, y)
         return true
     end
