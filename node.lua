@@ -1646,8 +1646,13 @@ local function Scheduler(page_source, job_queue)
         local qr_result = qrcode_overlay.handle_remote_trigger(remote)
         print("QR code handling result:", qr_result)
         
-        -- Call the scheduler handler for regular page display
-        return scheduler.handle_remote_trigger(remote)
+        -- Process normal page navigation
+        local pages = page_source.find_by_remote(remote)
+        if not pages then
+            return false
+        end
+        enqueue_interactive(pages)
+        return true
     end
 
     local function handle_cec(cec_key)
