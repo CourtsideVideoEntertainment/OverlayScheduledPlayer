@@ -21,22 +21,21 @@ _G.resource = {
     
     read_file = function(path)
         print("Reading file content from: " .. path)
-        -- Mock the qrencode module content
+        -- Create a simpler qrencode module content
         return [[
-            return {
-                qrcode = function(data)
-                    print("Generating QR code for: " .. data)
-                    -- Return a mock 10x10 QR matrix
-                    local matrix = {}
-                    for i = 1, 10 do
-                        matrix[i] = {}
-                        for j = 1, 10 do
-                            matrix[i][j] = (i+j) % 2
-                        end
+            local M = {}
+            M.qrcode = function(data)
+                print("Simple qrencode module: Generating QR for: " .. data)
+                local matrix = {}
+                for i = 1, 10 do
+                    matrix[i] = {}
+                    for j = 1, 10 do
+                        matrix[i][j] = (i+j) % 2 
                     end
-                    return true, matrix
                 end
-            }
+                return true, matrix
+            end
+            return M
         ]]
     end,
     
@@ -53,22 +52,14 @@ _G.resource = {
 
 -- Add global function needed for qrencode loading
 _G.loadstring = function(code)
-    print("Loading string as Lua code")
-    local mock_qrencode = {
-        qrcode = function(data)
-            print("Mock qrencode.qrcode called with: " .. data)
-            -- Return a mock 10x10 QR matrix
-            local matrix = {}
-            for i = 1, 10 do
-                matrix[i] = {}
-                for j = 1, 10 do
-                    matrix[i][j] = (i+j) % 2
-                end
-            end
-            return true, matrix
-        end
-    }
-    return function() return mock_qrencode end
+    print("Loading string as Lua code, length: " .. #code)
+    -- Parse the Lua code and execute it
+    local chunk, err = load(code, "qrencode", "t", _G)
+    if not chunk then
+        print("ERROR loading string: " .. tostring(err))
+        return nil
+    end
+    return chunk
 end
 
 _G.sys = { 
@@ -78,7 +69,9 @@ _G.sys = {
 }
 
 -- Now require the overlay module
+print("Loading qrcode_overlay module...")
 local qrcode_overlay = require "qrcode_overlay"
+print("qrcode_overlay module loaded successfully")
 
 print("Starting QR code test...")
 
