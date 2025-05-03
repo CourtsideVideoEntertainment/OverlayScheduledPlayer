@@ -2192,3 +2192,70 @@ function node.render()
 
     dispatch_to_all_tiles("overlay")
 end
+
+local function read_qr_matrix(file_path)
+    local qr_matrix = {}
+    local file = io.open(file_path, "r")
+    if not file then
+        print("Failed to open QR matrix file")
+        return nil
+    end
+
+    for line in file:lines() do
+        local row = {}
+        for char in line:gmatch(".") do
+            table.insert(row, char == "1" and 1 or 0)  -- Convert '1' to 1 and '0' to 0
+        end
+        table.insert(qr_matrix, row)
+    end
+    file:close()
+    return qr_matrix
+end
+
+local function convert_ascii_to_image(qr_matrix)
+    local qr_size = 10  -- Size of each QR code module
+    local width = #qr_matrix[1] * qr_size
+    local height = #qr_matrix * qr_size
+
+    -- Create a new image
+    local img = resource.create_image(width, height)
+
+    -- Draw the QR code on the image
+    for i = 1, #qr_matrix do
+        for j = 1, #qr_matrix[i] do
+            if qr_matrix[i][j] == 1 then  -- Draw black square for '1'
+                img:draw((j - 1) * qr_size, (i - 1) * qr_size, qr_size, qr_size, 0, 0, 0, 1)  -- Black
+            end
+        end
+    end
+
+    return img
+end
+
+local function display_image_with_qr(asset_name, trigger_id)
+    -- Check if the trigger ID matches the desired ID (e.g., 3)
+    if trigger_id ~= 3 then
+        print("Trigger ID does not match. QR code will not be displayed.")
+        return
+    end
+
+    -- Load the background image
+    local background_image = resource.load_image(asset_name)
+
+    -- Draw the background image
+    background_image:draw(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT)
+
+    -- Read the QR matrix from the text file
+    local qr_matrix = read_qr_matrix("qr_matrix.txt")
+    if not qr_matrix then return end
+
+    -- Convert ASCII QR code to image
+    local qr_image = convert_ascii_to_image(qr_matrix)
+
+    -- Draw the QR code image on top of the background
+    qr_image:draw(50, 50, qr_image.width, qr_image.height)  -- Position the QR code at (50, 50)
+end
+
+-- Call this function where you want to display the image with the QR code
+-- Pass the trigger ID as an argument
+display_image_with_qr("your_image_asset.png", 3)  -- Change the second argument to test with different IDs
