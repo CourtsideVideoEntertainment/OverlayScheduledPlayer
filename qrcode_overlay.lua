@@ -31,6 +31,65 @@ local function format_timestamp()
         timestamp.day, timestamp.month, timestamp.year % 100, timestamp.hour, timestamp.min)
 end
 
+-- Function to convert QR matrix to image (must be defined before generate_qr_code_file)
+local function convert_qr_to_image(qr_matrix)
+    debug_print("Converting QR matrix to drawable function")
+    
+    -- Increase the size for better visibility
+    local qr_size = 20  -- Increased from 10 to 20 for better visibility
+    local width = #qr_matrix[1] * qr_size
+    local height = #qr_matrix * qr_size
+    
+    debug_print("QR image dimensions: " .. width .. "x" .. height)
+
+    -- Create textures for QR code rendering
+    local bg, img, black_pixel, font
+    
+    local success, err = pcall(function()
+        -- Create a white background with black QR code
+        bg = resource.create_colored_texture(0, 0, 0, 0.7)  -- Semi-transparent dark background
+        img = resource.create_colored_texture(1, 1, 1, 1)    -- White background
+        black_pixel = resource.create_colored_texture(0, 0, 0, 1)  -- Black pixel
+        font = resource.load_font("default-font.ttf")
+        return true
+    end)
+    
+    if not success then
+        debug_print("ERROR: Failed to create resources: " .. tostring(err))
+        return nil
+    end
+    
+    debug_print("Created QR code textures successfully")
+
+    return function(x, y)
+        debug_print("Drawing QR code at position: " .. x .. "," .. y)
+        
+        -- Draw semi-transparent background behind the QR code
+        local border = 40
+        local title_height = 60
+        
+        -- Draw background with extra space for title
+        bg:draw(x - border, y - border - title_height, x + width + border, y + height + border)
+        
+        -- Draw white background for the QR code
+        img:draw(x, y, x + width, y + height)
+        
+        -- Draw title text
+        font:write(x + width/2 - 100, y - title_height + 10, "Scan QR Code", 36, 1, 1, 1, 1)
+        
+        -- Position the QR code at (x, y)
+        for i = 1, #qr_matrix do
+            for j = 1, #qr_matrix[i] do
+                if qr_matrix[i][j] == 1 then  -- Draw black square for '1'
+                    black_pixel:draw(x + (j-1) * qr_size, y + (i-1) * qr_size, x + j * qr_size, y + i * qr_size)
+                end
+            end
+        end
+        
+        debug_print("QR code drawing completed")
+    end
+end
+
 -- Function to generate QR code and save it to a file
 local function generate_qr_code_file(data)
     debug_print("Attempting to generate QR code for: " .. data)
@@ -105,65 +164,6 @@ local function generate_qr_code_file(data)
     else
         debug_print("ERROR: Failed to create QR draw function")
         return false
-    end
-end
-
--- Function to convert QR matrix to image
-local function convert_qr_to_image(qr_matrix)
-    debug_print("Converting QR matrix to drawable function")
-    
-    -- Increase the size for better visibility
-    local qr_size = 20  -- Increased from 10 to 20 for better visibility
-    local width = #qr_matrix[1] * qr_size
-    local height = #qr_matrix * qr_size
-    
-    debug_print("QR image dimensions: " .. width .. "x" .. height)
-
-    -- Create textures for QR code rendering
-    local bg, img, black_pixel, font
-    
-    local success, err = pcall(function()
-        -- Create a white background with black QR code
-        bg = resource.create_colored_texture(0, 0, 0, 0.7)  -- Semi-transparent dark background
-        img = resource.create_colored_texture(1, 1, 1, 1)    -- White background
-        black_pixel = resource.create_colored_texture(0, 0, 0, 1)  -- Black pixel
-        font = resource.load_font("default-font.ttf")
-        return true
-    end)
-    
-    if not success then
-        debug_print("ERROR: Failed to create resources: " .. tostring(err))
-        return nil
-    end
-    
-    debug_print("Created QR code textures successfully")
-
-    return function(x, y)
-        debug_print("Drawing QR code at position: " .. x .. "," .. y)
-        
-        -- Draw semi-transparent background behind the QR code
-        local border = 40
-        local title_height = 60
-        
-        -- Draw background with extra space for title
-        bg:draw(x - border, y - border - title_height, x + width + border, y + height + border)
-        
-        -- Draw white background for the QR code
-        img:draw(x, y, x + width, y + height)
-        
-        -- Draw title text
-        font:write(x + width/2 - 100, y - title_height + 10, "Scan QR Code", 36, 1, 1, 1, 1)
-        
-        -- Position the QR code at (x, y)
-        for i = 1, #qr_matrix do
-            for j = 1, #qr_matrix[i] do
-                if qr_matrix[i][j] == 1 then  -- Draw black square for '1'
-                    black_pixel:draw(x + (j-1) * qr_size, y + (i-1) * qr_size, x + j * qr_size, y + i * qr_size)
-                end
-            end
-        end
-        
-        debug_print("QR code drawing completed")
     end
 end
 
