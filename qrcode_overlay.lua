@@ -10,6 +10,9 @@ local qr_expiry_time = 0
 local QR_DISPLAY_DURATION = 60  -- Show QR code for 60 seconds
 local qrencode = {}  -- Initialize empty table for qrencode module
 
+-- Get the base directory path
+local base_dir = "./"  -- Use relative path in the current directory
+
 -- Function to format current time as DDMMYYHHMM
 local function format_timestamp()
     local time = os.date("*t")
@@ -19,20 +22,32 @@ end
 
 -- Function to generate QR code and save it to a file
 local function generate_qr_code_file(data)
+    print("DEBUG: Attempting to generate QR code for: " .. data)
+    
     -- Load the qrencode module if not already loaded
     if not qrencode.qrcode then
-        qrencode = dofile("qrencode.lua")
+        print("DEBUG: Loading qrencode module")
+        qrencode = dofile(base_dir .. "qrencode.lua")
+        if not qrencode or not qrencode.qrcode then
+            print("ERROR: Failed to load qrencode module")
+            return false
+        end
     end
     
     local ok, matrix = qrencode.qrcode(data)
     if not ok then
-        print("QR code generation failed:", matrix)
+        print("ERROR: QR code generation failed:", matrix)
         return false
     end
     
-    local file = io.open("qr_matrix.txt", "w")
+    print("DEBUG: QR matrix generated successfully, size: " .. #matrix .. "x" .. #matrix[1])
+    
+    local filepath = base_dir .. "qr_matrix.txt"
+    print("DEBUG: Writing QR matrix to file: " .. filepath)
+    
+    local file = io.open(filepath, "w")
     if not file then
-        print("Failed to open file for writing")
+        print("ERROR: Failed to open file for writing: " .. filepath)
         return false
     end
     
@@ -45,16 +60,18 @@ local function generate_qr_code_file(data)
     end
     file:close()
     
-    print("Saved QR code matrix to qr_matrix.txt")
+    print("DEBUG: Successfully saved QR code matrix to " .. filepath)
     return true
 end
 
 -- Function to read QR matrix from file
 local function read_qr_matrix(file_path)
+    print("DEBUG: Reading QR matrix from file: " .. file_path)
+    
     local qr_matrix = {}
     local file = io.open(file_path, "r")
     if not file then
-        print("Failed to open QR matrix file")
+        print("ERROR: Failed to open QR matrix file: " .. file_path)
         return nil
     end
 
@@ -66,22 +83,42 @@ local function read_qr_matrix(file_path)
         table.insert(qr_matrix, row)
     end
     file:close()
+    
+    print("DEBUG: Successfully read QR matrix, size: " .. #qr_matrix .. "x" .. #qr_matrix[1])
     return qr_matrix
 end
 
 -- Function to convert ASCII QR matrix to image
 local function convert_qr_to_image(qr_matrix)
-    local qr_size = 5  -- Size of each QR code module (smaller for top left corner)
+    print("DEBUG: Converting QR matrix to drawable function")
+    
+    -- Increase the size for better visibility
+    local qr_size = 20  -- Increased from 10 to 20 for even better visibility
     local width = #qr_matrix[1] * qr_size
     local height = #qr_matrix * qr_size
+    
+    print("DEBUG: QR image dimensions: " .. width .. "x" .. height)
 
     -- Create a white background with black QR code
-    local img = resource.create_colored_texture(1, 1, 1, 1)  -- White background
+    local bg = resource.create_colored_texture(0, 0, 0, 0.7)  -- Semi-transparent dark background
+    local img = resource.create_colored_texture(1, 1, 1, 1)    -- White background
     local black_pixel = resource.create_colored_texture(0, 0, 0, 1)  -- Black pixel
+    local title = "Scan QR Code"
 
     return function(x, y)
+        -- Draw semi-transparent background behind the QR code
+        local border = 40
+        local title_height = 60
+        
+        -- Draw background with extra space for title
+        bg:draw(x - border, y - border - title_height, x + width + border, y + height + border)
+        
         -- Draw white background for the QR code
-        img:draw(x, y, x + width, y + height)
+        img:draw(x - border/2, y - border/2, x + width + border/2, y + height + border/2)
+        
+        -- Draw title text
+        local font = resource.create_font("default-font.ttf")
+        font:write(x + width/2 - 100, y - title_height + 10, title, 36, 1, 1, 1, 1)
         
         -- Position the QR code at (x, y)
         for i = 1, #qr_matrix do
@@ -91,22 +128,29 @@ local function convert_qr_to_image(qr_matrix)
                 end
             end
         end
+        
+        -- Debug print to confirm drawing
+        print("DEBUG: Drawing QR code at position: " .. x .. "," .. y)
     end
 end
 
 -- Function to handle remote trigger 3 and generate QR code
 function M.handle_remote_trigger(data)
+    print("DEBUG: Handle remote trigger called with data: " .. data)
+    
     if data == "3" then
-        print("Trigger 3 activated: Generating QR code")
+        print("DEBUG: Trigger 3 activated: Generating QR code")
         
         -- Generate a URL with current timestamp
         local timestamp = format_timestamp()
         local url = "http://activations.courtsidevideo.com?asset_id=12345&timestamp=" .. timestamp .. "&tile_id=7890"
         
+        print("DEBUG: Generated URL for QR code: " .. url)
+        
         -- Generate QR code and save to file
         if generate_qr_code_file(url) then
             -- Read the QR matrix
-            local qr_matrix = read_qr_matrix("qr_matrix.txt")
+            local qr_matrix = read_qr_matrix(base_dir .. "qr_matrix.txt")
             if qr_matrix then
                 -- Convert to drawing function
                 qr_draw_function = convert_qr_to_image(qr_matrix)
@@ -114,9 +158,13 @@ function M.handle_remote_trigger(data)
                 show_qr_code = true
                 -- Set expiry time
                 qr_expiry_time = sys.now() + QR_DISPLAY_DURATION
-                print("QR code ready to display for", QR_DISPLAY_DURATION, "seconds")
+                print("DEBUG: QR code ready to display for", QR_DISPLAY_DURATION, "seconds")
                 return true
+            else
+                print("ERROR: Failed to read QR matrix")
             end
+        else
+            print("ERROR: Failed to generate QR code file")
         end
     end
     return false
@@ -124,22 +172,37 @@ end
 
 -- Function to check if QR code should be displayed
 function M.show_qr()
-    return show_qr_code and qr_draw_function ~= nil
+    if show_qr_code and qr_draw_function ~= nil then
+        print("DEBUG: QR code is ready to be displayed")
+        return true
+    end
+    return false
 end
 
 -- Function to draw QR code at specified position
 function M.draw_qr(x, y)
-    if show_qr_code and qr_draw_function then
-        if sys.now() > qr_expiry_time then
-            show_qr_code = false
-            print("QR code display time expired")
-            return false
-        else
-            qr_draw_function(x, y)
-            return true
-        end
+    if not show_qr_code then
+        return false
     end
-    return false
+    
+    if not qr_draw_function then
+        print("ERROR: QR draw function is nil")
+        return false
+    end
+    
+    if sys.now() > qr_expiry_time then
+        print("DEBUG: QR code display time expired")
+        show_qr_code = false
+        return false
+    else
+        -- Debug print every 60 frames to avoid log spam
+        if math.floor(sys.now()) % 5 == 0 then
+            print("DEBUG: Drawing QR code, expires in: " .. math.floor(qr_expiry_time - sys.now()) .. " seconds")
+        end
+        
+        qr_draw_function(x, y)
+        return true
+    end
 end
 
 return M 
