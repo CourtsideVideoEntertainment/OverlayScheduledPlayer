@@ -11,8 +11,65 @@ _G.resource = {
                     x1, y1, x2, y2, alpha))
             end
         }
+    end,
+    
+    -- Added functions to support the updated qrcode_overlay.lua
+    open_file = function(path)
+        print("Opening file: " .. path)
+        return path
+    end,
+    
+    read_file = function(path)
+        print("Reading file content from: " .. path)
+        -- Mock the qrencode module content
+        return [[
+            return {
+                qrcode = function(data)
+                    print("Generating QR code for: " .. data)
+                    -- Return a mock 10x10 QR matrix
+                    local matrix = {}
+                    for i = 1, 10 do
+                        matrix[i] = {}
+                        for j = 1, 10 do
+                            matrix[i][j] = (i+j) % 2
+                        end
+                    end
+                    return true, matrix
+                end
+            }
+        ]]
+    end,
+    
+    load_font = function(name)
+        print("Loading font: " .. name)
+        return {
+            write = function(self, x, y, text, size, r, g, b, a)
+                print(string.format("Writing text '%s' at position %.1f,%.1f with size %.1f", 
+                    text, x, y, size))
+            end
+        }
     end
 }
+
+-- Add global function needed for qrencode loading
+_G.loadstring = function(code)
+    print("Loading string as Lua code")
+    local mock_qrencode = {
+        qrcode = function(data)
+            print("Mock qrencode.qrcode called with: " .. data)
+            -- Return a mock 10x10 QR matrix
+            local matrix = {}
+            for i = 1, 10 do
+                matrix[i] = {}
+                for j = 1, 10 do
+                    matrix[i][j] = (i+j) % 2
+                end
+            end
+            return true, matrix
+        end
+    }
+    return function() return mock_qrencode end
+end
 
 _G.sys = { 
     now = function() 

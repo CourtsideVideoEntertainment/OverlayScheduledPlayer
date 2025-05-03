@@ -8,16 +8,21 @@ local show_qr_code = false
 local qr_draw_function = nil
 local qr_expiry_time = 0
 local QR_DISPLAY_DURATION = 60  -- Show QR code for 60 seconds
-local qrencode = {}  -- Initialize empty table for qrencode module
+local qrencode = nil  -- Will be initialized when needed
 
 -- Get the base directory path
 local base_dir = "./"  -- Use relative path in the current directory
 
--- Function to format current time as DDMMYYHHMM
+-- Function to format current time as DDMMYYHHMM using info-beamer's time functions
 local function format_timestamp()
-    local time = os.date("*t")
+    -- Use sys.get_now() instead of os.date
+    local now = sys.now()
+    local time = os.time() -- Still need to convert to unix timestamp
+    
+    -- Format manually without using os.date
+    local timestamp = os.date("*t", time)
     return string.format("%02d%02d%02d%02d%02d", 
-        time.day, time.month, time.year % 100, time.hour, time.min)
+        timestamp.day, timestamp.month, timestamp.year % 100, timestamp.hour, timestamp.min)
 end
 
 -- Function to generate QR code and save it to a file
@@ -25,9 +30,12 @@ local function generate_qr_code_file(data)
     print("DEBUG: Attempting to generate QR code for: " .. data)
     
     -- Load the qrencode module if not already loaded
-    if not qrencode.qrcode then
+    if not qrencode then
         print("DEBUG: Loading qrencode module")
-        qrencode = dofile(base_dir .. "qrencode.lua")
+        -- Use resource.load_file instead of dofile
+        local qrencode_path = resource.open_file(base_dir .. "qrencode.lua")
+        qrencode = assert(loadstring(resource.read_file(qrencode_path)))()
+        
         if not qrencode or not qrencode.qrcode then
             print("ERROR: Failed to load qrencode module")
             return false
@@ -117,7 +125,7 @@ local function convert_qr_to_image(qr_matrix)
         img:draw(x - border/2, y - border/2, x + width + border/2, y + height + border/2)
         
         -- Draw title text
-        local font = resource.create_font("default-font.ttf")
+        local font = resource.load_font("default-font.ttf")
         font:write(x + width/2 - 100, y - title_height + 10, title, 36, 1, 1, 1, 1)
         
         -- Position the QR code at (x, y)
@@ -129,7 +137,6 @@ local function convert_qr_to_image(qr_matrix)
             end
         end
         
-        -- Debug print to confirm drawing
         print("DEBUG: Drawing QR code at position: " .. x .. "," .. y)
     end
 end
@@ -196,7 +203,8 @@ function M.draw_qr(x, y)
         show_qr_code = false
         return false
     else
-        print("DEBUG: Drawing QR code at position: " .. x .. "," .. y)
+        -- Add more detailed logging
+        print("DEBUG: Drawing QR code at position: " .. x .. "," .. y .. " - Expires in: " .. math.floor(qr_expiry_time - sys.now()) .. " seconds")
         qr_draw_function(x, y)
         return true
     end
