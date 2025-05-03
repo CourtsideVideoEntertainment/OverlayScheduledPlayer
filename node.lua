@@ -1640,20 +1640,17 @@ local function Scheduler(page_source, job_queue)
     end
 
     local function handle_remote_trigger(remote)
-        print("******* EXPLICIT DEBUG: Remote trigger received:", remote, " *******")
+        print("Remote trigger received:", remote)
         
         -- Try to handle the trigger with the QR code module first
-        print("******* EXPLICIT DEBUG: Before calling QR module *******")
         local qr_result = qrcode_overlay.handle_remote_trigger(remote)
-        print("******* EXPLICIT DEBUG: QR code handling result:", qr_result, " *******")
+        print("QR code handling result:", qr_result)
         
         -- Process normal page navigation
         local pages = page_source.find_by_remote(remote)
         if not pages then
-            print("******* EXPLICIT DEBUG: No pages found for remote trigger *******")
             return false
         end
-        print("******* EXPLICIT DEBUG: Found pages for remote trigger, enqueueing *******")
         enqueue_interactive(pages)
         return true
     end
@@ -2171,17 +2168,14 @@ util.data_mapper{
         return scheduler.handle_gpio(event)
     end,
     ["remote/trigger"] = function(data)
-        print("******* EXPLICIT DEBUG: Remote trigger received in data mapper:", data, " *******")
+        print("Remote trigger received:", data)
         
         -- Try to handle the trigger with the QR code module first
-        print("******* EXPLICIT DEBUG: Before calling QR module *******")
         local qr_result = qrcode_overlay.handle_remote_trigger(data)
-        print("******* EXPLICIT DEBUG: QR code handling result:", qr_result, " *******")
+        print("QR code handling result:", qr_result)
         
-        -- Call the direct handle_remote_trigger function, not scheduler.handle_remote_trigger
-        -- to avoid infinite recursion
-        print("******* EXPLICIT DEBUG: Calling handle_remote_trigger directly *******")
-        return handle_remote_trigger(data)
+        -- Call the scheduler handler for regular page display
+        return scheduler.handle_remote_trigger(data)
     end,
     ["sys/cec/key"] = scheduler.handle_cec,
     ["plugin/(.*)/(.*)"] = function(tile_name, path, data)
