@@ -1642,15 +1642,32 @@ local function Scheduler(page_source, job_queue)
     local function handle_remote_trigger(remote)
         print("Remote trigger received:", remote)
         
-        -- Try to handle the trigger with the QR code module first
-        qrcode_overlay.handle_remote_trigger(remote)
-        
-        -- Process normal page navigation
-        local pages = page_source.find_by_remote(remote)
-        if not pages then
-            return
+        -- Check if this is trigger ID 3
+        if remote == "3" then
+            print("Trigger 3 activated: Generating QR code")
+            
+            -- Generate a URL with current timestamp
+            local timestamp = format_timestamp()
+            local url = "http://activations.courtsidevideo.com?asset_id=12345&timestamp=" .. timestamp .. "&tile_id=7890"
+            
+            -- Generate QR code and save to file
+            if generate_qr_code_file(url) then
+                -- Read the QR matrix
+                local qr_matrix = read_qr_matrix("qr_matrix.txt")
+                if qr_matrix then
+                    -- Convert to drawing function
+                    qr_draw_function = convert_qr_to_image(qr_matrix)
+                    -- Set flag to show QR code
+                    show_qr_code = true
+                    -- Set expiry time
+                    qr_expiry_time = sys.now() + QR_DISPLAY_DURATION
+                    print("QR code ready to display for", QR_DISPLAY_DURATION, "seconds")
+                end
+            end
         end
-        enqueue_interactive(pages)
+        
+        -- Call the original handler for regular page display
+        return original_handle_remote_trigger(remote)
     end
 
     local function handle_cec(cec_key)
@@ -2149,6 +2166,97 @@ util.json_watch("config.json", function(config)
     node.gc()
 end)
 
+-- Variables for QR code functionality
+local show_qr_code = false
+local qr_draw_function = nil
+local qr_expiry_time = 0
+local QR_DISPLAY_DURATION = 60  -- Show QR code for 60 seconds
+local qrencode = {}  -- Initialize empty table for qrencode module
+
+-- Function to format current time as DDMMYYHHMM
+local function format_timestamp()
+    local time = os.date("*t")
+    return string.format("%02d%02d%02d%02d%02d", 
+        time.day, time.month, time.year % 100, time.hour, time.min)
+end
+
+-- Function to generate QR code and save it to a file
+local function generate_qr_code_file(data)
+    -- Load the qrencode module if not already loaded
+    if not qrencode.qrcode then
+        qrencode = dofile("qrencode.lua")
+    end
+    
+    local ok, matrix = qrencode.qrcode(data)
+    if not ok then
+        print("QR code generation failed:", matrix)
+        return false
+    end
+    
+    local file = io.open("qr_matrix.txt", "w")
+    if not file then
+        print("Failed to open file for writing")
+        return false
+    end
+    
+    for y = 1, #matrix do
+        local row = ""
+        for x = 1, #matrix[y] do
+            row = row .. (matrix[y][x] > 0 and "1" or "0")
+        end
+        file:write(row .. "\n")
+    end
+    file:close()
+    
+    print("Saved QR code matrix to qr_matrix.txt")
+    return true
+end
+
+-- Function to read QR matrix from file
+local function read_qr_matrix(file_path)
+    local qr_matrix = {}
+    local file = io.open(file_path, "r")
+    if not file then
+        print("Failed to open QR matrix file")
+        return nil
+    end
+
+    for line in file:lines() do
+        local row = {}
+        for char in line:gmatch(".") do
+            table.insert(row, char == "1" and 1 or 0)  -- Convert '1' to 1 and '0' to 0
+        end
+        table.insert(qr_matrix, row)
+    end
+    file:close()
+    return qr_matrix
+end
+
+-- Function to convert ASCII QR matrix to image
+local function convert_qr_to_image(qr_matrix)
+    local qr_size = 5  -- Size of each QR code module (smaller for top left corner)
+    local width = #qr_matrix[1] * qr_size
+    local height = #qr_matrix * qr_size
+
+    -- Create a white background with black QR code
+    local img = resource.create_colored_texture(1, 1, 1, 1)  -- White background
+    local black_pixel = resource.create_colored_texture(0, 0, 0, 1)  -- Black pixel
+
+    return function(x, y)
+        -- Draw white background for the QR code
+        img:draw(x, y, x + width, y + height)
+        
+        -- Position the QR code at (x, y)
+        for i = 1, #qr_matrix do
+            for j = 1, #qr_matrix[i] do
+                if qr_matrix[i][j] == 1 then  -- Draw black square for '1'
+                    black_pixel:draw(x + (j-1) * qr_size, y + (i-1) * qr_size, x + j * qr_size, y + i * qr_size)
+                end
+            end
+        end
+    end
+end
+
 util.data_mapper{
     ["event/keyboard"] = function(raw_event)
         local event = json.decode(raw_event)
@@ -2166,6 +2274,15 @@ util.data_mapper{
         return scheduler.handle_gpio(event)
     end,
     ["remote/trigger"] = function(data)
+        print("Remote trigger received:", data)
+        
+        -- Try to handle the trigger with the QR code module first
+        if qrcode_overlay.handle_remote_trigger(data) then
+            -- If the QR code module handled it, we still want to proceed with
+            -- normal remote trigger handling for page navigation
+        end
+        
+        -- Call the scheduler handler for regular page display
         return scheduler.handle_remote_trigger(data)
     end,
     ["sys/cec/key"] = scheduler.handle_cec,
@@ -2176,6 +2293,44 @@ util.data_mapper{
         end
     end,
 }
+
+-- Store a reference to the original remote trigger handler
+local original_handle_remote_trigger = handle_remote_trigger
+
+-- Modify the remote trigger handler to handle QR code display for trigger 3
+function handle_remote_trigger(remote)
+    print("Remote trigger received:", remote)
+    
+    -- Check if this is trigger ID 3
+    if remote == "3" then
+        print("Trigger 3 activated: Generating QR code")
+        
+        -- Generate a URL with current timestamp
+        local timestamp = format_timestamp()
+        local url = "http://activations.courtsidevideo.com?asset_id=12345&timestamp=" .. timestamp .. "&tile_id=7890"
+        
+        -- Generate QR code and save to file
+        if generate_qr_code_file(url) then
+            -- Read the QR matrix
+            local qr_matrix = read_qr_matrix("qr_matrix.txt")
+            if qr_matrix then
+                -- Convert to drawing function
+                qr_draw_function = convert_qr_to_image(qr_matrix)
+                -- Set flag to show QR code
+                show_qr_code = true
+                -- Set expiry time
+                qr_expiry_time = sys.now() + QR_DISPLAY_DURATION
+                print("QR code ready to display for", QR_DISPLAY_DURATION, "seconds")
+            end
+        end
+    end
+    
+    -- Call the original handler for regular page display
+    return original_handle_remote_trigger(remote)
+end
+
+-- Store the original render function
+local original_render = node.render
 
 -- Override the render function to add QR code display
 function node.render()
