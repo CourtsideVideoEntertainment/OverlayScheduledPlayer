@@ -16,8 +16,13 @@ local base_dir = "./"  -- Use relative path in the current directory
 -- Print with timestamp to make debugging easier
 local function debug_print(message)
     local timestamp = os.date("%H:%M:%S")
-    print("[QR MODULE " .. timestamp .. "] " .. message)
+    -- Use print directly for maximum visibility
+    -- Include special markers to make logs stand out
+    print("******* QR DEBUG [" .. timestamp .. "] " .. message .. " *******")
 end
+
+-- Log the module loading to verify it's being initialized
+debug_print("QR module loaded")
 
 -- Function to format current time as DDMMYYHHMM using info-beamer's time functions
 local function format_timestamp()
