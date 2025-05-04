@@ -221,6 +221,11 @@ local capacity = {
 --- then the ec level (LMQH - 1,2,3,4) must be at least the requested level.
 -- mode = 1,2,4,8
 local function get_version_eclevel(len,mode,requested_ec_level)
+	-- Ensure requested_ec_level is a number
+	if requested_ec_level and type(requested_ec_level) == 'string' then
+		requested_ec_level = tonumber(requested_ec_level)
+	end
+
 	local local_mode = mode
 	if mode == 4 then
 		local_mode = 3
@@ -1134,11 +1139,7 @@ local function add_data_to_matrix(matrix,data,mask)
 			_x = positions[i][1]
 			_y = positions[i][2]
 			m = get_pixel_with_mask(mask,_x,_y,string.sub(byte,i,i))
-			if debugging then
-				matrix[_x][_y] = m * (i + 10)
-			else
-				matrix[_x][_y] = m
-			end
+			matrix[_x][_y] = m
 		end
 	end)
 end
@@ -1325,27 +1326,7 @@ local function qrcode( str, ec_level, _mode ) -- luacheck: no unused args
 end
 
 
-if testing then
-	return {
-		encode_string_numeric = encode_string_numeric,
-		encode_string_ascii = encode_string_ascii,
-		qrcode = qrcode,
-		binary = binary,
-		get_mode = get_mode,
-		get_length = get_length,
-		add_pad_data = add_pad_data,
-		get_generator_polynominal_adjusted = get_generator_polynominal_adjusted,
-		get_pixel_with_mask = get_pixel_with_mask,
-		get_version_eclevel_mode_bistringlength = get_version_eclevel_mode_bistringlength,
-		remainder = remainder,
-		--get_capacity_remainder = get_capacity_remainder,
-		arrange_codewords_and_calculate_ec = arrange_codewords_and_calculate_ec,
-		calculate_error_correction = calculate_error_correction,
-		convert_bitstring_to_bytes = convert_bitstring_to_bytes,
-		bit_xor = bit_xor,
-	}
-end
-
+-- Always return just the qrcode function, which is all we need
 return {
 	qrcode = qrcode
 }

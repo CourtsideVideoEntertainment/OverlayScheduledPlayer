@@ -19,9 +19,8 @@ local function debug_print(message)
     print("[QR MODULE " .. timestamp .. "] " .. message)
 end
 
--- Function to format current time as DDMMYYHHMM using info-beamer's time functions
+-- Function to format timestamp without using os.date (which might not be available in info-beamer)
 local function format_timestamp()
-    -- Use sys.now() instead of os.date
     local now = sys.now()
     local time = os.time() -- Still need to convert to unix timestamp
     
