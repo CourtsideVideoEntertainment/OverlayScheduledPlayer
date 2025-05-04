@@ -8,7 +8,7 @@ local show_qr_code = false
 local qr_draw_function = nil
 local qr_expiry_time = 0
 local QR_DISPLAY_DURATION = 3600  -- Show QR code for 3600 seconds (1 hour) instead of 60 seconds
-local PERMANENT_DISPLAY = false   -- Flag for permanent display (no expiration)
+local PERMANENT_DISPLAY = true   -- Flag for permanent display (no expiration)
 local current_trigger = nil       -- Track the current active trigger
 local qrencode = nil  -- Will be initialized when needed
 
