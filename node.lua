@@ -2205,18 +2205,17 @@ function node.render()
     dispatch_to_all_tiles("overlay")
     
     -- Draw QR code after everything else if needed
-    -- Show QR code at the center of the screen for maximum visibility
-    local qr_x = NATIVE_WIDTH / 2 - 370  -- Center horizontally (370 is approximate QR width with border)
-    local qr_y = NATIVE_HEIGHT / 2 - 370 -- Center vertically (370 is approximate QR height with border)
+    -- Position QR code in the bottom-right corner for less interference with content
+    local qr_width = 400  -- Approximate width with the smaller qr_size (10px per module)
+    local qr_height = 400 -- Approximate height with the smaller qr_size
+    local margin = 20     -- Margin from the screen edge
+    
+    local qr_x = NATIVE_WIDTH - qr_width - margin
+    local qr_y = NATIVE_HEIGHT - qr_height - margin
     
     -- Draw a test marker to verify rendering is working (small red dot in corner)
     local marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
     marker:draw(10, 10, 30, 30)  -- Small red square in corner to confirm rendering is working
-    
-    -- Print QR status more frequently during testing
-    if math.floor(now) % 2 == 0 then
-        print("DEBUG RENDER: QR display attempt at", os.date("%H:%M:%S"))
-    end
     
     -- Try to draw the QR code
     local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
@@ -2224,6 +2223,6 @@ function node.render()
     -- Print debugging info every few seconds
     if math.floor(now) % 5 == 0 then
         print("DEBUG RENDER: QR code drawn:", tostring(drawn))
-        print("DEBUG RENDER: Marker drawn at position 10,10 (check for red square)")
+        print("DEBUG RENDER: QR position:", qr_x, qr_y)
     end
 end

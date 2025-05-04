@@ -34,8 +34,8 @@ end
 local function convert_qr_to_image(qr_matrix)
     debug_print("Converting QR matrix to drawable function")
     
-    -- Increase the size for better visibility
-    local qr_size = 20  -- Increased from 10 to 20 for better visibility
+    -- Smaller size for less intrusive display
+    local qr_size = 10  -- Reduced from 20 to 10 for less intrusive appearance
     local width = #qr_matrix[1] * qr_size
     local height = #qr_matrix * qr_size
     
@@ -46,7 +46,7 @@ local function convert_qr_to_image(qr_matrix)
     
     local success, err = pcall(function()
         -- Create a white background with black QR code
-        bg = resource.create_colored_texture(0, 0, 0, 0.7)  -- Semi-transparent dark background
+        bg = resource.create_colored_texture(0, 0, 0, 0.5)  -- More transparent background
         img = resource.create_colored_texture(1, 1, 1, 1)    -- White background
         black_pixel = resource.create_colored_texture(0, 0, 0, 1)  -- Black pixel
         font = resource.load_font("default-font.ttf")
@@ -64,8 +64,8 @@ local function convert_qr_to_image(qr_matrix)
         debug_print("Drawing QR code at position: " .. x .. "," .. y)
         
         -- Draw semi-transparent background behind the QR code
-        local border = 40
-        local title_height = 60
+        local border = 20  -- Smaller border
+        local title_height = 30  -- Smaller title area
         
         -- Draw background with extra space for title
         bg:draw(x - border, y - border - title_height, x + width + border, y + height + border)
@@ -73,8 +73,8 @@ local function convert_qr_to_image(qr_matrix)
         -- Draw white background for the QR code
         img:draw(x, y, x + width, y + height)
         
-        -- Draw title text
-        font:write(x + width/2 - 100, y - title_height + 10, "Scan QR Code", 36, 1, 1, 1, 1)
+        -- Draw title text (smaller)
+        font:write(x + width/2 - 50, y - title_height + 5, "Scan QR Code", 24, 1, 1, 1, 1)
         
         -- Position the QR code at (x, y)
         for i = 1, #qr_matrix do
