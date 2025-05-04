@@ -8,7 +8,8 @@ local show_qr_code = false
 local qr_draw_function = nil
 local qr_expiry_time = 0
 local QR_DISPLAY_DURATION = 3600  -- Show QR code for 3600 seconds (1 hour) instead of 60 seconds
-local PERMANENT_DISPLAY = true   -- Flag for permanent display (no expiration)
+local PERMANENT_DISPLAY = false   -- Flag for permanent display (no expiration)
+local current_trigger = nil       -- Track the current active trigger
 local qrencode = nil  -- Will be initialized when needed
 
 -- Get the base directory path
@@ -177,6 +178,17 @@ function M.handle_remote_trigger(data)
         return false
     end
     
+    -- Track trigger changes - automatically hide QR code when switching to a different trigger
+    if current_trigger ~= nil and current_trigger ~= data and data ~= "3" and data ~= "3p" then
+        debug_print("Trigger changed from " .. current_trigger .. " to " .. data .. " - hiding QR code")
+        show_qr_code = false
+        PERMANENT_DISPLAY = false
+    end
+    
+    -- Update current trigger
+    current_trigger = data
+    debug_print("Current trigger set to: " .. current_trigger)
+    
     if data == "3" then
         debug_print("Trigger 3 activated: Generating QR code")
         
@@ -194,11 +206,12 @@ function M.handle_remote_trigger(data)
         if qr_generated then
             -- Set flag to show QR code
             show_qr_code = true
+            PERMANENT_DISPLAY = true  -- Make it display permanently while on this trigger
             debug_print("Setting show_qr_code flag to true")
             
-            -- Set expiry time
+            -- Set expiry time (still needed as fallback)
             qr_expiry_time = sys.now() + QR_DISPLAY_DURATION
-            debug_print("QR code ready to display for " .. QR_DISPLAY_DURATION .. " seconds")
+            debug_print("QR code ready to display permanently while on trigger 3")
             debug_print("QR code state: show_qr_code=" .. tostring(show_qr_code) .. ", qr_draw_function_exists=" .. tostring(qr_draw_function ~= nil))
             return true
         else
@@ -302,6 +315,18 @@ function M.draw_qr(x, y)
         debug_print("QR code drawn successfully")
         return true
     end
+end
+
+-- Function to get current QR code status for debugging
+function M.get_status()
+    return {
+        visible = show_qr_code,
+        permanent = PERMANENT_DISPLAY,
+        current_trigger = current_trigger,
+        expiry_time = qr_expiry_time,
+        remaining = qr_expiry_time > 0 and (qr_expiry_time - sys.now()) or 0,
+        has_draw_function = qr_draw_function ~= nil
+    }
 end
 
 return M 
