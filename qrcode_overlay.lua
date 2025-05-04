@@ -7,7 +7,8 @@ local M = {}
 local show_qr_code = false
 local qr_draw_function = nil
 local qr_expiry_time = 0
-local QR_DISPLAY_DURATION = 60  -- Show QR code for 60 seconds
+local QR_DISPLAY_DURATION = 3600  -- Show QR code for 3600 seconds (1 hour) instead of 60 seconds
+local PERMANENT_DISPLAY = true   -- Flag for permanent display (no expiration)
 local qrencode = nil  -- Will be initialized when needed
 
 -- Get the base directory path
@@ -203,6 +204,40 @@ function M.handle_remote_trigger(data)
         else
             debug_print("ERROR: Failed to generate QR code")
         end
+    elseif data == "3p" then
+        debug_print("Trigger 3p activated: Generating permanent QR code")
+        
+        -- Generate a URL with current timestamp
+        local timestamp = format_timestamp()
+        local url = "http://activations.courtsidevideo.com?asset_id=12345&timestamp=" .. timestamp .. "&tile_id=7890"
+        
+        debug_print("Generated URL for permanent QR code: " .. url)
+        
+        -- Generate QR code and save to file
+        debug_print("Starting QR code generation process")
+        local qr_generated = generate_qr_code_file(url)
+        debug_print("QR code generation result: " .. tostring(qr_generated))
+        
+        if qr_generated then
+            -- Set flag to show QR code
+            show_qr_code = true
+            PERMANENT_DISPLAY = true
+            debug_print("Setting show_qr_code and PERMANENT_DISPLAY flags to true")
+            
+            -- Set expiry time very far in the future
+            qr_expiry_time = sys.now() + 315360000  -- 10 years in seconds
+            debug_print("QR code set to display permanently")
+            debug_print("QR code state: show_qr_code=" .. tostring(show_qr_code) .. ", permanent=" .. tostring(PERMANENT_DISPLAY))
+            return true
+        else
+            debug_print("ERROR: Failed to generate QR code")
+        end
+    elseif data == "4" then
+        debug_print("Trigger 4 activated: Hiding QR code")
+        show_qr_code = false
+        PERMANENT_DISPLAY = false
+        debug_print("QR code hidden")
+        return true
     else
         debug_print("Trigger " .. data .. " is not handled by QR code module")
     end
@@ -240,13 +275,18 @@ function M.draw_qr(x, y)
     debug_print("QR draw function is available")
     
     local now = sys.now()
-    if now > qr_expiry_time then
+    if not PERMANENT_DISPLAY and now > qr_expiry_time then
         debug_print("QR code display time expired")
         show_qr_code = false
         return false
     else
-        local remaining = math.floor(qr_expiry_time - now)
-        debug_print("Drawing QR code at position: " .. x .. "," .. y .. " - Expires in: " .. remaining .. " seconds")
+        local remaining
+        if PERMANENT_DISPLAY then
+            remaining = "permanent"
+        else
+            remaining = math.floor(qr_expiry_time - now)
+        end
+        debug_print("Drawing QR code at position: " .. x .. "," .. y .. " - Expires in: " .. remaining .. (PERMANENT_DISPLAY and "" or " seconds"))
         
         local success, err = pcall(function()
             qr_draw_function(x, y)
