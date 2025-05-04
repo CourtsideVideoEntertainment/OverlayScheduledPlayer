@@ -2204,14 +2204,14 @@ function node.render()
 
     dispatch_to_all_tiles("overlay")
     
-    -- Draw QR code after everything else if needed
-    -- Position QR code in the bottom-right corner for less interference with content
-    local qr_width = 400  -- Approximate width with the smaller qr_size (10px per module)
-    local qr_height = 400 -- Approximate height with the smaller qr_size
+    -- Position QR code in the top-right corner
+    local qr_width = 800  -- Approximate width with the smaller qr_size (10px per module)
+    local qr_height = 800 -- Approximate height with the smaller qr_size
     local margin = 20     -- Margin from the screen edge
     
+    -- Calculate new position for top-right corner
     local qr_x = NATIVE_WIDTH - qr_width - margin
-    local qr_y = NATIVE_HEIGHT - qr_height - margin
+    local qr_y = margin  -- Set y position to margin from the top
     
     -- Draw a test marker to verify rendering is working (small red dot in corner)
     local marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
