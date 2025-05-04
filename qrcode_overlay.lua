@@ -35,7 +35,7 @@ local function convert_qr_to_image(qr_matrix)
     debug_print("Converting QR matrix to drawable function")
     
     -- Smaller size for less intrusive display
-    local qr_size = 10  -- Reduced from 20 to 10 for less intrusive appearance
+    local qr_size = 6  -- Reduced from 10 to 6 for even smaller appearance
     local width = #qr_matrix[1] * qr_size
     local height = #qr_matrix * qr_size
     
@@ -46,7 +46,7 @@ local function convert_qr_to_image(qr_matrix)
     
     local success, err = pcall(function()
         -- Create a white background with black QR code
-        bg = resource.create_colored_texture(0, 0, 0, 0.5)  -- More transparent background
+        bg = resource.create_colored_texture(0, 0, 0, 0.3)  -- Even more transparent background (0.5 to 0.3)
         img = resource.create_colored_texture(1, 1, 1, 1)    -- White background
         black_pixel = resource.create_colored_texture(0, 0, 0, 1)  -- Black pixel
         font = resource.load_font("default-font.ttf")
@@ -64,8 +64,8 @@ local function convert_qr_to_image(qr_matrix)
         debug_print("Drawing QR code at position: " .. x .. "," .. y)
         
         -- Draw semi-transparent background behind the QR code
-        local border = 20  -- Smaller border
-        local title_height = 30  -- Smaller title area
+        local border = 10  -- Even smaller border
+        local title_height = 20  -- Even smaller title area
         
         -- Draw background with extra space for title
         bg:draw(x - border, y - border - title_height, x + width + border, y + height + border)
@@ -74,7 +74,7 @@ local function convert_qr_to_image(qr_matrix)
         img:draw(x, y, x + width, y + height)
         
         -- Draw title text (smaller)
-        font:write(x + width/2 - 50, y - title_height + 5, "Scan QR Code", 24, 1, 1, 1, 1)
+        font:write(x + width/2 - 40, y - title_height + 5, "Scan QR Code", 18, 1, 1, 1, 1)
         
         -- Position the QR code at (x, y)
         for i = 1, #qr_matrix do

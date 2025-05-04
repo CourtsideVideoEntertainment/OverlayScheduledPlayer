@@ -101,20 +101,20 @@ local result = qrcode_overlay.handle_remote_trigger("3")
 print("Remote trigger result:", result)
 
 -- Now test rendering
-print("\nTesting QR code drawing in bottom-right corner...")
+print("\nTesting QR code drawing in top-left corner...")
 
 -- Override the render function to add QR code display
 function render_test()
     print("Rendering frame...")
     gl.clear(background.r, background.g, background.b, background.a)
 
-    -- Position QR code in the bottom-right corner for less interference with content
-    local qr_width = 400  -- Approximate width with the smaller qr_size (10px per module)
-    local qr_height = 400 -- Approximate height with the smaller qr_size
+    -- Position QR code in the top-left corner with smaller size
+    local qr_width = 80  -- Much smaller width for a minimalistic QR code
+    local qr_height = 80 -- Much smaller height for a minimalistic QR code
     local margin = 20     -- Margin from the screen edge
     
-    local qr_x = NATIVE_WIDTH - qr_width - margin
-    local qr_y = NATIVE_HEIGHT - qr_height - margin
+    local qr_x = margin  -- Set x position to margin from the left
+    local qr_y = margin  -- Set y position to margin from the top
     
     print("QR position calculated as:", qr_x, qr_y)
     
