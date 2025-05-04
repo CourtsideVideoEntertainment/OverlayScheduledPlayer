@@ -2205,8 +2205,8 @@ function node.render()
     dispatch_to_all_tiles("overlay")
     
     -- Position QR code in the top-right corner
-    local qr_width = 800  -- Approximate width with the smaller qr_size (10px per module)
-    local qr_height = 800 -- Approximate height with the smaller qr_size
+    local qr_width = 400  -- Change this value to adjust the width
+    local qr_height = 400 -- Change this value to adjust the height
     local margin = 20     -- Margin from the screen edge
     
     -- Calculate new position for top-right corner
