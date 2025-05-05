@@ -8,7 +8,7 @@ local show_qr_code = false
 local qr_draw_function = nil
 local qr_expiry_time = 0
 local QR_DISPLAY_DURATION = 3600  -- Show QR code for 3600 seconds (1 hour) instead of 60 seconds
-local PERMANENT_DISPLAY = true   -- Flag for permanent display (no expiration)
+local PERMANENT_DISPLAY = false   -- Flag for permanent display (no expiration)
 local current_trigger = nil       -- Track the current active trigger
 local qrencode = nil  -- Will be initialized when needed
 
@@ -178,9 +178,9 @@ function M.handle_remote_trigger(data)
         return false
     end
     
-    -- Track trigger changes - automatically hide QR code when switching to a different trigger
-    if current_trigger ~= nil and current_trigger ~= data and data ~= "3" and data ~= "3p" then
-        debug_print("Trigger changed from " .. current_trigger .. " to " .. data .. " - hiding QR code")
+    -- Always hide QR code when switching to any trigger other than 3 or 3p
+    if data ~= "3" and data ~= "3p" then
+        debug_print("Trigger " .. data .. " received - hiding QR code")
         show_qr_code = false
         PERMANENT_DISPLAY = false
     end
@@ -252,7 +252,9 @@ function M.handle_remote_trigger(data)
         debug_print("QR code hidden")
         return true
     else
-        debug_print("Trigger " .. data .. " is not handled by QR code module")
+        debug_print("Trigger " .. data .. " is not handled by QR code module (QR code hidden)")
+        -- QR code should already be hidden from our check at the top
+        return false
     end
     
     return false
@@ -272,6 +274,13 @@ end
 -- Function to draw QR code at specified position
 function M.draw_qr(x, y)
     debug_print("draw_qr called for position " .. x .. "," .. y)
+    
+    -- First check if we're on a valid trigger for QR display
+    if current_trigger ~= "3" and current_trigger ~= "3p" then
+        debug_print("Current trigger " .. tostring(current_trigger) .. " is not valid for QR display")
+        show_qr_code = false  -- Ensure QR is hidden
+        return false
+    end
     
     if not show_qr_code then
         debug_print("QR code not set to show")
