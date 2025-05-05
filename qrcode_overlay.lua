@@ -245,12 +245,6 @@ function M.handle_remote_trigger(data)
         else
             debug_print("ERROR: Failed to generate QR code")
         end
-    elseif data == "4" then
-        debug_print("Trigger 4 activated: Hiding QR code")
-        show_qr_code = false
-        PERMANENT_DISPLAY = false
-        debug_print("QR code hidden")
-        return true
     else
         debug_print("Trigger " .. data .. " is not handled by QR code module (QR code hidden)")
         -- QR code should already be hidden from our check at the top
