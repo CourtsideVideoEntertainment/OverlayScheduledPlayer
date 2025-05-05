@@ -269,13 +269,6 @@ end
 function M.draw_qr(x, y)
     debug_print("draw_qr called for position " .. x .. "," .. y)
     
-    -- First check if we're on a valid trigger for QR display
-    if current_trigger ~= "3" and current_trigger ~= "3p" then
-        debug_print("Current trigger " .. tostring(current_trigger) .. " is not valid for QR display")
-        show_qr_code = false  -- Ensure QR is hidden
-        return false
-    end
-    
     if not show_qr_code then
         debug_print("QR code not set to show")
         return false
