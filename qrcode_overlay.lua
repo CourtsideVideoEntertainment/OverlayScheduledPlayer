@@ -189,7 +189,7 @@ function M.handle_remote_trigger(data)
     current_trigger = data
     debug_print("Current trigger set to: " .. current_trigger)
     
-    if data == "3" then
+    if data == "16" then
         debug_print("Trigger 3 activated: Generating QR code")
         
         -- Generate a URL with current timestamp
