@@ -2214,8 +2214,8 @@ function node.render()
     local qr_y = margin  -- Set y position to margin from the top
     
     -- Draw a test marker to verify rendering is working (small red dot in corner)
-    -- local marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
-    -- marker:draw(10, 10, 30, 30)  -- Small red square in corner to confirm rendering is working
+    local marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
+    marker:draw(10, 10, 30, 30)  -- Small red square in corner to confirm rendering is working
     
     -- Try to draw the QR code
     local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
