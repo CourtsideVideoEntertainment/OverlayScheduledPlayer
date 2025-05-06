@@ -36,6 +36,18 @@ end
 local function convert_qr_to_image(qr_matrix)
     debug_print("Converting QR matrix to drawable function")
     
+    -- Check if resource global is available
+    if not resource then
+        debug_print("ERROR: 'resource' global variable is not available")
+        return nil
+    end
+    
+    -- Safety check for qr_matrix
+    if not qr_matrix or type(qr_matrix) ~= "table" or #qr_matrix == 0 then
+        debug_print("ERROR: Invalid QR matrix provided")
+        return nil
+    end
+    
     -- Slightly larger size for video content visibility
     local qr_size = 8  -- Increased from 6 to 8 for better visibility on video
     local width = #qr_matrix[1] * qr_size
@@ -94,6 +106,11 @@ end
 -- Function to generate QR code and save it to a file
 local function generate_qr_code_file(data)
     debug_print("Attempting to generate QR code for: " .. data)
+    
+    -- Check if resource global is available for later use
+    if not resource then
+        debug_print("WARNING: 'resource' global variable is not available, QR code generation may fail")
+    end
     
     -- Load the qrencode module if not already loaded
     if not qrencode then
