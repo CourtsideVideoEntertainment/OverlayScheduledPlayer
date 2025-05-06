@@ -2188,6 +2188,7 @@ util.data_mapper{
 
 -- Override the render function to add QR code display
 function node.render()
+    -- Start with normal rendering
     streams.tick()
     FontCache.tick()
     ImageCache.tick()
@@ -2204,6 +2205,15 @@ function node.render()
 
     dispatch_to_all_tiles("overlay")
     
+    -- Force a small delay to ensure all video rendering is complete
+    gl.pushMatrix()
+    gl.popMatrix()
+    
+    -- Create the test marker only once
+    if not test_marker then
+        test_marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
+    end
+    
     -- Position QR code in the top-left corner
     local qr_width = 40  -- Smaller width for a less intrusive QR code
     local qr_height = 40  -- Smaller height for a less intrusive QR code
@@ -2213,16 +2223,27 @@ function node.render()
     local qr_x = margin  -- Set x position to margin from the left
     local qr_y = margin  -- Set y position to margin from the top
     
-    -- Draw a test marker to verify rendering is working (small red dot in corner)
-    local marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
-    marker:draw(10, 10, 30, 30)  -- Small red square in corner to confirm rendering is working
+    -- Always draw the test marker first to verify rendering is working
+    test_marker:draw(10, 10, 30, 30)  -- Small red square in corner to confirm rendering is working
     
-    -- Try to draw the QR code
+    -- Try to draw the QR code - forcibly make it the last thing drawn so it's on top
     local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
     
     -- Print debugging info every few seconds
     if math.floor(now) % 5 == 0 then
         print("DEBUG RENDER: QR code drawn:", tostring(drawn))
         print("DEBUG RENDER: QR position:", qr_x, qr_y)
+        
+        -- Also print QR code status
+        local status = qrcode_overlay.get_status()
+        print("DEBUG RENDER: QR STATUS: visible=" .. tostring(status.visible) ..
+              ", permanent=" .. tostring(status.permanent) ..
+              ", trigger=" .. tostring(status.current_trigger) ..
+              ", has_draw_function=" .. tostring(status.has_draw_function))
+        
+        -- Special debug for video content
+        if status.current_trigger == "16" then
+            print("DEBUG RENDER: VIDEO content active - QR should be visible")
+        end
     end
 end
