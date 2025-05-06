@@ -36,20 +36,8 @@ end
 local function convert_qr_to_image(qr_matrix)
     debug_print("Converting QR matrix to drawable function")
     
-    -- Check if resource global is available
-    if not resource then
-        debug_print("ERROR: 'resource' global variable is not available")
-        return nil
-    end
-    
-    -- Safety check for qr_matrix
-    if not qr_matrix or type(qr_matrix) ~= "table" or #qr_matrix == 0 then
-        debug_print("ERROR: Invalid QR matrix provided")
-        return nil
-    end
-    
-    -- Slightly larger size for video content visibility
-    local qr_size = 8  -- Increased from 6 to 8 for better visibility on video
+    -- Smaller size for less intrusive display
+    local qr_size = 6  -- Reduced from 10 to 6 for even smaller appearance
     local width = #qr_matrix[1] * qr_size
     local height = #qr_matrix * qr_size
     
@@ -59,10 +47,10 @@ local function convert_qr_to_image(qr_matrix)
     local bg, img, black_pixel, font
     
     local success, err = pcall(function()
-        -- Create a white background with black QR code with higher contrast for video
-        bg = resource.create_colored_texture(0, 0, 0, 0.5)  -- Semi-transparent black background (increased opacity for video)
-        img = resource.create_colored_texture(1, 1, 1, 1)    -- Bright white background
-        black_pixel = resource.create_colored_texture(0, 0, 0, 1)  -- Pure black pixel
+        -- Create a white background with black QR code
+        bg = resource.create_colored_texture(0, 0, 0, 0.3)  -- Even more transparent background (0.5 to 0.3)
+        img = resource.create_colored_texture(1, 1, 1, 1)    -- White background
+        black_pixel = resource.create_colored_texture(0, 0, 0, 1)  -- Black pixel
         font = resource.load_font("default-font.ttf")
         return true
     end)
@@ -78,8 +66,8 @@ local function convert_qr_to_image(qr_matrix)
         debug_print("Drawing QR code at position: " .. x .. "," .. y)
         
         -- Draw semi-transparent background behind the QR code
-        local border = 15  -- Slightly increased border for better visibility
-        local title_height = 25  -- Slightly increased title area
+        local border = 10  -- Even smaller border
+        local title_height = 20  -- Even smaller title area
         
         -- Draw background with extra space for title
         bg:draw(x - border, y - border - title_height, x + width + border, y + height + border)
@@ -87,8 +75,8 @@ local function convert_qr_to_image(qr_matrix)
         -- Draw white background for the QR code
         img:draw(x, y, x + width, y + height)
         
-        -- Draw title text (slightly larger for video)
-        font:write(x + width/2 - 45, y - title_height + 5, "Scan QR Code", 22, 1, 1, 1, 1)
+        -- Draw title text (smaller)
+        font:write(x + width/2 - 40, y - title_height + 5, "Scan QR Code", 18, 1, 1, 1, 1)
         
         -- Position the QR code at (x, y)
         for i = 1, #qr_matrix do
@@ -106,11 +94,6 @@ end
 -- Function to generate QR code and save it to a file
 local function generate_qr_code_file(data)
     debug_print("Attempting to generate QR code for: " .. data)
-    
-    -- Check if resource global is available for later use
-    if not resource then
-        debug_print("WARNING: 'resource' global variable is not available, QR code generation may fail")
-    end
     
     -- Load the qrencode module if not already loaded
     if not qrencode then
@@ -185,7 +168,7 @@ local function generate_qr_code_file(data)
     end
 end
 
--- Function to handle remote trigger for QR code generation
+-- Function to handle remote trigger 3 and generate QR code
 function M.handle_remote_trigger(data)
     debug_print("Handle remote trigger called with data: " .. tostring(data))
     
@@ -195,8 +178,8 @@ function M.handle_remote_trigger(data)
         return false
     end
     
-    -- Always hide QR code when switching to any trigger other than 16, 3, or 3p
-    if data ~= "16" and data ~= "3" and data ~= "3p" then
+    -- Always hide QR code when switching to any trigger other than 3 or 3p
+    if data ~= "3" and data ~= "3p" then
         debug_print("Trigger " .. data .. " received - hiding QR code")
         show_qr_code = false
         PERMANENT_DISPLAY = false
@@ -206,36 +189,7 @@ function M.handle_remote_trigger(data)
     current_trigger = data
     debug_print("Current trigger set to: " .. current_trigger)
     
-    -- Trigger 16 is the primary video trigger that should show QR code
     if data == "16" then
-        debug_print("Video Trigger 16 activated: Generating QR code")
-        
-        -- Generate a URL with current timestamp
-        local timestamp = format_timestamp()
-        local url = "http://activations.courtsidevideo.com?asset_id=12345&timestamp=" .. timestamp .. "&tile_id=7890"
-        
-        debug_print("Generated URL for QR code: " .. url)
-        
-        -- Generate QR code and save to file
-        debug_print("Starting QR code generation process")
-        local qr_generated = generate_qr_code_file(url)
-        debug_print("QR code generation result: " .. tostring(qr_generated))
-        
-        if qr_generated then
-            -- Set flag to show QR code
-            show_qr_code = true
-            PERMANENT_DISPLAY = true  -- Make it display permanently for video content
-            debug_print("Setting show_qr_code flag to true for video content")
-            
-            -- Set expiry time - very long for video content
-            qr_expiry_time = sys.now() + 3600 * 24  -- 24 hours - essentially permanent for video
-            debug_print("QR code ready to display permanently for video content (trigger 16)")
-            debug_print("QR code state: show_qr_code=" .. tostring(show_qr_code) .. ", qr_draw_function_exists=" .. tostring(qr_draw_function ~= nil))
-            return true
-        else
-            debug_print("ERROR: Failed to generate QR code")
-        end
-    elseif data == "3" then
         debug_print("Trigger 3 activated: Generating QR code")
         
         -- Generate a URL with current timestamp
@@ -252,51 +206,17 @@ function M.handle_remote_trigger(data)
         if qr_generated then
             -- Set flag to show QR code
             show_qr_code = true
-            PERMANENT_DISPLAY = true
+            PERMANENT_DISPLAY = true  -- Make it display permanently while on this trigger
             debug_print("Setting show_qr_code flag to true")
             
             -- Set expiry time (still needed as fallback)
             qr_expiry_time = sys.now() + QR_DISPLAY_DURATION
-            debug_print("QR code ready to display while on trigger 3")
+            debug_print("QR code ready to display permanently while on trigger 3")
             debug_print("QR code state: show_qr_code=" .. tostring(show_qr_code) .. ", qr_draw_function_exists=" .. tostring(qr_draw_function ~= nil))
             return true
         else
             debug_print("ERROR: Failed to generate QR code")
         end
-    elseif data == "3p" then
-        debug_print("Trigger 3p activated: Generating permanent QR code")
-        
-        -- Generate a URL with current timestamp
-        local timestamp = format_timestamp()
-        local url = "http://activations.courtsidevideo.com?asset_id=12345&timestamp=" .. timestamp .. "&tile_id=7890"
-        
-        debug_print("Generated URL for permanent QR code: " .. url)
-        
-        -- Generate QR code and save to file
-        debug_print("Starting QR code generation process")
-        local qr_generated = generate_qr_code_file(url)
-        debug_print("QR code generation result: " .. tostring(qr_generated))
-        
-        if qr_generated then
-            -- Set flag to show QR code
-            show_qr_code = true
-            PERMANENT_DISPLAY = true
-            debug_print("Setting show_qr_code and PERMANENT_DISPLAY flags to true")
-            
-            -- Set expiry time very far in the future
-            qr_expiry_time = sys.now() + 315360000  -- 10 years in seconds
-            debug_print("QR code set to display permanently")
-            debug_print("QR code state: show_qr_code=" .. tostring(show_qr_code) .. ", permanent=" .. tostring(PERMANENT_DISPLAY))
-            return true
-        else
-            debug_print("ERROR: Failed to generate QR code")
-        end
-    elseif data == "4" then
-        debug_print("Trigger 4 activated: Hiding QR code")
-        show_qr_code = false
-        PERMANENT_DISPLAY = false
-        debug_print("QR code hidden")
-        return true
     else
         debug_print("Trigger " .. data .. " is not handled by QR code module (QR code hidden)")
         -- QR code should already be hidden from our check at the top
@@ -321,25 +241,12 @@ end
 function M.draw_qr(x, y)
     debug_print("draw_qr called for position " .. x .. "," .. y)
     
-    -- First check if we're on a valid trigger for QR display
-    -- Note: We prioritize trigger 16 for video content
-    if current_trigger ~= "16" and current_trigger ~= "3" and current_trigger ~= "3p" then
-        debug_print("Current trigger " .. tostring(current_trigger) .. " is not valid for QR display")
-        show_qr_code = false  -- Ensure QR is hidden
-        return false
-    end
-    
     if not show_qr_code then
         debug_print("QR code not set to show")
         return false
     end
     
-    -- For video content (trigger 16), print more detailed status
-    if current_trigger == "16" then
-        debug_print("QR code for VIDEO content is set to show (trigger 16)")
-    else
-        debug_print("QR code is set to show")
-    end
+    debug_print("QR code is set to show")
     
     if not qr_draw_function then
         debug_print("ERROR: QR draw function is nil")
@@ -360,13 +267,7 @@ function M.draw_qr(x, y)
         else
             remaining = math.floor(qr_expiry_time - now)
         end
-        
-        -- Add more detailed debug for video content
-        if current_trigger == "16" then
-            debug_print("Drawing VIDEO QR code at position: " .. x .. "," .. y .. " - Expires in: " .. remaining .. (PERMANENT_DISPLAY and "" or " seconds"))
-        else
-            debug_print("Drawing QR code at position: " .. x .. "," .. y .. " - Expires in: " .. remaining .. (PERMANENT_DISPLAY and "" or " seconds"))
-        end
+        debug_print("Drawing QR code at position: " .. x .. "," .. y .. " - Expires in: " .. remaining .. (PERMANENT_DISPLAY and "" or " seconds"))
         
         local success, err = pcall(function()
             qr_draw_function(x, y)
@@ -379,12 +280,7 @@ function M.draw_qr(x, y)
             return false
         end
         
-        -- Add more detailed debug for video content
-        if current_trigger == "16" then
-            debug_print("VIDEO QR code drawn successfully")
-        else
-            debug_print("QR code drawn successfully")
-        end
+        debug_print("QR code drawn successfully")
         return true
     end
 end

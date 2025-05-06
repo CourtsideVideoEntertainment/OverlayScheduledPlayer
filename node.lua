@@ -11,20 +11,7 @@ local loader = require "loader"
 local helper = require "helper"
 local placement = require "placement"
 local easing = require "easing"
-local qrcode_overlay = nil  -- Initialize as nil first, we'll load it properly after gl setup
-
--- Function to initialize the QR code module when we're sure resource globals are available
-local function init_qrcode()
-    if not qrcode_overlay then
-        print("Initializing QR code module...")
-        qrcode_overlay = require "qrcode_overlay"
-        print("QR code module loaded successfully")
-    end
-    return qrcode_overlay
-end
-
--- Call init_qrcode once to ensure it's available
-init_qrcode()
+local qrcode_overlay = require "qrcode_overlay"
 
 local min, max, abs, floor, ceil = math.min, math.max, math.abs, math.floor, math.ceil
 
@@ -1655,20 +1642,17 @@ local function Scheduler(page_source, job_queue)
     local function handle_remote_trigger(remote)
         print("Remote trigger received:", remote)
         
-        -- Make sure QR code module is initialized
-        qrcode_overlay = init_qrcode()
-        
         -- Try to handle the trigger with the QR code module first
-        local qr_result = false
-        if qrcode_overlay then
-            qr_result = qrcode_overlay.handle_remote_trigger(remote)
-            print("QR code handling result:", qr_result)
-        else
-            print("QR code module not initialized, cannot handle trigger")
-        end
+        local qr_result = qrcode_overlay.handle_remote_trigger(remote)
+        print("QR code handling result:", qr_result)
         
-        -- Call the scheduler handler for regular page display
-        return scheduler.handle_remote_trigger(remote)
+        -- Process normal page navigation
+        local pages = page_source.find_by_remote(remote)
+        if not pages then
+            return false
+        end
+        enqueue_interactive(pages)
+        return true
     end
 
     local function handle_cec(cec_key)
@@ -2186,17 +2170,9 @@ util.data_mapper{
     ["remote/trigger"] = function(data)
         print("Remote trigger received:", data)
         
-        -- Make sure QR code module is initialized
-        qrcode_overlay = init_qrcode()
-        
         -- Try to handle the trigger with the QR code module first
-        local qr_result = false
-        if qrcode_overlay then
-            qr_result = qrcode_overlay.handle_remote_trigger(data)
-            print("QR code handling result:", qr_result)
-        else
-            print("QR code module not initialized, cannot handle trigger")
-        end
+        local qr_result = qrcode_overlay.handle_remote_trigger(data)
+        print("QR code handling result:", qr_result)
         
         -- Call the scheduler handler for regular page display
         return scheduler.handle_remote_trigger(data)
@@ -2212,7 +2188,6 @@ util.data_mapper{
 
 -- Override the render function to add QR code display
 function node.render()
-    -- Start with normal rendering
     streams.tick()
     FontCache.tick()
     ImageCache.tick()
@@ -2229,15 +2204,6 @@ function node.render()
 
     dispatch_to_all_tiles("overlay")
     
-    -- Force a small delay to ensure all video rendering is complete
-    gl.pushMatrix()
-    gl.popMatrix()
-    
-    -- Create the test marker only once
-    if not test_marker then
-        test_marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
-    end
-    
     -- Position QR code in the top-left corner
     local qr_width = 40  -- Smaller width for a less intrusive QR code
     local qr_height = 40  -- Smaller height for a less intrusive QR code
@@ -2247,37 +2213,16 @@ function node.render()
     local qr_x = margin  -- Set x position to margin from the left
     local qr_y = margin  -- Set y position to margin from the top
     
-    -- Always draw the test marker first to verify rendering is working
-    test_marker:draw(10, 10, 30, 30)  -- Small red square in corner to confirm rendering is working
+    -- Draw a test marker to verify rendering is working (small red dot in corner)
+    local marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
+    marker:draw(10, 10, 30, 30)  -- Small red square in corner to confirm rendering is working
     
-    -- Make sure QR code module is initialized
-    qrcode_overlay = init_qrcode()
-    
-    -- Try to draw the QR code - forcibly make it the last thing drawn so it's on top
-    local drawn = false
-    if qrcode_overlay then
-        drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
-    end
+    -- Try to draw the QR code
+    local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
     
     -- Print debugging info every few seconds
     if math.floor(now) % 5 == 0 then
         print("DEBUG RENDER: QR code drawn:", tostring(drawn))
         print("DEBUG RENDER: QR position:", qr_x, qr_y)
-        
-        -- Also print QR code status
-        if qrcode_overlay then
-            local status = qrcode_overlay.get_status()
-            print("DEBUG RENDER: QR STATUS: visible=" .. tostring(status.visible) ..
-                  ", permanent=" .. tostring(status.permanent) ..
-                  ", trigger=" .. tostring(status.current_trigger) ..
-                  ", has_draw_function=" .. tostring(status.has_draw_function))
-            
-            -- Special debug for video content
-            if status.current_trigger == "16" then
-                print("DEBUG RENDER: VIDEO content active - QR should be visible")
-            end
-        else
-            print("DEBUG RENDER: QR module not initialized")
-        end
     end
 end
