@@ -19,6 +19,9 @@ local font_regl = resource.load_font "default-font.ttf"
 local font_bold = resource.load_font "default-font-bold.ttf"
 local font_7seg = resource.load_font "7segment.ttf"
 
+-- Create persistent marker texture for debug visualization
+local debug_marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
+
 local colored = resource.create_shader[[
     uniform sampler2D Texture;
     varying vec2 TexCoord;
@@ -2213,16 +2216,31 @@ function node.render()
     local qr_x = margin  -- Set x position to margin from the left
     local qr_y = margin  -- Set y position to margin from the top
     
-    -- Draw a test marker to verify rendering is working (small red dot in corner)
-    local marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
-    marker:draw(10, 10, 30, 30)  -- Small red square in corner to confirm rendering is working
-    
     -- Try to draw the QR code
     local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
+    
+    -- Draw debug marker last to ensure it's on top of all other content
+    -- This ensures the marker doesn't get hidden by videos or other elements
+    gl.pushMatrix()
+        -- Use explicit Z coordinate to ensure it's drawn on top
+        gl.translate(0, 0, 0.1)
+        
+        -- Draw white border first (slightly larger than the marker)
+        colored:use{color = {1, 1, 1, 1}}  -- White color
+        white_pixel:draw(8, 8, 32, 32)     -- White border
+        colored:deactivate()
+        
+        -- Create blinking effect by varying alpha based on time
+        local blink_alpha = math.abs(math.sin(now * 3)) * 0.5 + 0.5  -- Oscillates between 0.5 and 1.0
+        colored:use{color = {1, 0, 0, blink_alpha}}  -- Red with changing alpha
+        debug_marker:draw(10, 10, 30, 30)  -- Small red square in corner
+        colored:deactivate()
+    gl.popMatrix()
     
     -- Print debugging info every few seconds
     if math.floor(now) % 5 == 0 then
         print("DEBUG RENDER: QR code drawn:", tostring(drawn))
         print("DEBUG RENDER: QR position:", qr_x, qr_y)
+        print("DEBUG RENDER: Debug marker drawn at 10,10")
     end
 end
