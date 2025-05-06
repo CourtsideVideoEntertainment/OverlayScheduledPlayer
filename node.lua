@@ -2382,24 +2382,6 @@ function node.render()
     end
 end
 
--- Create marker textures during initialization
-local debug_marker = resource.create_colored_texture(1, 0, 0, 1) -- Red
-local white_pixel = resource.create_colored_texture(1, 1, 1, 1) -- White
-local black_pixel = resource.create_colored_texture(0, 0, 0, 1) -- Black
-
--- Create a colored shader for texture operations
-local colored = resource.create_shader[[
-    uniform vec4 color;
-    void main() {
-        gl_FragColor = color;
-    }
-]]
-
--- Debug marker tracking
-local DEBUG_MARKER = true
-local marker_draw_count = 0
-local last_marker_time = 0
-
 -- Function to draw the debug marker with a more distinct appearance
 function draw_debug_marker(now)
     marker_draw_count = marker_draw_count + 1
