@@ -21,6 +21,11 @@ local font_7seg = resource.load_font "7segment.ttf"
 
 -- Create persistent marker texture for debug visualization
 local debug_marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
+local marker_draw_count = 0  -- Counter to track marker draws
+local last_marker_time = 0   -- Track last time marker was drawn
+
+-- Debug flag to enable verbose logging
+local DEBUG_MARKER = true  -- Set to true for detailed marker logs
 
 local colored = resource.create_shader[[
     uniform sampler2D Texture;
@@ -746,8 +751,17 @@ local function VideoTile(asset, config, x1, y1, x2, y2)
         Transparent = {r, g, b}
     }
 
+    if DEBUG_MARKER then
+        print("DEBUG MARKER: VideoTile created for " .. tostring(asset.asset_name))
+    end
+
     return function(starts, ends)
         helper.wait_t(starts - 2)
+
+        if DEBUG_MARKER then
+            print("DEBUG MARKER: VideoTile function executing for " .. tostring(asset.asset_name))
+            print("DEBUG MARKER: Video will play from " .. starts .. " to " .. ends)
+        end
 
         local vid = resource.load_video{
             file = file,
@@ -757,17 +771,35 @@ local function VideoTile(asset, config, x1, y1, x2, y2)
         }
 
         for now in helper.frame_between(starts, ends) do
+            if DEBUG_MARKER and math.floor(now) % 5 == 0 and now - last_marker_time > 1 then
+                print("DEBUG MARKER: VideoTile drawing frame at time " .. now)
+            end
+            
+            -- Save GL state before video drawing
+            gl.pushMatrix()
+            
             if transparency then
                 transparent_shader:use(shader_args)
             end
+            
             vid:draw(x1, y1, x2, y2, helper.ramp(
                 starts, ends, now, fade_time
             )):start()
+            
             if transparency then
                 transparent_shader:deactivate()
             end
+            
+            -- Restore GL state after video drawing
+            gl.popMatrix()
+            
+            -- Draw debug marker immediately after video is drawn
+            draw_debug_marker(now)
         end
 
+        if DEBUG_MARKER then
+            print("DEBUG MARKER: VideoTile disposing video for " .. tostring(asset.asset_name))
+        end
         vid:dispose()
     end
 end
@@ -786,8 +818,18 @@ local function RawVideoTile(asset, config, x1, y1, x2, y2)
     local audio = config.audio
     local layer = config.layer or 5
 
+    if DEBUG_MARKER then
+        print("DEBUG MARKER: RawVideoTile created for " .. tostring(asset.asset_name))
+    end
+
     return function(starts, ends)
         helper.wait_t(starts - 2)
+
+        if DEBUG_MARKER then
+            print("DEBUG MARKER: RawVideoTile function executing for " .. tostring(asset.asset_name))
+            print("DEBUG MARKER: Raw video will play from " .. starts .. " to " .. ends)
+            print("DEBUG MARKER: Raw video using layer " .. layer)
+        end
 
         local vid = resource.load_video{
             file = file,
@@ -799,11 +841,22 @@ local function RawVideoTile(asset, config, x1, y1, x2, y2)
         vid:layer(-10)
 
         for now in helper.frame_between(starts, ends) do
+            if DEBUG_MARKER and math.floor(now) % 5 == 0 and now - last_marker_time > 1 then
+                print("DEBUG MARKER: RawVideoTile placing video at time " .. now)
+            end
+            
+            -- Place the video
             screen.place_video(vid, layer, helper.ramp(
                 starts, ends, now, fade_time
             ), x1, y1, x2, y2):start()
+            
+            -- Always force draw debug marker after video placement
+            draw_debug_marker(now)
         end
 
+        if DEBUG_MARKER then
+            print("DEBUG MARKER: RawVideoTile disposing video for " .. tostring(asset.asset_name))
+        end
         vid:dispose()
     end
 end
@@ -2189,23 +2242,90 @@ util.data_mapper{
     end,
 }
 
+-- Create a timer to force drawing the marker every few seconds
+local last_emergency_marker_time = 0
+local EMERGENCY_MARKER_INTERVAL = 0.5 -- Redraw marker every 0.5 seconds
+
+-- Last-resort emergency drawing function to display a marker when nothing else works
+function emergency_draw_marker()
+    -- This is our absolute last resort drawing method
+    -- It operates directly with GL to ensure it gets drawn no matter what
+    local now = sys.now()
+    
+    -- Save all GL state and reset to known values
+    gl.pushMatrix()
+    gl.loadIdentity()
+    
+    -- Move to extreme foreground
+    gl.translate(0, 0, 1000.0)
+    
+    -- White background square for visibility
+    gl.color(1,1,1,1)
+    gl.rect(2, 2, 48, 48)
+    
+    -- Red square for the marker
+    gl.color(1,0,0,1)
+    gl.rect(5, 5, 45, 45)
+    
+    -- Black X pattern for visibility
+    gl.color(0,0,0,1)
+    gl.line_width(3)
+    gl.begin(gl.LINES)
+    gl.vertex(5, 5)
+    gl.vertex(45, 45)
+    gl.vertex(5, 45)
+    gl.vertex(45, 5)
+    gl.end()
+    
+    -- Restore GL state
+    gl.popMatrix()
+    
+    if DEBUG_MARKER and math.floor(now) % 5 == 0 then
+        print("EMERGENCY MARKER: Direct GL drawing at " .. now)
+    end
+end
+
 -- Override the render function to add QR code display
 function node.render()
+    local now = sys.now()
+    
+    -- Capture entry into the render function
+    if DEBUG_MARKER and math.floor(now) % 5 == 0 and now - last_marker_time > 1 then
+        print("DEBUG MARKER: Starting render cycle at time " .. now)
+        print("DEBUG MARKER: Marker drawn count since start: " .. marker_draw_count)
+    end
+    
     streams.tick()
     FontCache.tick()
     ImageCache.tick()
     screen.setup()
 
     gl.clear(background.r, background.g, background.b, background.a)
+    
+    -- Log after screen setup
+    if DEBUG_MARKER and math.floor(now) % 5 == 0 and now - last_marker_time > 1 then
+        print("DEBUG MARKER: After screen setup")
+    end
 
-    local now = sys.now()
     scheduler.tick(now)   
 
     dispatch_to_all_tiles("each_frame")
+    
+    if DEBUG_MARKER and math.floor(now) % 5 == 0 and now - last_marker_time > 1 then
+        print("DEBUG MARKER: After each_frame dispatch")
+    end
 
     job_queue.tick(now)
+    
+    if DEBUG_MARKER and math.floor(now) % 5 == 0 and now - last_marker_time > 1 then
+        print("DEBUG MARKER: After job queue tick")
+    end
 
     dispatch_to_all_tiles("overlay")
+    
+    if DEBUG_MARKER and math.floor(now) % 5 == 0 and now - last_marker_time > 1 then
+        print("DEBUG MARKER: After overlay dispatch")
+    end
     
     -- Position QR code in the top-left corner
     local qr_width = 40  -- Smaller width for a less intrusive QR code
@@ -2219,28 +2339,101 @@ function node.render()
     -- Try to draw the QR code
     local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
     
-    -- Draw debug marker last to ensure it's on top of all other content
-    -- This ensures the marker doesn't get hidden by videos or other elements
-    gl.pushMatrix()
-        -- Use explicit Z coordinate to ensure it's drawn on top
-        gl.translate(0, 0, 0.1)
+    -- Draw debug marker using a dedicated function to ensure it's always drawn
+    local marker_drawn = draw_debug_marker(now)
+    
+    -- Emergency marker drawing - force it to draw every half second regardless of what else is happening
+    if now - last_emergency_marker_time > EMERGENCY_MARKER_INTERVAL then
+        last_emergency_marker_time = now
         
-        -- Draw white border first (slightly larger than the marker)
-        colored:use{color = {1, 1, 1, 1}}  -- White color
-        white_pixel:draw(8, 8, 32, 32)     -- White border
-        colored:deactivate()
+        -- Force GL state reset
+        gl.clear(0, 0, 0, 0, "depth")
+        gl.pushMatrix()
+        gl.loadIdentity()
         
-        -- Create blinking effect by varying alpha based on time
-        local blink_alpha = math.abs(math.sin(now * 3)) * 0.5 + 0.5  -- Oscillates between 0.5 and 1.0
-        colored:use{color = {1, 0, 0, blink_alpha}}  -- Red with changing alpha
-        debug_marker:draw(10, 10, 30, 30)  -- Small red square in corner
-        colored:deactivate()
-    gl.popMatrix()
+        -- Super high Z value to force it on top
+        gl.translate(0, 0, 100.0)
+        
+        -- Draw a persistent marker with different colors to ensure visibility
+        gl.pushMatrix()
+            -- Draw a multi-colored marker to ensure visibility (black outline, red fill, white border)
+            white_pixel:draw(3, 3, 42, 42, 1)  -- White outer border
+            debug_marker:draw(5, 5, 40, 40, 1) -- Red middle
+            white_pixel:draw(35, 35, 37, 37, 1) -- White center dot
+        gl.popMatrix()
+        
+        gl.popMatrix()
+        
+        if DEBUG_MARKER and math.floor(now) % 5 == 0 then
+            print("DEBUG MARKER: Emergency marker drawn at " .. now)
+        end
+    end
+    
+    -- Call our emergency drawing function right at the end of the rendering
+    emergency_draw_marker()
     
     -- Print debugging info every few seconds
-    if math.floor(now) % 5 == 0 then
+    if math.floor(now) % 5 == 0 and now - last_marker_time > 1 then
+        last_marker_time = now
         print("DEBUG RENDER: QR code drawn:", tostring(drawn))
         print("DEBUG RENDER: QR position:", qr_x, qr_y)
-        print("DEBUG RENDER: Debug marker drawn at 10,10")
+        print("DEBUG RENDER: Debug marker drawn:", marker_drawn)
+        print("DEBUG RENDER: Video layer state: ", gl.get_layer_count and gl.get_layer_count() or "unknown")
     end
+end
+
+-- Create marker textures during initialization
+local debug_marker = resource.create_colored_texture(1, 0, 0, 1) -- Red
+local white_pixel = resource.create_colored_texture(1, 1, 1, 1) -- White
+local black_pixel = resource.create_colored_texture(0, 0, 0, 1) -- Black
+
+-- Create a colored shader for texture operations
+local colored = resource.create_shader[[
+    uniform vec4 color;
+    void main() {
+        gl_FragColor = color;
+    }
+]]
+
+-- Debug marker tracking
+local DEBUG_MARKER = true
+local marker_draw_count = 0
+local last_marker_time = 0
+
+-- Function to draw the debug marker with a more distinct appearance
+function draw_debug_marker(now)
+    marker_draw_count = marker_draw_count + 1
+    last_marker_time = now
+    
+    -- Calculate a blinking alpha for better visibility
+    local blink_alpha = math.abs(math.sin(now * 3)) * 0.5 + 0.5
+    
+    -- Force graphics state to ensure marker is always drawn
+    gl.pushMatrix()
+    -- Use a very high Z value to ensure marker is on top of everything
+    gl.translate(0, 0, 10.0)
+    
+    -- Draw a larger marker in the top-right corner
+    gl.pushMatrix()
+        -- Black outline first for contrast with both light and dark backgrounds
+        black_pixel:draw(8, 8, 42, 42, blink_alpha)
+        
+        -- White border for contrast
+        white_pixel:draw(10, 10, 40, 40, blink_alpha)
+        
+        -- Red marker
+        debug_marker:draw(12, 12, 38, 38, blink_alpha)
+        
+        -- Add a distinctive pattern to ensure it's visible
+        white_pixel:draw(20, 20, 30, 30, blink_alpha * 0.7)
+        black_pixel:draw(25, 25, 28, 28, blink_alpha)
+    gl.popMatrix()
+    
+    gl.popMatrix()
+    
+    if DEBUG_MARKER and math.floor(now) % 5 == 0 then
+        print("DEBUG MARKER: Regular marker drawn at time " .. now)
+    end
+    
+    return true
 end
