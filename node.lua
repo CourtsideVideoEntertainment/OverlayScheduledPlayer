@@ -2275,7 +2275,7 @@ function emergency_draw_marker()
     gl.vertex(45, 45)
     gl.vertex(5, 45)
     gl.vertex(45, 5)
-    gl.end()
+    gl.endLines() -- Using endLines instead of end() to avoid keyword conflict
     
     -- Restore GL state
     gl.popMatrix()
