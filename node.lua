@@ -16,7 +16,7 @@ local qrcode_overlay = require "qrcode_overlay"
 -- QR code positioning configuration
 local QR_POSITION_CONFIG = {
     -- Position can be one of: "top-left", "top-right", "bottom-left", "bottom-right", or "custom"
-    position = "bottom-right",
+    position = "bottom-left",
     
     -- Dimensions
     width = 50,   -- Width of QR code area
