@@ -19,8 +19,8 @@ local QR_POSITION_CONFIG = {
     position = "bottom-right",
     
     -- Dimensions
-    width = 150,   -- Width of QR code area
-    height = 150,  -- Height of QR code area
+    width = 50,   -- Width of QR code area
+    height = 50,  -- Height of QR code area
     
     -- Margin from screen edges
     margin = 40,
