@@ -3,6 +3,27 @@
 
 local M = {}
 
+-- =============================================
+-- QR CODE APPEARANCE CONFIGURATION
+-- You can adjust these settings to customize the QR code appearance
+-- =============================================
+local QR_CONFIG = {
+    -- QR code module size (a QR code is made up of small squares called modules)
+    module_size = 8,  -- Size of each square module in pixels
+    
+    -- QR code appearance
+    background_color = {0, 0, 0, 0.4},  -- Dark background with 40% opacity
+    foreground_color = {0, 0, 0, 1},    -- Black QR code pixels
+    border_size = 15,                   -- Size of the border around the QR code
+    
+    -- Title settings
+    title_text = "Scan QR Code",        -- Text displayed above QR code
+    title_height = 30,                  -- Height of the title area
+    title_font_size = 24,               -- Font size for the title text
+    title_color = {1, 1, 1, 1},         -- White text
+}
+-- =============================================
+
 -- Variables for QR code functionality
 local show_qr_code = false
 local qr_draw_function = nil
@@ -36,8 +57,15 @@ end
 local function convert_qr_to_image(qr_matrix)
     debug_print("Converting QR matrix to drawable function")
     
-    -- Smaller size for less intrusive display
-    local qr_size = 6  -- Reduced from 10 to 6 for even smaller appearance
+    -- Configurable size settings
+    local qr_size = QR_CONFIG.module_size
+    local border = QR_CONFIG.border_size
+    local title_height = QR_CONFIG.title_height
+    local title_text = QR_CONFIG.title_text
+    local title_font_size = QR_CONFIG.title_font_size
+    local background_alpha = QR_CONFIG.background_color[4]
+    
+    -- Calculate dimensions
     local width = #qr_matrix[1] * qr_size
     local height = #qr_matrix * qr_size
     
@@ -48,9 +76,9 @@ local function convert_qr_to_image(qr_matrix)
     
     local success, err = pcall(function()
         -- Create a white background with black QR code
-        bg = resource.create_colored_texture(0, 0, 0, 0.3)  -- Even more transparent background (0.5 to 0.3)
+        bg = resource.create_colored_texture(QR_CONFIG.background_color[1], QR_CONFIG.background_color[2], QR_CONFIG.background_color[3], background_alpha)
         img = resource.create_colored_texture(1, 1, 1, 1)    -- White background
-        black_pixel = resource.create_colored_texture(0, 0, 0, 1)  -- Black pixel
+        black_pixel = resource.create_colored_texture(QR_CONFIG.foreground_color[1], QR_CONFIG.foreground_color[2], QR_CONFIG.foreground_color[3], 1)  -- Black pixel
         font = resource.load_font("default-font.ttf")
         return true
     end)
@@ -66,17 +94,18 @@ local function convert_qr_to_image(qr_matrix)
         debug_print("Drawing QR code at position: " .. x .. "," .. y)
         
         -- Draw semi-transparent background behind the QR code
-        local border = 10  -- Even smaller border
-        local title_height = 20  -- Even smaller title area
-        
         -- Draw background with extra space for title
         bg:draw(x - border, y - border - title_height, x + width + border, y + height + border)
         
         -- Draw white background for the QR code
         img:draw(x, y, x + width, y + height)
         
-        -- Draw title text (smaller)
-        font:write(x + width/2 - 40, y - title_height + 5, "Scan QR Code", 18, 1, 1, 1, 1)
+        -- Draw title text
+        font:write(x + width/2 - (title_font_size * string.len(title_text)/4), 
+                   y - title_height + 5, 
+                   title_text, 
+                   title_font_size, 
+                   QR_CONFIG.title_color[1], QR_CONFIG.title_color[2], QR_CONFIG.title_color[3], QR_CONFIG.title_color[4])
         
         -- Position the QR code at (x, y)
         for i = 1, #qr_matrix do
@@ -285,6 +314,71 @@ function M.draw_qr(x, y)
     end
 end
 
+-- Function to update QR code appearance settings
+-- This allows changing appearance settings at runtime without editing the files
+function M.update_appearance(settings)
+    debug_print("Updating QR code appearance settings")
+    
+    if type(settings) ~= "table" then
+        debug_print("ERROR: Settings must be a table")
+        return false
+    end
+    
+    -- Update individual settings if provided
+    if settings.module_size then
+        QR_CONFIG.module_size = settings.module_size
+        debug_print("Updated module_size to " .. settings.module_size)
+    end
+    
+    if settings.background_color then
+        QR_CONFIG.background_color = settings.background_color
+        debug_print("Updated background_color")
+    end
+    
+    if settings.foreground_color then
+        QR_CONFIG.foreground_color = settings.foreground_color
+        debug_print("Updated foreground_color")
+    end
+    
+    if settings.border_size then
+        QR_CONFIG.border_size = settings.border_size
+        debug_print("Updated border_size to " .. settings.border_size)
+    end
+    
+    if settings.title_text then
+        QR_CONFIG.title_text = settings.title_text
+        debug_print("Updated title_text to '" .. settings.title_text .. "'")
+    end
+    
+    if settings.title_height then
+        QR_CONFIG.title_height = settings.title_height
+        debug_print("Updated title_height to " .. settings.title_height)
+    end
+    
+    if settings.title_font_size then
+        QR_CONFIG.title_font_size = settings.title_font_size
+        debug_print("Updated title_font_size to " .. settings.title_font_size)
+    end
+    
+    if settings.title_color then
+        QR_CONFIG.title_color = settings.title_color
+        debug_print("Updated title_color")
+    end
+    
+    -- Regenerate QR code with new settings if we have an active QR code
+    if show_qr_code and qr_draw_function then
+        debug_print("Regenerating QR code with new appearance settings")
+        -- We need to trigger a QR code regeneration to apply the new settings
+        -- Use the current trigger value if available
+        if current_trigger == "3" or current_trigger == "3p" then
+            -- Re-trigger the QR code generation
+            M.handle_remote_trigger(current_trigger)
+        end
+    end
+    
+    return true
+end
+
 -- Function to get current QR code status for debugging
 function M.get_status()
     return {
@@ -293,7 +387,8 @@ function M.get_status()
         current_trigger = current_trigger,
         expiry_time = qr_expiry_time,
         remaining = qr_expiry_time > 0 and (qr_expiry_time - sys.now()) or 0,
-        has_draw_function = qr_draw_function ~= nil
+        has_draw_function = qr_draw_function ~= nil,
+        appearance = QR_CONFIG  -- Include appearance settings in status
     }
 end
 

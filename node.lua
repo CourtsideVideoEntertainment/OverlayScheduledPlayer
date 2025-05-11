@@ -13,6 +13,23 @@ local placement = require "placement"
 local easing = require "easing"
 local qrcode_overlay = require "qrcode_overlay"
 
+-- QR code positioning configuration
+local QR_POSITION_CONFIG = {
+    -- Position can be one of: "top-left", "top-right", "bottom-left", "bottom-right", or "custom"
+    position = "bottom-right",
+    
+    -- Dimensions
+    width = 150,   -- Width of QR code area
+    height = 150,  -- Height of QR code area
+    
+    -- Margin from screen edges
+    margin = 40,
+    
+    -- Used only if position is "custom"
+    custom_x = 500,
+    custom_y = 500,
+}
+
 local min, max, abs, floor, ceil = math.min, math.max, math.abs, math.floor, math.ceil
 
 local font_regl = resource.load_font "default-font.ttf"
@@ -2154,6 +2171,62 @@ util.json_watch("config.json", function(config)
     node.gc()
 end)
 
+-- Function to update QR code positioning settings
+local function update_qr_position(settings)
+    print("Updating QR code positioning settings")
+    
+    if type(settings) ~= "table" then
+        print("ERROR: Settings must be a table")
+        return false
+    end
+    
+    -- Update individual settings if provided
+    if settings.position then
+        -- Validate position value
+        local valid_positions = {
+            ["top-left"] = true,
+            ["top-right"] = true,
+            ["bottom-left"] = true,
+            ["bottom-right"] = true,
+            ["custom"] = true
+        }
+        
+        if valid_positions[settings.position] then
+            QR_POSITION_CONFIG.position = settings.position
+            print("Updated QR position to " .. settings.position)
+        else
+            print("ERROR: Invalid position value: " .. settings.position)
+        end
+    end
+    
+    if settings.width then
+        QR_POSITION_CONFIG.width = settings.width
+        print("Updated QR width to " .. settings.width)
+    end
+    
+    if settings.height then
+        QR_POSITION_CONFIG.height = settings.height
+        print("Updated QR height to " .. settings.height)
+    end
+    
+    if settings.margin then
+        QR_POSITION_CONFIG.margin = settings.margin
+        print("Updated QR margin to " .. settings.margin)
+    end
+    
+    if settings.custom_x then
+        QR_POSITION_CONFIG.custom_x = settings.custom_x
+        print("Updated QR custom_x to " .. settings.custom_x)
+    end
+    
+    if settings.custom_y then
+        QR_POSITION_CONFIG.custom_y = settings.custom_y
+        print("Updated QR custom_y to " .. settings.custom_y)
+    end
+    
+    return true
+end
+
 util.data_mapper{
     ["event/keyboard"] = function(raw_event)
         local event = json.decode(raw_event)
@@ -2187,6 +2260,15 @@ util.data_mapper{
             impl.data_trigger(path, data)
         end
     end,
+    -- Add handlers for updating QR code settings
+    ["qr/position"] = function(data)
+        local settings = json.decode(data)
+        update_qr_position(settings)
+    end,
+    ["qr/appearance"] = function(data)
+        local settings = json.decode(data)
+        qrcode_overlay.update_appearance(settings)
+    end,
 }
 
 -- Override the render function to add QR code display
@@ -2207,14 +2289,44 @@ function node.render()
 
     dispatch_to_all_tiles("overlay")
     
-    -- Position QR code in the top-left corner
-    local qr_width = 40  -- Smaller width for a less intrusive QR code
-    local qr_height = 40  -- Smaller height for a less intrusive QR code
-    local margin = 20     -- Margin from the screen edge
+    -- QR Code positioning configuration
+    -- You can adjust these variables to reposition the QR code
+    -- Set position to one of: "top-left", "top-right", "bottom-left", "bottom-right", or "custom"
+    local qr_position = QR_POSITION_CONFIG.position
     
-    -- Calculate new position for top-left corner
-    local qr_x = margin  -- Set x position to margin from the left
-    local qr_y = margin  -- Set y position to margin from the top
+    -- QR code dimensions (can be adjusted to change size)
+    local qr_width = QR_POSITION_CONFIG.width
+    local qr_height = QR_POSITION_CONFIG.height
+    
+    -- Margin from screen edges
+    local margin = QR_POSITION_CONFIG.margin
+    
+    -- Use these only if position is "custom"
+    local custom_x = QR_POSITION_CONFIG.custom_x
+    local custom_y = QR_POSITION_CONFIG.custom_y
+    
+    -- Calculate position based on selected corner
+    local qr_x, qr_y
+    if qr_position == "top-left" then
+        qr_x = margin
+        qr_y = margin
+    elseif qr_position == "top-right" then
+        qr_x = NATIVE_WIDTH - qr_width - margin
+        qr_y = margin
+    elseif qr_position == "bottom-left" then
+        qr_x = margin
+        qr_y = NATIVE_HEIGHT - qr_height - margin
+    elseif qr_position == "bottom-right" then
+        qr_x = NATIVE_WIDTH - qr_width - margin
+        qr_y = NATIVE_HEIGHT - qr_height - margin
+    elseif qr_position == "custom" then
+        qr_x = custom_x
+        qr_y = custom_y
+    else
+        -- Default to top-left if invalid position
+        qr_x = margin
+        qr_y = margin
+    end
     
     -- Try to draw the QR code
     local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
