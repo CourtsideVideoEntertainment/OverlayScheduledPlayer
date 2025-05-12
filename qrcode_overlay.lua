@@ -186,37 +186,47 @@ local function convert_qr_to_image(qr_matrix, target_width, target_height)
                    draw_area.left .. "," .. draw_area.top .. ") to (" .. 
                    draw_area.right .. "," .. draw_area.bottom .. ")")
         
-        -- Draw semi-transparent background behind the QR code
-        -- Draw background with extra space for title
-        bg:draw(draw_area.left, draw_area.top, draw_area.right, draw_area.bottom)
-        
-        -- Draw white background for the QR code
-        img:draw(x, y, x + width, y + height)
-        
-        -- Draw title text (if not empty)
-        if title_text and title_text ~= "" then
-            font:write(x + width/2 - (scaled_title_font_size * string.len(title_text)/4), 
-                      y - scaled_title_height + 5, 
-                      title_text, 
-                      scaled_title_font_size, 
-                      QR_CONFIG.title_color[1], QR_CONFIG.title_color[2], QR_CONFIG.title_color[3], QR_CONFIG.title_color[4])
-        end
-        
-        -- Position the QR code at (x, y)
-        for i = 1, #qr_matrix do
-            for j = 1, #qr_matrix[i] do
-                if qr_matrix[i][j] == 1 then  -- Draw black square for '1'
-                    black_pixel:draw(
-                        x + (j-1) * module_size, 
-                        y + (i-1) * module_size, 
-                        x + j * module_size, 
-                        y + i * module_size
-                    )
+        -- Using pcall for all drawing operations to catch any errors
+        local success, err = pcall(function()
+            -- Draw semi-transparent background behind the QR code
+            -- Draw background with extra space for title
+            bg:draw(draw_area.left, draw_area.top, draw_area.right, draw_area.bottom)
+            
+            -- Draw white background for the QR code
+            img:draw(x, y, x + width, y + height)
+            
+            -- Draw title text (if not empty)
+            if title_text and title_text ~= "" then
+                local title_x = x + width/2 - (scaled_title_font_size * string.len(title_text)/4)
+                local title_y = y - scaled_title_height + 5
+                font:write(title_x, title_y, title_text, scaled_title_font_size, 
+                           QR_CONFIG.title_color[1], QR_CONFIG.title_color[2], 
+                           QR_CONFIG.title_color[3], QR_CONFIG.title_color[4])
+            end
+            
+            -- Position the QR code at (x, y)
+            for i = 1, #qr_matrix do
+                for j = 1, #qr_matrix[i] do
+                    if qr_matrix[i][j] == 1 then  -- Draw black square for '1'
+                        local qr_x1 = x + (j-1) * module_size
+                        local qr_y1 = y + (i-1) * module_size
+                        local qr_x2 = x + j * module_size
+                        local qr_y2 = y + i * module_size
+                        
+                        black_pixel:draw(qr_x1, qr_y1, qr_x2, qr_y2)
+                    end
                 end
             end
+        end)
+        
+        if not success then
+            debug_print("ERROR: Exception during QR drawing: " .. tostring(err))
+            return false
         end
         
         debug_print("QR code drawing completed")
+        debug_print("QR code drawn successfully")
+        return true
     end
 end
 
