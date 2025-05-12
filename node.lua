@@ -1663,7 +1663,7 @@ local function Scheduler(page_source, job_queue)
         print("Remote trigger received:", remote)
         
         -- Try to handle the trigger with the QR code module first
-        local qr_result = qrcode_overlay.handle_remote_trigger(remote, QR_POSITION_CONFIG.width, QR_POSITION_CONFIG.height)
+        local qr_result = qrcode_overlay.handle_remote_trigger(remote)
         print("QR code handling result:", qr_result)
         
         -- Process normal page navigation
@@ -2180,10 +2180,6 @@ local function update_qr_position(settings)
         return false
     end
     
-    local need_size_update = false
-    local old_width = QR_POSITION_CONFIG.width
-    local old_height = QR_POSITION_CONFIG.height
-    
     -- Update individual settings if provided
     if settings.position then
         -- Validate position value
@@ -2206,13 +2202,11 @@ local function update_qr_position(settings)
     if settings.width then
         QR_POSITION_CONFIG.width = settings.width
         print("Updated QR width to " .. settings.width)
-        need_size_update = true
     end
     
     if settings.height then
         QR_POSITION_CONFIG.height = settings.height
         print("Updated QR height to " .. settings.height)
-        need_size_update = true
     end
     
     if settings.margin then
@@ -2228,13 +2222,6 @@ local function update_qr_position(settings)
     if settings.custom_y then
         QR_POSITION_CONFIG.custom_y = settings.custom_y
         print("Updated QR custom_y to " .. settings.custom_y)
-    end
-    
-    -- Update QR code size if width or height changed
-    if need_size_update and qrcode_overlay.update_size then
-        print("Propagating size change to QR code overlay: " .. 
-              QR_POSITION_CONFIG.width .. "x" .. QR_POSITION_CONFIG.height)
-        qrcode_overlay.update_size(QR_POSITION_CONFIG.width, QR_POSITION_CONFIG.height)
     end
     
     return true
@@ -2260,7 +2247,7 @@ util.data_mapper{
         print("Remote trigger received:", data)
         
         -- Try to handle the trigger with the QR code module first
-        local qr_result = qrcode_overlay.handle_remote_trigger(data, QR_POSITION_CONFIG.width, QR_POSITION_CONFIG.height)
+        local qr_result = qrcode_overlay.handle_remote_trigger(data)
         print("QR code handling result:", qr_result)
         
         -- Call the scheduler handler for regular page display
@@ -2341,11 +2328,6 @@ function node.render()
         qr_y = margin
     end
     
-    -- Update QR size if needed (will only update if qrcode_overlay.update_size exists)
-    if qrcode_overlay.update_size then
-        qrcode_overlay.update_size(qr_width, qr_height)
-    end
-    
     -- Try to draw the QR code
     local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
     
@@ -2390,7 +2372,6 @@ function node.render()
             print("DEBUG RENDER: QR total size:", qr_dimensions.total_size.width, "×", qr_dimensions.total_size.height, "pixels")
             print("DEBUG RENDER: QR border size:", qr_dimensions.border_size, "pixels")
             print("DEBUG RENDER: QR title height:", qr_dimensions.title_height, "pixels")
-            print("DEBUG RENDER: QR scaling factor:", qr_dimensions.scale_factor or "none")
             
             -- Compare configured and actual sizes
             print("DEBUG RENDER: Size comparison - Configured:", qr_width, "×", qr_height, 
