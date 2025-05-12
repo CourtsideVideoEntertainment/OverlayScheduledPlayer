@@ -2354,17 +2354,7 @@ function node.render()
         debug_marker:draw(10, 10, 30, 30)  -- Small red square in corner
         colored:deactivate()
         
-        -- Draw rectangle showing QR area if QR code is visible and dimensions are available
-        if drawn and qr_dimensions then
-            colored:use{color = {0, 1, 0, 0.3}}  -- Semi-transparent green
-            white_pixel:draw(
-                qr_x - qr_dimensions.border_size, 
-                qr_y - qr_dimensions.border_size - qr_dimensions.title_height, 
-                qr_x + qr_dimensions.pixel_size.width + qr_dimensions.border_size, 
-                qr_y + qr_dimensions.pixel_size.height + qr_dimensions.border_size
-            )
-            colored:deactivate()
-        end
+        -- Removed: Green background rectangle drawing code
     gl.popMatrix()
     
     -- Print debugging info every few seconds
