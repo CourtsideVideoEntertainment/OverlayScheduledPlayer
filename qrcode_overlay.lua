@@ -11,11 +11,6 @@ local QR_CONFIG = {
     -- QR code module size (a QR code is made up of small squares called modules)
     module_size = 8,  -- Size of each square module in pixels
     
-    -- QR code appearance
-    background_color = {0, 0, 0, 0.4},  -- Dark background with 40% opacity
-    foreground_color = {0, 0, 0, 1},    -- Black QR code pixels
-    border_size = 15,                   -- Size of the border around the QR code
-    
     -- Title settings
     title_text = "Scan QR Code",        -- Text displayed above QR code
     title_height = 30,                  -- Height of the title area
