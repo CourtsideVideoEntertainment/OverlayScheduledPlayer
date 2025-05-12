@@ -42,7 +42,12 @@ local qr_debug = {
     total_width = 0,
     total_height = 0,
     last_position_x = 0,
-    last_position_y = 0
+    last_position_y = 0,
+    module_size = 0,
+    scale_factor = 1.0,
+    use_scaling = false,
+    target_width = 0,
+    target_height = 0
 }
 
 -- Get the base directory path
@@ -66,35 +71,80 @@ local function format_timestamp()
 end
 
 -- Function to convert QR matrix to image (must be defined before generate_qr_code_file)
-local function convert_qr_to_image(qr_matrix)
+local function convert_qr_to_image(qr_matrix, target_width, target_height)
     debug_print("Converting QR matrix to drawable function")
     
     -- Configurable size settings
-    local qr_size = QR_CONFIG.module_size
     local border = QR_CONFIG.border_size
     local title_height = QR_CONFIG.title_height
     local title_text = QR_CONFIG.title_text
     local title_font_size = QR_CONFIG.title_font_size
     local background_alpha = QR_CONFIG.background_color[4]
     
-    -- Calculate dimensions
-    local width = #qr_matrix[1] * qr_size
-    local height = #qr_matrix * qr_size
+    -- Calculate dimensions based on native module size
+    local native_module_size = QR_CONFIG.module_size
+    local native_width = #qr_matrix[1] * native_module_size
+    local native_height = #qr_matrix * native_module_size
+    
+    -- Check if we need to apply scaling
+    local use_scaling = false
+    local scale_factor = 1.0
+    local module_size = native_module_size
+    local width = native_width
+    local height = native_height
+    
+    if target_width and target_width > 0 and target_width ~= native_width then
+        use_scaling = true
+        -- Calculate a new module size based on the target width
+        module_size = target_width / #qr_matrix[1]
+        scale_factor = target_width / native_width
+        width = target_width
+        height = #qr_matrix * module_size
+        debug_print("Scaling QR code to target width: " .. target_width .. " (scale factor: " .. scale_factor .. ")")
+    elseif target_height and target_height > 0 and target_height ~= native_height then
+        use_scaling = true
+        -- Calculate a new module size based on the target height
+        module_size = target_height / #qr_matrix
+        scale_factor = target_height / native_height
+        height = target_height
+        width = #qr_matrix[1] * module_size
+        debug_print("Scaling QR code to target height: " .. target_height .. " (scale factor: " .. scale_factor .. ")")
+    end
+    
+    -- Adjust border and title for scaling if needed
+    local scaled_border = use_scaling and (border * scale_factor) or border
+    local scaled_title_height = use_scaling and (title_height * scale_factor) or title_height
+    local scaled_title_font_size = use_scaling and (title_font_size * scale_factor) or title_font_size
     
     -- Update debug variables
     qr_debug.matrix_width = #qr_matrix[1]
     qr_debug.matrix_height = #qr_matrix
     qr_debug.pixel_width = width
     qr_debug.pixel_height = height
-    qr_debug.total_width = width + (border * 2)
-    qr_debug.total_height = height + (border * 2) + title_height
+    qr_debug.total_width = width + (scaled_border * 2)
+    qr_debug.total_height = height + (scaled_border * 2) + scaled_title_height
+    qr_debug.module_size = module_size
+    qr_debug.scale_factor = scale_factor
+    qr_debug.use_scaling = use_scaling
+    qr_debug.target_width = target_width
+    qr_debug.target_height = target_height
     
     debug_print("==== QR CODE DIMENSIONS ====")
     debug_print("Matrix size: " .. qr_debug.matrix_width .. "x" .. qr_debug.matrix_height .. " modules")
-    debug_print("Module size: " .. qr_size .. " pixels")
+    debug_print("Original module size: " .. native_module_size .. " pixels")
+    debug_print("Scaled module size: " .. module_size .. " pixels")
+    if use_scaling then
+        debug_print("Scaling enabled: factor " .. scale_factor)
+        if target_width then
+            debug_print("Target width: " .. target_width .. " pixels")
+        end
+        if target_height then
+            debug_print("Target height: " .. target_height .. " pixels")
+        end
+    end
     debug_print("QR code size: " .. width .. "x" .. height .. " pixels (without border)")
-    debug_print("Border size: " .. border .. " pixels")
-    debug_print("Title height: " .. title_height .. " pixels")
+    debug_print("Border size: " .. scaled_border .. " pixels")
+    debug_print("Title height: " .. scaled_title_height .. " pixels")
     debug_print("Total dimensions: " .. qr_debug.total_width .. "x" .. qr_debug.total_height .. " pixels (with border and title)")
     debug_print("===========================")
 
@@ -126,10 +176,10 @@ local function convert_qr_to_image(qr_matrix)
         
         -- Calculate the area the QR code will occupy on screen
         local draw_area = {
-            left = x - border,
-            top = y - border - title_height,
-            right = x + width + border,
-            bottom = y + height + border
+            left = x - scaled_border,
+            top = y - scaled_border - scaled_title_height,
+            right = x + width + scaled_border,
+            bottom = y + height + scaled_border
         }
         
         debug_print("QR code will occupy screen area from (" .. 
@@ -143,18 +193,25 @@ local function convert_qr_to_image(qr_matrix)
         -- Draw white background for the QR code
         img:draw(x, y, x + width, y + height)
         
-        -- Draw title text
-        font:write(x + width/2 - (title_font_size * string.len(title_text)/4), 
-                   y - title_height + 5, 
-                   title_text, 
-                   title_font_size, 
-                   QR_CONFIG.title_color[1], QR_CONFIG.title_color[2], QR_CONFIG.title_color[3], QR_CONFIG.title_color[4])
+        -- Draw title text (if not empty)
+        if title_text and title_text ~= "" then
+            font:write(x + width/2 - (scaled_title_font_size * string.len(title_text)/4), 
+                      y - scaled_title_height + 5, 
+                      title_text, 
+                      scaled_title_font_size, 
+                      QR_CONFIG.title_color[1], QR_CONFIG.title_color[2], QR_CONFIG.title_color[3], QR_CONFIG.title_color[4])
+        end
         
         -- Position the QR code at (x, y)
         for i = 1, #qr_matrix do
             for j = 1, #qr_matrix[i] do
                 if qr_matrix[i][j] == 1 then  -- Draw black square for '1'
-                    black_pixel:draw(x + (j-1) * qr_size, y + (i-1) * qr_size, x + j * qr_size, y + i * qr_size)
+                    black_pixel:draw(
+                        x + (j-1) * module_size, 
+                        y + (i-1) * module_size, 
+                        x + j * module_size, 
+                        y + i * module_size
+                    )
                 end
             end
         end
@@ -164,8 +221,10 @@ local function convert_qr_to_image(qr_matrix)
 end
 
 -- Function to generate QR code and save it to a file
-local function generate_qr_code_file(data)
-    debug_print("Attempting to generate QR code for: " .. data)
+local function generate_qr_code_file(data, target_width, target_height)
+    debug_print("Attempting to generate QR code for: " .. data .. 
+                (target_width and (" (target width: " .. target_width .. ")") or "") ..
+                (target_height and (" (target height: " .. target_height .. ")") or ""))
     
     -- Load the qrencode module if not already loaded
     if not qrencode then
@@ -230,7 +289,7 @@ local function generate_qr_code_file(data)
     debug_print("Successfully created QR code matrix in memory")
     
     -- Draw the QR code directly without saving to a file
-    qr_draw_function = convert_qr_to_image(qr_matrix)
+    qr_draw_function = convert_qr_to_image(qr_matrix, target_width, target_height)
     if qr_draw_function then
         debug_print("QR draw function created successfully")
         return true
@@ -241,8 +300,10 @@ local function generate_qr_code_file(data)
 end
 
 -- Function to handle remote trigger 3 and generate QR code
-function M.handle_remote_trigger(data)
-    debug_print("Handle remote trigger called with data: " .. tostring(data))
+function M.handle_remote_trigger(data, width, height)
+    debug_print("Handle remote trigger called with data: " .. tostring(data) .. 
+                (width and (" (width: " .. width .. ")") or "") ..
+                (height and (" (height: " .. height .. ")") or ""))
     
     -- Ensure we have a string value
     if type(data) ~= "string" then
@@ -261,8 +322,8 @@ function M.handle_remote_trigger(data)
     current_trigger = data
     debug_print("Current trigger set to: " .. current_trigger)
     
-    if data == "3" then
-        debug_print("Trigger 3 activated: Generating QR code")
+    if data == "3" or data == "3p" then
+        debug_print("Trigger " .. data .. " activated: Generating QR code")
         
         -- Generate a URL with current timestamp
         local timestamp = format_timestamp()
@@ -272,18 +333,22 @@ function M.handle_remote_trigger(data)
         
         -- Generate QR code and save to file
         debug_print("Starting QR code generation process")
-        local qr_generated = generate_qr_code_file(url)
+        local qr_generated = generate_qr_code_file(url, width, height)
         debug_print("QR code generation result: " .. tostring(qr_generated))
         
         if qr_generated then
             -- Set flag to show QR code
             show_qr_code = true
-            PERMANENT_DISPLAY = true  -- Make it display permanently while on this trigger
+            
+            -- Set permanent display flag based on trigger
+            PERMANENT_DISPLAY = (data == "3p")
+            
             debug_print("Setting show_qr_code flag to true")
+            debug_print("Permanent display: " .. tostring(PERMANENT_DISPLAY))
             
             -- Set expiry time (still needed as fallback)
             qr_expiry_time = sys.now() + QR_DISPLAY_DURATION
-            debug_print("QR code ready to display permanently while on trigger 3")
+            debug_print("QR code ready to display. Expires in: " .. QR_DISPLAY_DURATION .. " seconds")
             debug_print("QR code state: show_qr_code=" .. tostring(show_qr_code) .. ", qr_draw_function_exists=" .. tostring(qr_draw_function ~= nil))
             return true
         else
@@ -291,10 +356,10 @@ function M.handle_remote_trigger(data)
         end
     else
         debug_print("Trigger " .. data .. " is not handled by QR code module (QR code hidden)")
-        -- QR code should already be hidden from our check at the top
-        return false
     end
     
+    debug_print("Handle remote trigger returning false. show_qr_code=" .. tostring(show_qr_code) .. 
+                ", qr_draw_function=" .. tostring(qr_draw_function ~= nil))
     return false
 end
 
@@ -422,7 +487,7 @@ function M.update_appearance(settings)
         -- Use the current trigger value if available
         if current_trigger == "3" or current_trigger == "3p" then
             -- Re-trigger the QR code generation
-            M.handle_remote_trigger(current_trigger)
+            M.handle_remote_trigger(current_trigger, qr_debug.target_width, qr_debug.target_height)
         end
     end
     
@@ -465,6 +530,23 @@ function M.get_dimensions()
         border_size = QR_CONFIG.border_size,
         title_height = QR_CONFIG.title_height
     }
+end
+
+-- Function to update QR code dimensions with new width and height
+function M.update_size(width, height)
+    debug_print("Updating QR code dimensions: width=" .. tostring(width) .. ", height=" .. tostring(height))
+    
+    -- Store the target dimensions
+    qr_debug.target_width = width
+    qr_debug.target_height = height
+    
+    -- If we have an active QR code, regenerate it with the new dimensions
+    if show_qr_code and qr_draw_function and current_trigger then
+        debug_print("Regenerating QR code with new dimensions")
+        M.handle_remote_trigger(current_trigger, width, height)
+    end
+    
+    return true
 end
 
 return M 
