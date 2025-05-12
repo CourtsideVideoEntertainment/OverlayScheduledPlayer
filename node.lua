@@ -27,7 +27,7 @@ local QR_POSITION_CONFIG = {
     
     -- Used only if position is "custom"
     custom_x = 200,
-    custom_y = 200,
+    custom_y = 150,
 }
 
 local min, max, abs, floor, ceil = math.min, math.max, math.abs, math.floor, math.ceil
