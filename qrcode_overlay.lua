@@ -17,10 +17,10 @@ local QR_CONFIG = {
     border_size = 15,                   -- Size of the border around the QR code
     
     -- Title settings
-    title_text = "Scan QR Code",        -- Text displayed above QR code
+    --[[ title_text = "Scan QR Code",        -- Text displayed above QR code
     title_height = 30,                  -- Height of the title area
     title_font_size = 24,               -- Font size for the title text
-    title_color = {1, 1, 1, 1},         -- White text
+    title_color = {1, 1, 1, 1},         -- White text ]]
 }
 -- =============================================
 
