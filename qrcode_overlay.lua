@@ -33,6 +33,18 @@ local PERMANENT_DISPLAY = false   -- Flag for permanent display (no expiration)
 local current_trigger = nil       -- Track the current active trigger
 local qrencode = nil  -- Will be initialized when needed
 
+-- Debug variables for dimensions
+local qr_debug = {
+    matrix_width = 0,
+    matrix_height = 0,
+    pixel_width = 0,
+    pixel_height = 0,
+    total_width = 0,
+    total_height = 0,
+    last_position_x = 0,
+    last_position_y = 0
+}
+
 -- Get the base directory path
 local base_dir = "./"  -- Use relative path in the current directory
 
@@ -69,7 +81,22 @@ local function convert_qr_to_image(qr_matrix)
     local width = #qr_matrix[1] * qr_size
     local height = #qr_matrix * qr_size
     
-    debug_print("QR image dimensions: " .. width .. "x" .. height)
+    -- Update debug variables
+    qr_debug.matrix_width = #qr_matrix[1]
+    qr_debug.matrix_height = #qr_matrix
+    qr_debug.pixel_width = width
+    qr_debug.pixel_height = height
+    qr_debug.total_width = width + (border * 2)
+    qr_debug.total_height = height + (border * 2) + title_height
+    
+    debug_print("==== QR CODE DIMENSIONS ====")
+    debug_print("Matrix size: " .. qr_debug.matrix_width .. "x" .. qr_debug.matrix_height .. " modules")
+    debug_print("Module size: " .. qr_size .. " pixels")
+    debug_print("QR code size: " .. width .. "x" .. height .. " pixels (without border)")
+    debug_print("Border size: " .. border .. " pixels")
+    debug_print("Title height: " .. title_height .. " pixels")
+    debug_print("Total dimensions: " .. qr_debug.total_width .. "x" .. qr_debug.total_height .. " pixels (with border and title)")
+    debug_print("===========================")
 
     -- Create textures for QR code rendering
     local bg, img, black_pixel, font
@@ -93,9 +120,25 @@ local function convert_qr_to_image(qr_matrix)
     return function(x, y)
         debug_print("Drawing QR code at position: " .. x .. "," .. y)
         
+        -- Store position for debugging
+        qr_debug.last_position_x = x
+        qr_debug.last_position_y = y
+        
+        -- Calculate the area the QR code will occupy on screen
+        local draw_area = {
+            left = x - border,
+            top = y - border - title_height,
+            right = x + width + border,
+            bottom = y + height + border
+        }
+        
+        debug_print("QR code will occupy screen area from (" .. 
+                   draw_area.left .. "," .. draw_area.top .. ") to (" .. 
+                   draw_area.right .. "," .. draw_area.bottom .. ")")
+        
         -- Draw semi-transparent background behind the QR code
         -- Draw background with extra space for title
-        bg:draw(x - border, y - border - title_height, x + width + border, y + height + border)
+        bg:draw(draw_area.left, draw_area.top, draw_area.right, draw_area.bottom)
         
         -- Draw white background for the QR code
         img:draw(x, y, x + width, y + height)
@@ -296,7 +339,14 @@ function M.draw_qr(x, y)
         else
             remaining = math.floor(qr_expiry_time - now)
         end
-        debug_print("Drawing QR code at position: " .. x .. "," .. y .. " - Expires in: " .. remaining .. (PERMANENT_DISPLAY and "" or " seconds"))
+        
+        debug_print("==== QR CODE RENDERING INFO ====")
+        debug_print("Position requested: " .. x .. "," .. y)
+        debug_print("QR code matrix: " .. qr_debug.matrix_width .. "x" .. qr_debug.matrix_height .. " modules")
+        debug_print("QR code pixel size: " .. qr_debug.pixel_width .. "x" .. qr_debug.pixel_height)
+        debug_print("Total area with border: " .. qr_debug.total_width .. "x" .. qr_debug.total_height)
+        debug_print("Expiry: " .. remaining .. (PERMANENT_DISPLAY and "" or " seconds"))
+        debug_print("===============================")
         
         local success, err = pcall(function()
             qr_draw_function(x, y)
@@ -389,6 +439,31 @@ function M.get_status()
         remaining = qr_expiry_time > 0 and (qr_expiry_time - sys.now()) or 0,
         has_draw_function = qr_draw_function ~= nil,
         appearance = QR_CONFIG  -- Include appearance settings in status
+    }
+end
+
+-- Function to get QR code dimensions
+function M.get_dimensions()
+    return {
+        matrix_size = {
+            width = qr_debug.matrix_width,
+            height = qr_debug.matrix_height
+        },
+        pixel_size = {
+            width = qr_debug.pixel_width,
+            height = qr_debug.pixel_height
+        },
+        total_size = {
+            width = qr_debug.total_width,
+            height = qr_debug.total_height
+        },
+        last_position = {
+            x = qr_debug.last_position_x,
+            y = qr_debug.last_position_y
+        },
+        module_size = QR_CONFIG.module_size,
+        border_size = QR_CONFIG.border_size,
+        title_height = QR_CONFIG.title_height
     }
 end
 

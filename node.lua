@@ -2331,6 +2331,12 @@ function node.render()
     -- Try to draw the QR code
     local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
     
+    -- Get QR dimensions for debugging if available
+    local qr_dimensions = nil
+    if type(qrcode_overlay.get_dimensions) == "function" then
+        qr_dimensions = qrcode_overlay.get_dimensions()
+    end
+    
     -- Draw debug marker last to ensure it's on top of all other content
     -- This ensures the marker doesn't get hidden by videos or other elements
     gl.pushMatrix()
@@ -2347,12 +2353,42 @@ function node.render()
         colored:use{color = {1, 0, 0, blink_alpha}}  -- Red with changing alpha
         debug_marker:draw(10, 10, 30, 30)  -- Small red square in corner
         colored:deactivate()
+        
+        -- Draw rectangle showing QR area if QR code is visible and dimensions are available
+        if drawn and qr_dimensions then
+            colored:use{color = {0, 1, 0, 0.3}}  -- Semi-transparent green
+            white_pixel:draw(
+                qr_x - qr_dimensions.border_size, 
+                qr_y - qr_dimensions.border_size - qr_dimensions.title_height, 
+                qr_x + qr_dimensions.pixel_size.width + qr_dimensions.border_size, 
+                qr_y + qr_dimensions.pixel_size.height + qr_dimensions.border_size
+            )
+            colored:deactivate()
+        end
     gl.popMatrix()
     
     -- Print debugging info every few seconds
     if math.floor(now) % 5 == 0 then
+        print("\n==== QR CODE DEBUG INFO ====")
         print("DEBUG RENDER: QR code drawn:", tostring(drawn))
-        print("DEBUG RENDER: QR position:", qr_x, qr_y)
+        print("DEBUG RENDER: QR position config:", qr_position)
+        print("DEBUG RENDER: QR configured size:", qr_width, "×", qr_height)
+        print("DEBUG RENDER: QR calculated position:", qr_x, qr_y)
+        
+        if drawn and qr_dimensions then
+            print("DEBUG RENDER: QR matrix size:", qr_dimensions.matrix_size.width, "×", qr_dimensions.matrix_size.height, "modules")
+            print("DEBUG RENDER: QR module size:", qr_dimensions.module_size, "pixels")
+            print("DEBUG RENDER: QR pixel size:", qr_dimensions.pixel_size.width, "×", qr_dimensions.pixel_size.height, "pixels")
+            print("DEBUG RENDER: QR total size:", qr_dimensions.total_size.width, "×", qr_dimensions.total_size.height, "pixels")
+            print("DEBUG RENDER: QR border size:", qr_dimensions.border_size, "pixels")
+            print("DEBUG RENDER: QR title height:", qr_dimensions.title_height, "pixels")
+            
+            -- Compare configured and actual sizes
+            print("DEBUG RENDER: Size comparison - Configured:", qr_width, "×", qr_height, 
+                  "Actual:", qr_dimensions.pixel_size.width, "×", qr_dimensions.pixel_size.height)
+        end
+        
         print("DEBUG RENDER: Debug marker drawn at 10,10")
+        print("==============================")
     end
 end
