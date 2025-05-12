@@ -9,7 +9,7 @@ local M = {}
 -- =============================================
 local QR_CONFIG = {
     -- QR code module size (a QR code is made up of small squares called modules)
-    module_size = 2,  -- Size of each square module in pixels
+    module_size = 5,  -- Size of each square module in pixels
     
     -- QR code appearance
     background_color = {0, 0, 0, 0.1},  -- Dark background with 40% opacity
