@@ -2336,7 +2336,7 @@ util.data_mapper{
         if type(payload) == "table" and payload.id and payload.settings then
             update_qr_position(payload.id, payload.settings)
         else
-            print("ERROR: Invalid qr/position payload. Expected {id=\"..."; settings={...}}")
+            print("ERROR: Invalid qr/position payload. Expected a table with id and settings fields")
         end
     end,
     ["qr/appearance"] = function(data)
