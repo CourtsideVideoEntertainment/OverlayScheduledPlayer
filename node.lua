@@ -1424,7 +1424,7 @@ end
 
 local layouts = {}
 local background = {r = 0, g = 0, b = 0, a = 0}
-local current_setup_id = "UNKNOWN_SETUP" // Initialize with a default
+local current_setup_id = "UNKNOWN_SETUP" 
 
 node.event("config_updated", function(config)
     layouts = config.layouts
