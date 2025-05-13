@@ -16,10 +16,41 @@ local qrcode_overlay = require "qrcode_overlay"
 -- QR code positioning configuration - REMOVED Global config
 -- local QR_POSITION_CONFIG = { ... }
 
--- NEW: Table to manage multiple QR code instances
--- Key: Instance ID (e.g., the trigger string like "3", "3p")
--- Value: Table containing { id, trigger_data, position_config, draw_details, is_visible }
-local qr_code_instances = {}
+-- NEW: Predefined QR code instances
+local qr_code_instances = {
+    activation_qr = {
+        id = "activation_qr",
+        trigger_data = "3", -- Data used to generate this QR code's content
+        position_config = {
+            position = "bottom-right",
+            margin = 20,
+            custom_x = 0,
+            custom_y = 0
+        },
+        draw_details = nil, -- Will be populated by handle_remote_trigger
+        is_visible = false   -- Initially not visible
+    },
+    permanent_info_qr = {
+        id = "permanent_info_qr",
+        trigger_data = "3p", -- Data used to generate this QR code's content
+        position_config = {
+            position = "top-left",
+            margin = 30, -- Different margin for this instance
+            custom_x = 0,
+            custom_y = 0
+        },
+        draw_details = nil,
+        is_visible = false
+    },
+    -- Add more predefined instances here if needed
+    -- example_qr = {
+    --     id = "example_qr",
+    --     trigger_data = "some_other_trigger_value_if_qrcode_overlay_handles_it",
+    --     position_config = { position = "custom", custom_x = 100, custom_y = 100, margin = 10},
+    --     draw_details = nil,
+    --     is_visible = false
+    -- }
+}
 
 local min, max, abs, floor, ceil = math.min, math.max, math.abs, math.floor, math.ceil
 
@@ -1622,6 +1653,11 @@ local function Scheduler(page_source, job_queue)
 
         if event.key == "esc" then
             reset_scheduler()
+            -- Hide all QR codes on ESC
+            for id, instance in pairs(qr_code_instances) do
+                instance.is_visible = false
+                print("Hiding QR instance " .. id .. " due to ESC")
+            end
             return
         end
 
@@ -1671,61 +1707,53 @@ local function Scheduler(page_source, job_queue)
     local function handle_remote_trigger(trigger_data)
         print("Remote trigger received:", trigger_data)
 
-        -- Determine if this trigger should generate/show a QR code
-        local should_generate_qr = (trigger_data == "3" or trigger_data == "3p")
+        local qr_instance_updated = false
 
-        if should_generate_qr then
-            -- Generate or update the specific QR instance
-            local instance_id = trigger_data -- Use trigger as ID for simplicity
-            print("Attempting to generate/update QR instance: " .. instance_id)
-            local draw_details = qrcode_overlay.handle_remote_trigger(trigger_data, current_setup_id)
-
-            if draw_details then
-                print("Successfully got draw details for QR instance: " .. instance_id)
-                if not qr_code_instances[instance_id] then
-                    -- Create new instance if it doesn't exist
-                    qr_code_instances[instance_id] = {
-                        id = instance_id,
-                        trigger_data = trigger_data,
-                        -- Default position config (e.g., bottom-right)
-                        position_config = {
-                            position = "bottom-right",
-                            margin = 20,
-                            custom_x = 0, -- Not used for corner positions
-                            custom_y = 0  -- Not used for corner positions
-                        },
-                        draw_details = draw_details,
-                        is_visible = true
-                    }
-                    print("Created new QR instance: " .. instance_id)
+        -- Check if this trigger_data corresponds to any predefined QR instance's trigger_data
+        for id, instance in pairs(qr_code_instances) do
+            if instance.trigger_data == trigger_data then
+                print("Trigger " .. trigger_data .. " matches predefined QR instance: " .. id)
+                local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
+                if new_draw_details then
+                    instance.draw_details = new_draw_details
+                    instance.is_visible = true
+                    qr_instance_updated = true
+                    print("Activated and updated QR instance: " .. id)
                 else
-                    -- Update existing instance
-                    qr_code_instances[instance_id].draw_details = draw_details
-                    qr_code_instances[instance_id].is_visible = true
-                    print("Updated existing QR instance: " .. instance_id)
+                    print("ERROR: Failed to get draw details for QR instance: " .. id .. " (trigger: " .. trigger_data .. ")")
+                    instance.is_visible = false -- Hide if generation fails
+                    instance.draw_details = nil
                 end
-            else
-                print("ERROR: Failed to get draw details for QR instance: " .. instance_id .. " (trigger: " .. trigger_data .. ")")
-                -- Optionally hide the instance if generation failed
-                if qr_code_instances[instance_id] then
-                    qr_code_instances[instance_id].is_visible = false
-                    qr_code_instances[instance_id].draw_details = nil -- Clear old details
-                end
+                -- If you want a trigger to only activate ONE specific QR code and hide others,
+                -- you might add logic here to set other_instance.is_visible = false
+                -- For now, a trigger activates its corresponding QR without affecting others that might be visible.
             end
-            -- NOTE: We don't hide other QR codes here. A trigger "3" might show alongside "3p".
-            -- Hiding happens on non-QR triggers.
-        else
-            -- If the trigger is NOT for a QR code, hide ALL QR codes
-            print("Trigger '" .. trigger_data .. "' is not a QR trigger. Hiding all QR instances.")
+        end
+
+        -- If no QR instance was specifically updated by this trigger, 
+        -- AND this trigger is not one of the known QR generation triggers for predefined instances,
+        -- then hide all QR codes. This prevents unrelated triggers from leaving QR codes on screen.
+        local is_known_qr_gen_trigger = false
+        for _, instance in pairs(qr_code_instances) do
+            if instance.trigger_data == trigger_data then
+                is_known_qr_gen_trigger = true
+                break
+            end
+        end
+
+        if not qr_instance_updated and not is_known_qr_gen_trigger then
+            print("Trigger '" .. trigger_data .. "' is not a specific QR activation trigger. Hiding all QR instances.")
             for id, instance in pairs(qr_code_instances) do
                 instance.is_visible = false
             end
         end
 
         -- Process normal page navigation using the scheduler
-        local pages = page_source.find_by_remote(trigger_data) -- CORRECTED: use trigger_data
+        local pages = page_source.find_by_remote(trigger_data)
         if not pages then
-            return false
+            -- If not a page navigation trigger either, and we didn't update a QR, it might be an unhandled trigger.
+            -- The 'hiding all' logic above should cover making sure QRs don't persist incorrectly.
+            return false -- Indicate trigger was not fully handled for page navigation
         end
         enqueue_interactive(pages)
         return true
@@ -2348,6 +2376,7 @@ util.data_mapper{
             for id, instance in pairs(qr_code_instances) do
                 if instance.is_visible and instance.trigger_data then
                     print("Regenerating QR instance: " .. id)
+                    -- Use instance.trigger_data to regenerate the correct content
                     local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
                     if new_draw_details then
                         instance.draw_details = new_draw_details
@@ -2364,6 +2393,83 @@ util.data_mapper{
         end
     end,
 }
+
+-- Optional: Function to pre-generate QR codes for initially visible instances
+local function initialize_qr_codes()
+    print("Initializing predefined QR codes...")
+    for id, instance in pairs(qr_code_instances) do
+        if instance.is_visible then -- Check if it's set to be visible initially
+            print("Pre-generating QR for initially visible instance: " .. id)
+            local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
+            if new_draw_details then
+                instance.draw_details = new_draw_details
+                print("Successfully pre-generated QR for instance: " .. id)
+            else
+                print("ERROR: Failed to pre-generate QR for instance: " .. id)
+                instance.is_visible = false -- Don't show if generation failed
+            end
+        end
+    end
+end
+
+-- Call initialization after everything is set up, perhaps before first render or after config loaded
+-- For now, let's assume it's called after first config update where current_setup_id is known.
+-- A better place might be at the very end of the script or after the first config_updated event.
+-- To ensure current_setup_id is available, let's call it after the first config is processed.
+local first_config_loaded = false
+node.event("config_updated", function(config)
+    -- ... (existing config_updated logic for layouts, background, current_setup_id) ...
+    layouts = config.layouts
+    for _, layout in ipairs(layouts) do
+        for _, tile in ipairs(layout.tiles) do
+            local asset = tile.asset
+            if asset.type == "image" or asset.type == "video" then
+                log("config_updated", "fixing layout asset %s", asset.asset_name)
+                asset.asset_name = resource.open_file(asset.asset_name)
+            end
+        end
+    end
+    background = config.background
+    
+    if config.__metadata and config.__metadata.setup_id then
+        current_setup_id = config.__metadata.setup_id
+        log("config_updated", "Stored setup_id: %s", current_setup_id)
+    else
+        log("config_updated", "setup_id not found in config metadata")
+        -- current_setup_id remains "UNKNOWN_SETUP" or its previous value
+    end
+
+    -- Initialize/Pre-generate QR codes after the first config (to ensure current_setup_id is set)
+    if not first_config_loaded and current_setup_id ~= "UNKNOWN_SETUP" then
+        initialize_qr_codes()
+        first_config_loaded = true
+    end
+
+    -- ... (existing config_updated logic for scheduler reset) ...
+    local setup_id = config.__metadata.setup_id
+    local config_hash = config.__metadata.config_hash
+    local reset_mode = config.reset_mode
+
+    local force_reset
+
+    if reset_mode == "config" then
+        force_reset = config_hash ~= last_config_hash
+    elseif reset_mode == "setup" then
+        force_reset = setup_id ~= last_setup_id
+    elseif reset_mode == "in_forever" then
+        force_reset = scheduled_forever and config_hash ~= last_config_hash
+    else -- "none"
+        force_reset = false
+    end
+
+    if force_reset then
+        print("config updated: forcing scheduler reset")
+        reset_scheduler()
+    end
+
+    last_setup_id = setup_id
+    last_config_hash = config_hash
+end)
 
 -- Override the render function to add QR code display
 function node.render()
