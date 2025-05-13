@@ -833,14 +833,22 @@ local function RawVideoTile(asset, config, x1, y1, x2, y2)
             paused = true,
             looped = looped,
             audio = audio,
-            raw = true,
+            raw = false, -- CHANGED: Set raw to false to render video in OpenGL context
         }
-        vid:layer(-10)
+        vid:layer(-10) -- This layer will now be within OpenGL, may need adjustment
 
         for now in helper.frame_between(starts, ends) do
-            screen.place_video(vid, layer, helper.ramp(
-                starts, ends, now, fade_time
-            ), x1, y1, x2, y2):start()
+            -- When raw = false, video is drawn as an OpenGL texture.
+            -- screen.place_video might not be the correct way if it assumes raw video planes.
+            -- We might need to draw it directly or adapt place_video.
+            -- For a simple test, let's try drawing it directly, fitting the tile dimensions.
+            -- screen.place_video(vid, layer, helper.ramp(
+            --     starts, ends, now, fade_time
+            -- ), x1, y1, x2, y2):start()
+
+            -- Simpler drawing for testing raw = false:
+            vid:draw(x1, y1, x2, y2, helper.ramp(starts, ends, now, fade_time))
+            vid:start() -- Ensure video plays
         end
 
         vid:dispose()
