@@ -261,12 +261,21 @@ function M.handle_remote_trigger(data)
     current_trigger = data
     debug_print("Current trigger set to: " .. current_trigger)
     
-    if data == "3" then
-        debug_print("Trigger 3 activated: Generating QR code")
+    if data == "3" or data == "3p" then -- Modified to include "3p"
+        debug_print("Trigger " .. data .. " activated: Generating QR code")
         
-        -- Generate a URL with current timestamp
+        -- Attempt to get device_id from environment variable
+        local device_id = os.getenv("SERIAL")
+        if device_id then
+            debug_print("Retrieved device_id (SERIAL): " .. device_id)
+        else
+            device_id = "UNKNOWN_DEVICE" -- Placeholder if not found
+            debug_print("Could not retrieve SERIAL environment variable, using placeholder: " .. device_id)
+        end
+
+        -- Generate a URL with current timestamp and device_id
         local timestamp = format_timestamp()
-        local url = "http://activations.courtsidevideo.com?asset_id=12345&timestamp=" .. timestamp .. "&tile_id=7890"
+        local url = "http://activations.courtsidevideo.com?asset_id=" .. data .. "&timestamp=" .. timestamp .. "&tile_id=&device_id=" .. device_id
         
         debug_print("Generated URL for QR code: " .. url)
         
@@ -278,13 +287,16 @@ function M.handle_remote_trigger(data)
         if qr_generated then
             -- Set flag to show QR code
             show_qr_code = true
-            PERMANENT_DISPLAY = true  -- Make it display permanently while on this trigger
+            if data == "3p" then
+                PERMANENT_DISPLAY = true
+                debug_print("QR code set to permanent display for trigger 3p")
+            else
+                PERMANENT_DISPLAY = false -- Ensure it's not permanent for trigger "3"
+                qr_expiry_time = sys.now() + QR_DISPLAY_DURATION
+                debug_print("QR code display duration set for trigger 3")
+            end
             debug_print("Setting show_qr_code flag to true")
-            
-            -- Set expiry time (still needed as fallback)
-            qr_expiry_time = sys.now() + QR_DISPLAY_DURATION
-            debug_print("QR code ready to display permanently while on trigger 3")
-            debug_print("QR code state: show_qr_code=" .. tostring(show_qr_code) .. ", qr_draw_function_exists=" .. tostring(qr_draw_function ~= nil))
+            debug_print("QR code state: show_qr_code=" .. tostring(show_qr_code) .. ", PERMANENT_DISPLAY=" .. tostring(PERMANENT_DISPLAY) .. ", qr_draw_function_exists=" .. tostring(qr_draw_function ~= nil))
             return true
         else
             debug_print("ERROR: Failed to generate QR code")
@@ -442,7 +454,7 @@ function M.get_status()
     }
 end
 
--- Function to get QR code dimensions
+-- Function to get QR code dimensions3
 function M.get_dimensions()
     return {
         matrix_size = {
