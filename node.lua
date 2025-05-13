@@ -29,19 +29,19 @@ local qr_code_instances = {
         },
         draw_details = nil, -- Will be populated by handle_remote_trigger
         is_visible = false   -- Initially not visible
-    },
-    permanent_info_qr = {
-        id = "permanent_info_qr",
-        trigger_data = "3p", -- Data used to generate this QR code's content
-        position_config = {
-            position = "top-left",
-            margin = 30, -- Different margin for this instance
-            custom_x = 0,
-            custom_y = 0
-        },
-        draw_details = nil,
-        is_visible = false
-    },
+    }
+    -- permanent_info_qr = {
+    --     id = "permanent_info_qr",
+    --     trigger_data = "3p", -- Data used to generate this QR code's content
+    --     position_config = {
+    --         position = "top-left",
+    --         margin = 30, -- Different margin for this instance
+    --         custom_x = 0,
+    --         custom_y = 0
+    --     },
+    --     draw_details = nil,
+    --     is_visible = false
+    -- },
     -- Add more predefined instances here if needed
     -- example_qr = {
     --     id = "example_qr",
