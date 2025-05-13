@@ -13,22 +13,13 @@ local placement = require "placement"
 local easing = require "easing"
 local qrcode_overlay = require "qrcode_overlay"
 
--- QR code positioning configuration
-local QR_POSITION_CONFIG = {
-    -- Position can be one of: "top-left", "top-right", "bottom-left", "bottom-right", or "custom"
-    position = "custom",
-    
-    -- Dimensions
-    width = 25,   -- Width of QR code area
-    height = 25,  -- Height of QR code area
-    
-    -- Margin from screen edges
-    margin = 40,
-    
-    -- Used only if position is "custom"
-    custom_x = 200,
-    custom_y = 80,
-}
+-- QR code positioning configuration - REMOVED Global config
+-- local QR_POSITION_CONFIG = { ... }
+
+-- NEW: Table to manage multiple QR code instances
+-- Key: Instance ID (e.g., the trigger string like "3", "3p")
+-- Value: Table containing { id, trigger_data, position_config, draw_details, is_visible }
+local qr_code_instances = {}
 
 local min, max, abs, floor, ceil = math.min, math.max, math.abs, math.floor, math.ceil
 
@@ -1634,6 +1625,14 @@ local function Scheduler(page_source, job_queue)
             return
         end
 
+        -- Hide QR codes on arrow key navigation
+        if event.key == "left" or event.key == "right" then
+            for id, instance in pairs(qr_code_instances) do
+                instance.is_visible = false
+                print("Hiding QR instance " .. id .. " due to keyboard navigation")
+            end
+        end
+
         if event.key == "left" then
             reset_scheduler()
             enqueue_page(page_source.get_prev())
@@ -1669,15 +1668,62 @@ local function Scheduler(page_source, job_queue)
         enqueue_interactive(pages)
     end
 
-    local function handle_remote_trigger(remote)
-        print("Remote trigger received:", remote)
-        
-        -- Try to handle the trigger with the QR code module first
-        local qr_result = qrcode_overlay.handle_remote_trigger(remote, current_setup_id)
-        print("QR code handling result:", qr_result)
-        
-        -- Process normal page navigation
-        local pages = page_source.find_by_remote(remote)
+    local function handle_remote_trigger(trigger_data)
+        print("Remote trigger received:", trigger_data)
+
+        -- Determine if this trigger should generate/show a QR code
+        local should_generate_qr = (trigger_data == "3" or trigger_data == "3p")
+
+        if should_generate_qr then
+            -- Generate or update the specific QR instance
+            local instance_id = trigger_data -- Use trigger as ID for simplicity
+            print("Attempting to generate/update QR instance: " .. instance_id)
+            local draw_details = qrcode_overlay.handle_remote_trigger(trigger_data, current_setup_id)
+
+            if draw_details then
+                print("Successfully got draw details for QR instance: " .. instance_id)
+                if not qr_code_instances[instance_id] then
+                    -- Create new instance if it doesn't exist
+                    qr_code_instances[instance_id] = {
+                        id = instance_id,
+                        trigger_data = trigger_data,
+                        -- Default position config (e.g., bottom-right)
+                        position_config = {
+                            position = "bottom-right",
+                            margin = 20,
+                            custom_x = 0, -- Not used for corner positions
+                            custom_y = 0  -- Not used for corner positions
+                        },
+                        draw_details = draw_details,
+                        is_visible = true
+                    }
+                    print("Created new QR instance: " .. instance_id)
+                else
+                    -- Update existing instance
+                    qr_code_instances[instance_id].draw_details = draw_details
+                    qr_code_instances[instance_id].is_visible = true
+                    print("Updated existing QR instance: " .. instance_id)
+                end
+            else
+                print("ERROR: Failed to get draw details for QR instance: " .. instance_id .. " (trigger: " .. trigger_data .. ")")
+                -- Optionally hide the instance if generation failed
+                if qr_code_instances[instance_id] then
+                    qr_code_instances[instance_id].is_visible = false
+                    qr_code_instances[instance_id].draw_details = nil -- Clear old details
+                end
+            end
+            -- NOTE: We don't hide other QR codes here. A trigger "3" might show alongside "3p".
+            -- Hiding happens on non-QR triggers.
+        else
+            -- If the trigger is NOT for a QR code, hide ALL QR codes
+            print("Trigger '" .. trigger_data .. "' is not a QR trigger. Hiding all QR instances.")
+            for id, instance in pairs(qr_code_instances) do
+                instance.is_visible = false
+            end
+        end
+
+        -- Process normal page navigation using the scheduler
+        local pages = page_source.find_by_remote(trigger_data) -- CORRECTED: use trigger_data
         if not pages then
             return false
         end
@@ -1686,6 +1732,14 @@ local function Scheduler(page_source, job_queue)
     end
 
     local function handle_cec(cec_key)
+        -- Hide QR codes on CEC navigation
+        if cec_key == "left" or cec_key == "right" then
+            for id, instance in pairs(qr_code_instances) do
+                instance.is_visible = false
+                print("Hiding QR instance " .. id .. " due to CEC navigation")
+            end
+        end
+
         if cec_key == "left" then
             reset_scheduler()
             enqueue_page(page_source.get_prev())
@@ -2181,15 +2235,27 @@ util.json_watch("config.json", function(config)
     node.gc()
 end)
 
--- Function to update QR code positioning settings
-local function update_qr_position(settings)
-    print("Updating QR code positioning settings")
-    
+-- Function to update a specific QR code instance's positioning settings
+local function update_qr_position(instance_id, settings)
+    print("Attempting to update QR positioning for instance: " .. tostring(instance_id))
+
+    local instance = qr_code_instances[instance_id]
+    if not instance then
+        print("ERROR: Cannot update position for non-existent QR instance ID: " .. tostring(instance_id))
+        return false
+    end
+
     if type(settings) ~= "table" then
         print("ERROR: Settings must be a table")
         return false
     end
-    
+
+    -- Ensure the instance has a position_config table
+    if not instance.position_config then
+        instance.position_config = { position = "bottom-right", margin = 20, custom_x = 0, custom_y = 0 } -- Initialize if missing
+    end
+
+    local config_updated = false
     -- Update individual settings if provided
     if settings.position then
         -- Validate position value
@@ -2200,41 +2266,41 @@ local function update_qr_position(settings)
             ["bottom-right"] = true,
             ["custom"] = true
         }
-        
+
         if valid_positions[settings.position] then
-            QR_POSITION_CONFIG.position = settings.position
-            print("Updated QR position to " .. settings.position)
+            instance.position_config.position = settings.position
+            print("Instance " .. instance_id .. ": Updated position to " .. settings.position)
+            config_updated = true
         else
             print("ERROR: Invalid position value: " .. settings.position)
         end
     end
-    
-    if settings.width then
-        QR_POSITION_CONFIG.width = settings.width
-        print("Updated QR width to " .. settings.width)
+
+    -- Width/Height are determined by the QR code content and module size, not directly configurable here.
+    -- We configure the *margin* and *position* type.
+    if settings.width or settings.height then
+        print("WARNING: QR width/height cannot be set directly via config. Size depends on content and global appearance settings (module_size).")
     end
-    
-    if settings.height then
-        QR_POSITION_CONFIG.height = settings.height
-        print("Updated QR height to " .. settings.height)
-    end
-    
+
     if settings.margin then
-        QR_POSITION_CONFIG.margin = settings.margin
-        print("Updated QR margin to " .. settings.margin)
+        instance.position_config.margin = settings.margin
+        print("Instance " .. instance_id .. ": Updated margin to " .. settings.margin)
+        config_updated = true
     end
-    
+
     if settings.custom_x then
-        QR_POSITION_CONFIG.custom_x = settings.custom_x
-        print("Updated QR custom_x to " .. settings.custom_x)
+        instance.position_config.custom_x = settings.custom_x
+        print("Instance " .. instance_id .. ": Updated custom_x to " .. settings.custom_x)
+        config_updated = true
     end
-    
+
     if settings.custom_y then
-        QR_POSITION_CONFIG.custom_y = settings.custom_y
-        print("Updated QR custom_y to " .. settings.custom_y)
+        instance.position_config.custom_y = settings.custom_y
+        print("Instance " .. instance_id .. ": Updated custom_y to " .. settings.custom_y)
+        config_updated = true
     end
-    
-    return true
+
+    return config_updated
 end
 
 util.data_mapper{
@@ -2254,13 +2320,7 @@ util.data_mapper{
         return scheduler.handle_gpio(event)
     end,
     ["remote/trigger"] = function(data)
-        print("Remote trigger received:", data)
-        
-        -- Try to handle the trigger with the QR code module first
-        local qr_result = qrcode_overlay.handle_remote_trigger(data, current_setup_id)
-        print("QR code handling result:", qr_result)
-        
-        -- Call the scheduler handler for regular page display
+        -- The unified handle_remote_trigger now handles both QR and scheduler
         return scheduler.handle_remote_trigger(data)
     end,
     ["sys/cec/key"] = scheduler.handle_cec,
@@ -2272,12 +2332,36 @@ util.data_mapper{
     end,
     -- Add handlers for updating QR code settings
     ["qr/position"] = function(data)
-        local settings = json.decode(data)
-        update_qr_position(settings)
+        local payload = json.decode(data)
+        if type(payload) == "table" and payload.id and payload.settings then
+            update_qr_position(payload.id, payload.settings)
+        else
+            print("ERROR: Invalid qr/position payload. Expected {id=\"..."; settings={...}}")
+        end
     end,
     ["qr/appearance"] = function(data)
         local settings = json.decode(data)
-        qrcode_overlay.update_appearance(settings)
+        local needs_regen = qrcode_overlay.update_appearance(settings)
+        if needs_regen then
+            print("QR appearance updated, triggering regeneration for visible instances.")
+            -- Regenerate all visible QR codes as appearance affects all
+            for id, instance in pairs(qr_code_instances) do
+                if instance.is_visible and instance.trigger_data then
+                    print("Regenerating QR instance: " .. id)
+                    local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
+                    if new_draw_details then
+                        instance.draw_details = new_draw_details
+                        print("Successfully regenerated QR instance: " .. id)
+                    else
+                        print("ERROR: Failed to regenerate QR instance: " .. id)
+                        instance.is_visible = false -- Hide if regeneration fails
+                        instance.draw_details = nil
+                    end
+                end
+            end
+        else
+            print("QR appearance updated, no regeneration needed.")
+        end
     end,
 }
 
@@ -2291,104 +2375,118 @@ function node.render()
     gl.clear(background.r, background.g, background.b, background.a)
 
     local now = sys.now()
-    scheduler.tick(now)   
+    scheduler.tick(now)
 
     dispatch_to_all_tiles("each_frame")
 
     job_queue.tick(now)
 
     dispatch_to_all_tiles("overlay")
-    
-    -- QR Code positioning configuration
-    -- You can adjust these variables to reposition the QR code
-    -- Set position to one of: "top-left", "top-right", "bottom-left", "bottom-right", or "custom"
-    local qr_position = QR_POSITION_CONFIG.position
-    
-    -- QR code dimensions (can be adjusted to change size)
-    local qr_width = QR_POSITION_CONFIG.width
-    local qr_height = QR_POSITION_CONFIG.height
-    
-    -- Margin from screen edges
-    local margin = QR_POSITION_CONFIG.margin
-    
-    -- Use these only if position is "custom"
-    local custom_x = QR_POSITION_CONFIG.custom_x
-    local custom_y = QR_POSITION_CONFIG.custom_y
-    
-    -- Calculate position based on selected corner
-    local qr_x, qr_y
-    if qr_position == "top-left" then
-        qr_x = margin
-        qr_y = margin
-    elseif qr_position == "top-right" then
-        qr_x = NATIVE_WIDTH - qr_width - margin
-        qr_y = margin
-    elseif qr_position == "bottom-left" then
-        qr_x = margin
-        qr_y = NATIVE_HEIGHT - qr_height - margin
-    elseif qr_position == "bottom-right" then
-        qr_x = NATIVE_WIDTH - qr_width - margin
-        qr_y = NATIVE_HEIGHT - qr_height - margin
-    elseif qr_position == "custom" then
-        qr_x = custom_x
-        qr_y = custom_y
-    else
-        -- Default to top-left if invalid position
-        qr_x = margin
-        qr_y = margin
+
+    -- === Draw QR Code Instances ===
+    local now_for_qr = sys.now() -- Use consistent time for expiry checks
+    local total_drawn_qr = 0
+
+    for id, instance in pairs(qr_code_instances) do
+        if instance.is_visible and instance.draw_details and instance.position_config then
+            local pos_config = instance.position_config
+            local dimensions = instance.draw_details.dimensions
+
+            -- Use actual dimensions from draw_details for positioning calculation
+            local qr_width = dimensions.total_width
+            local qr_height = dimensions.total_height
+            local margin = pos_config.margin or 20 -- Default margin if not set
+
+            -- Calculate position based on selected corner or custom coordinates
+            -- Note: The draw function expects the top-left corner (x, y) of the QR code *data* area,
+            -- not including the border or title height.
+            local qr_draw_x, qr_draw_y
+            if pos_config.position == "top-left" then
+                qr_draw_x = margin + dimensions.border_size
+                qr_draw_y = margin + dimensions.title_height + dimensions.border_size
+            elseif pos_config.position == "top-right" then
+                qr_draw_x = NATIVE_WIDTH - qr_width - margin + dimensions.border_size
+                qr_draw_y = margin + dimensions.title_height + dimensions.border_size
+            elseif pos_config.position == "bottom-left" then
+                qr_draw_x = margin + dimensions.border_size
+                qr_draw_y = NATIVE_HEIGHT - qr_height - margin + dimensions.title_height + dimensions.border_size
+            elseif pos_config.position == "bottom-right" then
+                qr_draw_x = NATIVE_WIDTH - qr_width - margin + dimensions.border_size
+                qr_draw_y = NATIVE_HEIGHT - qr_height - margin + dimensions.title_height + dimensions.border_size
+            elseif pos_config.position == "custom" then
+                -- For custom, assume provided (x,y) is the top-left of the *entire* QR area (including border/title)
+                qr_draw_x = (pos_config.custom_x or 0) + dimensions.border_size
+                qr_draw_y = (pos_config.custom_y or 0) + dimensions.title_height + dimensions.border_size
+            else
+                -- Default to bottom-right if invalid position
+                qr_draw_x = NATIVE_WIDTH - qr_width - margin + dimensions.border_size
+                qr_draw_y = NATIVE_HEIGHT - qr_height - margin + dimensions.title_height + dimensions.border_size
+            end
+
+            -- Try to draw the QR code instance
+            local drawn = qrcode_overlay.draw_qr(instance.draw_details, qr_draw_x, qr_draw_y, now_for_qr)
+
+            if drawn then
+                total_drawn_qr = total_drawn_qr + 1
+            else
+                -- If drawing failed (e.g., expired), mark as not visible
+                print("QR instance " .. id .. " failed to draw (likely expired). Hiding.")
+                instance.is_visible = false
+                instance.draw_details = nil -- Clear details
+            end
+        end
     end
-    
-    -- Try to draw the QR code
-    local drawn = qrcode_overlay.draw_qr(qr_x, qr_y)
-    
-    -- Get QR dimensions for debugging if available
-    local qr_dimensions = nil
-    if type(qrcode_overlay.get_dimensions) == "function" then
-        qr_dimensions = qrcode_overlay.get_dimensions()
-    end
-    
+
     -- Draw debug marker last to ensure it's on top of all other content
     -- This ensures the marker doesn't get hidden by videos or other elements
     gl.pushMatrix()
         -- Use explicit Z coordinate to ensure it's drawn on top
         gl.translate(0, 0, 0.1)
-        
+
         -- Draw white border first (slightly larger than the marker)
         colored:use{color = {1, 1, 1, 1}}  -- White color
         white_pixel:draw(8, 8, 32, 32)     -- White border
         colored:deactivate()
-        
+
         -- Create blinking effect by varying alpha based on time
         local blink_alpha = math.abs(math.sin(now * 3)) * 0.5 + 0.5  -- Oscillates between 0.5 and 1.0
         colored:use{color = {1, 0, 0, blink_alpha}}  -- Red with changing alpha
         debug_marker:draw(10, 10, 30, 30)  -- Small red square in corner
         colored:deactivate()
-        
+
         -- Removed: Green background rectangle drawing code
     gl.popMatrix()
-    
+
     -- Print debugging info every few seconds
-    if math.floor(now) % 5 == 0 then
-        print("\n==== QR CODE DEBUG INFO ====")
-        print("DEBUG RENDER: QR code drawn:", tostring(drawn))
-        print("DEBUG RENDER: QR position config:", qr_position)
-        print("DEBUG RENDER: QR configured size:", qr_width, "×", qr_height)
-        print("DEBUG RENDER: QR calculated position:", qr_x, qr_y)
-        
-        if drawn and qr_dimensions then
-            print("DEBUG RENDER: QR matrix size:", qr_dimensions.matrix_size.width, "×", qr_dimensions.matrix_size.height, "modules")
-            print("DEBUG RENDER: QR module size:", qr_dimensions.module_size, "pixels")
-            print("DEBUG RENDER: QR pixel size:", qr_dimensions.pixel_size.width, "×", qr_dimensions.pixel_size.height, "pixels")
-            print("DEBUG RENDER: QR total size:", qr_dimensions.total_size.width, "×", qr_dimensions.total_size.height, "pixels")
-            print("DEBUG RENDER: QR border size:", qr_dimensions.border_size, "pixels")
-            print("DEBUG RENDER: QR title height:", qr_dimensions.title_height, "pixels")
-            
-            -- Compare configured and actual sizes
-            print("DEBUG RENDER: Size comparison - Configured:", qr_width, "×", qr_height, 
-                  "Actual:", qr_dimensions.pixel_size.width, "×", qr_dimensions.pixel_size.height)
+    local print_debug = (math.floor(now_for_qr) % 5 == 0)
+    if print_debug and total_drawn_qr > 0 then
+        print("\n==== QR CODE INSTANCE DEBUG INFO (" .. total_drawn_qr .. " visible) ====")
+        for id, instance in pairs(qr_code_instances) do
+            if instance.is_visible and instance.draw_details then
+                local dims = instance.draw_details.dimensions
+                local pos_cfg = instance.position_config
+                print("  Instance ID:", id)
+                print("    Position Cfg:", pos_cfg.position, "(Margin:", pos_cfg.margin, ")", "Custom:", pos_cfg.custom_x, ",", pos_cfg.custom_y)
+                print("    Dimensions (Total):" .. dims.total_width .. "x" .. dims.total_height)
+                print("    Permanent:", tostring(instance.draw_details.permanent_display), "Expiry:", instance.draw_details.expiry_time > 0 and math.floor(instance.draw_details.expiry_time - now_for_qr) or "N/A")
+            end
         end
-        
-        print("DEBUG RENDER: Debug marker drawn at 10,10")
-        print("==============================")
+        print("============================================")
+    elseif print_debug then
+        print("[QR DEBUG] No QR instances visible.")
     end
+
+    -- Old Debugging for reference:
+    -- if drawn and qr_dimensions then
+    --     print("DEBUG RENDER: QR matrix size:", qr_dimensions.matrix_size.width, "×", qr_dimensions.matrix_size.height, "modules")
+    --     print("DEBUG RENDER: QR module size:", qr_dimensions.module_size, "pixels")
+    --     print("DEBUG RENDER: QR pixel size:", qr_dimensions.pixel_size.width, "×", qr_dimensions.pixel_size.height, "pixels")
+    --     print("DEBUG RENDER: QR total size:", qr_dimensions.total_size.width, "×", qr_dimensions.total_size.height, "pixels")
+    --     print("DEBUG RENDER: QR border size:", qr_dimensions.border_size, "pixels")
+    --     print("DEBUG RENDER: QR title height:", qr_dimensions.title_height, "pixels")
+    --     
+    --     -- Compare configured and actual sizes
+    --     print("DEBUG RENDER: Size comparison - Configured:", qr_width, "×", qr_height, 
+    --           "Actual:", qr_dimensions.pixel_size.width, "×", qr_dimensions.pixel_size.height)
+    -- end
 end
