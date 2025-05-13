@@ -1424,6 +1424,8 @@ end
 
 local layouts = {}
 local background = {r = 0, g = 0, b = 0, a = 0}
+local current_setup_id = "UNKNOWN_SETUP" // Initialize with a default
+
 node.event("config_updated", function(config)
     layouts = config.layouts
     for _, layout in ipairs(layouts) do
@@ -1436,6 +1438,14 @@ node.event("config_updated", function(config)
         end
     end
     background = config.background
+    
+    -- Store the setup_id when config is updated
+    if config.__metadata and config.__metadata.setup_id then
+        current_setup_id = config.__metadata.setup_id
+        log("config_updated", "Stored setup_id: %s", current_setup_id)
+    else
+        log("config_updated", "setup_id not found in config metadata")
+    end
 end)
 
 local function Page(page)
@@ -1663,7 +1673,7 @@ local function Scheduler(page_source, job_queue)
         print("Remote trigger received:", remote)
         
         -- Try to handle the trigger with the QR code module first
-        local qr_result = qrcode_overlay.handle_remote_trigger(remote)
+        local qr_result = qrcode_overlay.handle_remote_trigger(remote, current_setup_id)
         print("QR code handling result:", qr_result)
         
         -- Process normal page navigation
@@ -2247,7 +2257,7 @@ util.data_mapper{
         print("Remote trigger received:", data)
         
         -- Try to handle the trigger with the QR code module first
-        local qr_result = qrcode_overlay.handle_remote_trigger(data)
+        local qr_result = qrcode_overlay.handle_remote_trigger(data, current_setup_id)
         print("QR code handling result:", qr_result)
         
         -- Call the scheduler handler for regular page display

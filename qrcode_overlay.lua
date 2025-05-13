@@ -32,6 +32,7 @@ local QR_DISPLAY_DURATION = 3600  -- Show QR code for 3600 seconds (1 hour) inst
 local PERMANENT_DISPLAY = false   -- Flag for permanent display (no expiration)
 local current_trigger = nil       -- Track the current active trigger
 local qrencode = nil  -- Will be initialized when needed
+local current_setup_id_for_qr = nil -- Added to store setup_id for regeneration
 
 -- Debug variables for dimensions
 local qr_debug = {
@@ -241,10 +242,10 @@ local function generate_qr_code_file(data)
 end
 
 -- Function to handle remote trigger 3 and generate QR code
-function M.handle_remote_trigger(data)
-    debug_print("Handle remote trigger called with data: " .. tostring(data))
+function M.handle_remote_trigger(data, setup_id)
+    debug_print("Handle remote trigger called with data: " .. tostring(data) .. " and setup_id: " .. tostring(setup_id))
     
-    -- Ensure we have a string value
+    -- Ensure we have a string value for data
     if type(data) ~= "string" then
         debug_print("Invalid trigger data type: " .. type(data))
         return false
@@ -255,6 +256,8 @@ function M.handle_remote_trigger(data)
         debug_print("Trigger " .. data .. " received - hiding QR code")
         show_qr_code = false
         PERMANENT_DISPLAY = false
+        current_trigger = data -- Store the trigger even if hiding
+        return false -- Return false as QR wasn't shown/generated
     end
     
     -- Update current trigger
@@ -264,13 +267,13 @@ function M.handle_remote_trigger(data)
     if data == "3" or data == "3p" then -- Modified to include "3p"
         debug_print("Trigger " .. data .. " activated: Generating QR code")
         
-        -- Attempt to get device_id from environment variable
-        local device_id = os.getenv("SERIAL")
-        if device_id then
-            debug_print("Retrieved device_id (SERIAL): " .. device_id)
+        -- Use the passed setup_id instead of os.getenv
+        local device_id = setup_id
+        if device_id and device_id ~= "UNKNOWN_SETUP" and device_id ~= "" then -- Also check for empty string
+            debug_print("Using provided setup_id: " .. device_id)
         else
-            device_id = "UNKNOWN_DEVICE" -- Placeholder if not found
-            debug_print("Could not retrieve SERIAL environment variable, using placeholder: " .. device_id)
+            device_id = "FALLBACK_DEVICE_ID" -- Use a fallback if setup_id is missing or default
+            debug_print("setup_id missing or default, using fallback: " .. device_id)
         end
 
         -- Generate a URL with current timestamp and device_id
@@ -297,17 +300,27 @@ function M.handle_remote_trigger(data)
             end
             debug_print("Setting show_qr_code flag to true")
             debug_print("QR code state: show_qr_code=" .. tostring(show_qr_code) .. ", PERMANENT_DISPLAY=" .. tostring(PERMANENT_DISPLAY) .. ", qr_draw_function_exists=" .. tostring(qr_draw_function ~= nil))
+             
+            -- Store the setup_id associated with this QR code generation
+            -- This is needed if we regenerate due to appearance changes
+            current_setup_id_for_qr = setup_id 
+
             return true
         else
             debug_print("ERROR: Failed to generate QR code")
+            -- Even if generation failed, store the trigger that was attempted
+            current_trigger = data
+            current_setup_id_for_qr = setup_id -- Store setup_id even on failure
+            return false
         end
     else
+        -- This case should technically be unreachable due to the check at the top
         debug_print("Trigger " .. data .. " is not handled by QR code module (QR code hidden)")
-        -- QR code should already be hidden from our check at the top
+        show_qr_code = false
+        PERMANENT_DISPLAY = false
+        current_trigger = data -- Store the trigger
         return false
     end
-    
-    return false
 end
 
 -- Function to check if QR code should be displayed
@@ -386,56 +399,65 @@ function M.update_appearance(settings)
         return false
     end
     
+    local needs_regeneration = false -- Flag to track if regeneration is needed
+
     -- Update individual settings if provided
-    if settings.module_size then
+    if settings.module_size and QR_CONFIG.module_size ~= settings.module_size then
         QR_CONFIG.module_size = settings.module_size
         debug_print("Updated module_size to " .. settings.module_size)
+        needs_regeneration = true
     end
     
-    if settings.background_color then
+    if settings.background_color and QR_CONFIG.background_color ~= settings.background_color then
         QR_CONFIG.background_color = settings.background_color
         debug_print("Updated background_color")
+        needs_regeneration = true
     end
     
-    if settings.foreground_color then
+    if settings.foreground_color and QR_CONFIG.foreground_color ~= settings.foreground_color then
         QR_CONFIG.foreground_color = settings.foreground_color
         debug_print("Updated foreground_color")
+        needs_regeneration = true
     end
     
-    if settings.border_size then
+    if settings.border_size and QR_CONFIG.border_size ~= settings.border_size then
         QR_CONFIG.border_size = settings.border_size
         debug_print("Updated border_size to " .. settings.border_size)
+        needs_regeneration = true
     end
     
-    if settings.title_text then
+    -- Title changes only need regeneration if they affect layout (height)
+    if settings.title_text and QR_CONFIG.title_text ~= settings.title_text then
         QR_CONFIG.title_text = settings.title_text
         debug_print("Updated title_text to '" .. settings.title_text .. "'")
+        -- No regeneration needed unless title_height changes
     end
     
-    if settings.title_height then
+    if settings.title_height and QR_CONFIG.title_height ~= settings.title_height then
         QR_CONFIG.title_height = settings.title_height
         debug_print("Updated title_height to " .. settings.title_height)
+        needs_regeneration = true
     end
     
-    if settings.title_font_size then
+    if settings.title_font_size and QR_CONFIG.title_font_size ~= settings.title_font_size then
         QR_CONFIG.title_font_size = settings.title_font_size
         debug_print("Updated title_font_size to " .. settings.title_font_size)
+        -- No regeneration needed unless title_height changes
     end
     
-    if settings.title_color then
+    if settings.title_color and QR_CONFIG.title_color ~= settings.title_color then
         QR_CONFIG.title_color = settings.title_color
         debug_print("Updated title_color")
+        -- No regeneration needed
     end
     
-    -- Regenerate QR code with new settings if we have an active QR code
-    if show_qr_code and qr_draw_function then
+    -- Regenerate QR code with new settings if we have an active QR code and changes were made
+    if needs_regeneration and show_qr_code and (current_trigger == "3" or current_trigger == "3p") then
         debug_print("Regenerating QR code with new appearance settings")
-        -- We need to trigger a QR code regeneration to apply the new settings
-        -- Use the current trigger value if available
-        if current_trigger == "3" or current_trigger == "3p" then
-            -- Re-trigger the QR code generation
-            M.handle_remote_trigger(current_trigger)
-        end
+        -- Re-trigger the QR code generation using the *stored* setup_id from the last successful trigger
+        M.handle_remote_trigger(current_trigger, current_setup_id_for_qr) 
+    elseif show_qr_code and not needs_regeneration then
+         debug_print("Appearance settings updated, but no regeneration needed.")
     end
     
     return true
