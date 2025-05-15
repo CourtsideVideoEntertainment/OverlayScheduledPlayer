@@ -287,7 +287,7 @@ function M.handle_remote_trigger(trigger_data, setup_id)
 
     -- Generate a URL with current timestamp and device_id
     local timestamp = format_timestamp()
-    local url = "http://activations.courtsidevideo.com?asset_id=" .. url_asset_id .. "&timestamp=" .. timestamp .. "&device_id=" .. device_id
+    local url = "http://18.234.225.180/?asset_id=" .. url_asset_id .. "&timestamp=" .. timestamp .. "&device_id=" .. device_id
     
     debug_print("Generated URL for QR code: " .. url)
     
