@@ -34,10 +34,10 @@ local qr_code_instances = {
         id = "permanent_info_qr",
         trigger_data = "3", -- Data used to generate this QR code's content
         position_config = {
-            position = "top-left",
+            position = "custom",
             margin = 30, -- Different margin for this instance
-            custom_x = 0,
-            custom_y = 0
+            custom_x = 100,
+            custom_y = 100
         },
         draw_details = nil,
         is_visible = false
