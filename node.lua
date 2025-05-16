@@ -36,7 +36,7 @@ local qr_code_instances = {
         position_config = {
             position = "custom",
             margin = 30, -- Different margin for this instance
-            custom_x = 80,
+            custom_x = 50,
             custom_y = 150
         },
         draw_details = nil,
