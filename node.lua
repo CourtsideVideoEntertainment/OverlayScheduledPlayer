@@ -833,7 +833,7 @@ local function RawVideoTile(asset, config, x1, y1, x2, y2)
             paused = true,
             looped = looped,
             audio = audio,
-            raw = false, -- CHANGED: Set raw to false to render video in OpenGL context
+            raw = true, -- CHANGED: Set raw to false to render video in OpenGL context
         }
         vid:layer(-10) -- This layer will now be within OpenGL, may need adjustment
 
