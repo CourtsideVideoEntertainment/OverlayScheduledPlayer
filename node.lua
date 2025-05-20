@@ -36,8 +36,8 @@ local qr_code_instances = {
         position_config = {
             position = "custom",
             margin = 30, -- Different margin for this instance
-            custom_x = 50,
-            custom_y = 150
+            custom_x = 5, -- 5% from left
+            custom_y = 15 -- 15% from top
         },
         draw_details = nil,
         is_visible = false
@@ -46,7 +46,7 @@ local qr_code_instances = {
     -- example_qr = {
     --     id = "example_qr",
     --     trigger_data = "some_other_trigger_value_if_qrcode_overlay_handles_it",
-    --     position_config = { position = "custom", custom_x = 100, custom_y = 100, margin = 10},
+    --     position_config = { position = "custom", custom_x = 10, custom_y = 20, margin = 10}, -- 10% from left, 20% from top
     --     draw_details = nil,
     --     is_visible = false
     -- }
@@ -2312,27 +2312,22 @@ local function update_qr_position(instance_id, settings)
         end
     end
 
-    -- Width/Height are determined by the QR code content and module size, not directly configurable here.
-    -- We configure the *margin* and *position* type.
-    if settings.width or settings.height then
-        print("WARNING: QR width/height cannot be set directly via config. Size depends on content and global appearance settings (module_size).")
-    end
-
     if settings.margin then
         instance.position_config.margin = settings.margin
         print("Instance " .. instance_id .. ": Updated margin to " .. settings.margin)
         config_updated = true
     end
 
-    if settings.custom_x then
+    -- Handle custom_x and custom_y as percentages
+    if settings.custom_x ~= nil then
         instance.position_config.custom_x = settings.custom_x
-        print("Instance " .. instance_id .. ": Updated custom_x to " .. settings.custom_x)
+        print("Instance " .. instance_id .. ": Updated custom_x to " .. settings.custom_x .. "%")
         config_updated = true
     end
 
-    if settings.custom_y then
+    if settings.custom_y ~= nil then
         instance.position_config.custom_y = settings.custom_y
-        print("Instance " .. instance_id .. ": Updated custom_y to " .. settings.custom_y)
+        print("Instance " .. instance_id .. ": Updated custom_y to " .. settings.custom_y .. "%")
         config_updated = true
     end
 
@@ -2528,9 +2523,14 @@ function node.render()
                 qr_draw_x = NATIVE_WIDTH - qr_width - margin + dimensions.border_size
                 qr_draw_y = NATIVE_HEIGHT - qr_height - margin + dimensions.title_height + dimensions.border_size
             elseif pos_config.position == "custom" then
-                -- For custom, assume provided (x,y) is the top-left of the *entire* QR area (including border/title)
-                qr_draw_x = (pos_config.custom_x or 0) + dimensions.border_size
-                qr_draw_y = (pos_config.custom_y or 0) + dimensions.title_height + dimensions.border_size
+                -- Convert percentage to pixels for custom positioning
+                local x_percent = pos_config.custom_x or 0
+                local y_percent = pos_config.custom_y or 0
+                -- Calculate actual pixel positions based on screen dimensions
+                local actual_x = (NATIVE_WIDTH * x_percent / 100) + dimensions.border_size
+                local actual_y = (NATIVE_HEIGHT * y_percent / 100) + dimensions.title_height + dimensions.border_size
+                qr_draw_x = actual_x
+                qr_draw_y = actual_y
             else
                 -- Default to bottom-right if invalid position
                 qr_draw_x = NATIVE_WIDTH - qr_width - margin + dimensions.border_size
