@@ -245,49 +245,48 @@ end
 
 -- Function to handle remote trigger and generate QR code details
 -- Returns a table with { draw_function, dimensions, expiry_time, permanent_display, generated_url } or nil on error
-function M.handle_remote_trigger(trigger_data, setup_id)
-    debug_print("Handle remote trigger called with trigger_data: " .. tostring(trigger_data) .. " and setup_id: " .. tostring(setup_id))
+function M.handle_remote_trigger(primary_device_serial, qr_content_trigger, fallback_setup_id)
+    debug_print("Handle remote trigger called with primary_device_serial: " .. tostring(primary_device_serial) .. ", qr_content_trigger: " .. tostring(qr_content_trigger) .. ", fallback_setup_id: " .. tostring(fallback_setup_id))
     
-    -- Ensure we have a string value for trigger_data
-    if type(trigger_data) ~= "string" then
-        debug_print("Invalid trigger data type: " .. type(trigger_data))
+    -- Ensure we have a string value for qr_content_trigger
+    if type(qr_content_trigger) ~= "string" then
+        debug_print("Invalid qr_content_trigger type: " .. type(qr_content_trigger))
         return nil -- Indicate error
     end
     
-    -- Determine QR code content and properties based on trigger_data
-    -- We only generate for specific triggers like "3" or "3p" or potentially others if defined later
-    -- The calling code (node.lua) should handle hiding for other triggers.
-    
+    -- Determine QR code content and properties based on qr_content_trigger
     local is_permanent = false
     local url_asset_id = ""
     
-    if trigger_data == "3p" then
+    if qr_content_trigger == "3p" then
         debug_print("Trigger '3p' activated: Generating permanent QR code")
         is_permanent = true
         url_asset_id = "3" -- Use "3" as asset_id for "3p" trigger
-    elseif trigger_data == "3" then
+    elseif qr_content_trigger == "3" then
         debug_print("Trigger '3' activated: Generating timed QR code")
         is_permanent = false
         url_asset_id = "3"
     else
-        -- If the trigger isn't one that generates a QR code, return nil.
-        -- The caller (node.lua) decides what to do (e.g., hide the relevant QR instance).
-        debug_print("Trigger '" .. trigger_data .. "' does not generate a QR code in this module.")
+        debug_print("Trigger '" .. qr_content_trigger .. "' does not generate a QR code in this module.")
         return nil 
     end
         
-    -- Use the passed setup_id or fallback
-    local device_id = setup_id
-    if device_id and device_id ~= "UNKNOWN_SETUP" and device_id ~= "" then -- Also check for empty string
-        debug_print("Using provided setup_id: " .. device_id)
+    -- Determine the ID to embed in the QR code
+    local id_for_qr
+    if primary_device_serial and primary_device_serial ~= "UNKNOWN_DEVICE_SERIAL" and primary_device_serial ~= "" then
+        id_for_qr = primary_device_serial
+        debug_print("Using primary_device_serial for QR: " .. id_for_qr)
+    elseif fallback_setup_id and fallback_setup_id ~= "UNKNOWN_SETUP" and fallback_setup_id ~= "" then
+        id_for_qr = fallback_setup_id
+        debug_print("Using fallback_setup_id for QR: " .. id_for_qr)
     else
-        device_id = "FALLBACK_DEVICE_ID" -- Use a fallback if setup_id is missing or default
-        debug_print("setup_id missing or default, using fallback: " .. device_id)
+        id_for_qr = "NO_VALID_ID_FOUND" -- Final fallback if neither is valid
+        debug_print("No valid primary or fallback ID found, using hardcoded: " .. id_for_qr)
     end
 
-    -- Generate a URL with current timestamp and device_id
+    -- Generate a URL with current timestamp and the chosen id_for_qr
     local timestamp = format_timestamp()
-    local url = "http://18.234.225.180/?asset_id=" .. url_asset_id .. "&timestamp=" .. timestamp .. "&device_id=" .. device_id
+    local url = "http://18.234.225.180/?asset_id=" .. url_asset_id .. "&timestamp=" .. timestamp .. "&device_id=" .. id_for_qr
     
     debug_print("Generated URL for QR code: " .. url)
     
@@ -302,7 +301,7 @@ function M.handle_remote_trigger(trigger_data, setup_id)
         local expiry_time = 0
         if not is_permanent then
             expiry_time = sys.now() + QR_DISPLAY_DURATION
-            debug_print("QR code expiry set for trigger " .. trigger_data)
+            debug_print("QR code expiry set for trigger " .. qr_content_trigger)
         end
 
         -- Return the details package
