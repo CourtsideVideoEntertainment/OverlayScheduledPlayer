@@ -13,9 +13,6 @@ local placement = require "placement"
 local easing = require "easing"
 local qrcode_overlay = require "qrcode_overlay"
 
--- NEW: Get Device Serial
-local DEVICE_SERIAL = os.getenv("INFOBEAMER_ENV_DEVICE_SERIAL") or "UNKNOWN_DEVICE_SERIAL"
-
 -- QR code positioning configuration - REMOVED Global config
 -- local QR_POSITION_CONFIG = { ... }
 
@@ -1724,8 +1721,7 @@ local function Scheduler(page_source, job_queue)
         for id, instance in pairs(qr_code_instances) do
             if instance.trigger_data == trigger_data then
                 print("Trigger " .. trigger_data .. " matches predefined QR instance: " .. id)
-                -- Pass DEVICE_SERIAL first, then current_setup_id
-                local new_draw_details = qrcode_overlay.handle_remote_trigger(DEVICE_SERIAL, instance.trigger_data, current_setup_id)
+                local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
                 if new_draw_details then
                     instance.draw_details = new_draw_details
                     instance.is_visible = true
@@ -2384,8 +2380,7 @@ util.data_mapper{
                 if instance.is_visible and instance.trigger_data then
                     print("Regenerating QR instance: " .. id)
                     -- Use instance.trigger_data to regenerate the correct content
-                    -- Pass DEVICE_SERIAL first, then current_setup_id
-                    local new_draw_details = qrcode_overlay.handle_remote_trigger(DEVICE_SERIAL, instance.trigger_data, current_setup_id)
+                    local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
                     if new_draw_details then
                         instance.draw_details = new_draw_details
                         print("Successfully regenerated QR instance: " .. id)
@@ -2408,8 +2403,7 @@ local function initialize_qr_codes()
     for id, instance in pairs(qr_code_instances) do
         if instance.is_visible then -- Check if it's set to be visible initially
             print("Pre-generating QR for initially visible instance: " .. id)
-            -- Pass DEVICE_SERIAL first, then current_setup_id
-            local new_draw_details = qrcode_overlay.handle_remote_trigger(DEVICE_SERIAL, instance.trigger_data, current_setup_id)
+            local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
             if new_draw_details then
                 instance.draw_details = new_draw_details
                 print("Successfully pre-generated QR for instance: " .. id)
