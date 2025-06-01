@@ -2565,7 +2565,7 @@ function node.render()
         -- Create blinking effect by varying alpha based on time
         local blink_alpha = math.abs(math.sin(now * 3)) * 0.5 + 0.5  -- Oscillates between 0.5 and 1.0
         colored:use{color = {1, 0, 0, blink_alpha}}  -- Red with changing alpha
-        debug_marker:draw(10, 10, 30, 30)  -- Small red square in corner
+        -- debug_marker:draw(10, 10, 30, 30)  -- Small red square in corner
         colored:deactivate()
 
         -- Removed: Green background rectangle drawing code
