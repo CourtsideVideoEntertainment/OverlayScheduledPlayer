@@ -1,9 +1,9 @@
 gl.setup(NATIVE_WIDTH, NATIVE_HEIGHT)
 
--- Debug: Print screen dimensions using log function for better visibility
--- log("STARTUP", "=== SCREEN DIMENSIONS DEBUG ===")
---log("STARTUP", "GL Setup Dimensions (NATIVE): %dx%d", NATIVE_WIDTH, NATIVE_HEIGHT)
---log("STARTUP", "===============================")
+-- Debug: Print screen dimensions using simple print (log function not defined yet)
+print("[STARTUP] === SCREEN DIMENSIONS DEBUG ===")
+print("[STARTUP] GL Setup Dimensions (NATIVE): " .. NATIVE_WIDTH .. "x" .. NATIVE_HEIGHT)
+print("[STARTUP] ===============================")
 
 node.alias "*" -- catch all communication
 
@@ -80,6 +80,10 @@ local white_pixel = resource.create_colored_texture(1,1,1,1)
 local function log(system, format, ...)
     return print(string.format("[%s] " .. format, system, ...))
 end
+
+-- Now we can safely use the log function for dimensions
+log("INIT", "Screen dimensions after log function defined")
+log("INIT", "NATIVE_WIDTH x NATIVE_HEIGHT = %d x %d", NATIVE_WIDTH, NATIVE_HEIGHT)
 
 local function permute(tab)
     for i = 1, #tab do
