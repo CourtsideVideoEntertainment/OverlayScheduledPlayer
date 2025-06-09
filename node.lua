@@ -1,9 +1,9 @@
 gl.setup(NATIVE_WIDTH, NATIVE_HEIGHT)
 
 -- Debug: Print screen dimensions
-debug_print("=== SCREEN DIMENSIONS DEBUG ===")
-debug_print("GL Setup Dimensions (NATIVE): " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
-debug_print("===============================")
+print("=== SCREEN DIMENSIONS DEBUG ===")
+print("GL Setup Dimensions (NATIVE): " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
+print("===============================")
 
 node.alias "*" -- catch all communication
 
@@ -196,8 +196,8 @@ local function Screen()
         debug_print("Configured Resolution: " .. width .. " x " .. height)
         debug_print("Rotation: " .. rotation .. " degrees")
         debug_print("Portrait Mode: " .. tostring(is_portrait))
-        debug_print("GL Native Dimensions: " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
-        debug_print("========================\n")
+        print("GL Native Dimensions: " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
+        print("========================\n")
 
         local surface = {
             width = width,
