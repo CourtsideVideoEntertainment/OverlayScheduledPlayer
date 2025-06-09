@@ -82,8 +82,8 @@ local function log(system, format, ...)
 end
 
 -- Now we can safely use the log function for dimensions
-print("INIT", "Screen dimensions after log function defined")
-print("INIT", "NATIVE_WIDTH x NATIVE_HEIGHT = %d x %d", NATIVE_WIDTH, NATIVE_HEIGHT)
+log("INIT", "Screen dimensions after log function defined")
+log("INIT", "NATIVE_WIDTH x NATIVE_HEIGHT = %d x %d", NATIVE_WIDTH, NATIVE_HEIGHT)
 
 local function permute(tab)
     for i = 1, #tab do
@@ -218,28 +218,9 @@ local function Screen()
 
         if is_portrait then
             surface.width, surface.height = surface.height, surface.width
-            log("screen", "Portrait adjustment - Surface now: %dx%d", surface.width, surface.height)
         end
 
-        -- EXTENSIVE DEBUGGING: Log all coordinate system info
-        log("screen", "=== COORDINATE SYSTEM DEBUG ===")
-        log("screen", "Target (GL Canvas): x=%d, y=%d, w=%d, h=%d, rot=%d", 
-            target.x, target.y, target.width, target.height, target.rotation)
-        log("screen", "Surface (Content): w=%d, h=%d", surface.width, surface.height)
-        log("screen", "Scale Factor: %.3f", NATIVE_WIDTH / surface.width)
-        log("screen", "================================")
-
         placer = placement.Screen(target, surface)
-        
-        -- Store these values globally for QR positioning debugging
-        screen._debug_info = {
-            target = target,
-            surface = surface,
-            rotation = rotation,
-            is_portrait = is_portrait,
-            scale_x = NATIVE_WIDTH / surface.width,
-            scale_y = NATIVE_HEIGHT / surface.height
-        }
     end)
 
     local function setup()
@@ -2411,49 +2392,6 @@ local function validate_qr_positioning(instance_id)
     return true
 end
 
--- Function to transform QR coordinates using the screen placer's coordinate system
-local function transform_qr_coordinates(content_x, content_y)
-    if not screen._debug_info then
-        log("QR_TRANSFORM", "WARNING: No screen debug info available, using raw coordinates")
-        return content_x, content_y
-    end
-    
-    local debug_info = screen._debug_info
-    local surface = debug_info.surface
-    local target = debug_info.target
-    local rotation = debug_info.rotation
-    
-    -- Convert percentage-based content coordinates to surface coordinates
-    local surface_x = surface.width * content_x / 100
-    local surface_y = surface.height * content_y / 100
-    
-    -- Scale to target (GL canvas) coordinates
-    local scale_x = target.width / surface.width
-    local scale_y = target.height / surface.height
-    
-    local gl_x = surface_x * scale_x
-    local gl_y = surface_y * scale_y
-    
-    -- Apply rotation transformation if needed
-    if rotation == 90 then
-        local temp_x = gl_x
-        gl_x = target.height - gl_y
-        gl_y = temp_x
-    elseif rotation == 180 then
-        gl_x = target.width - gl_x
-        gl_y = target.height - gl_y
-    elseif rotation == 270 then
-        local temp_x = gl_x
-        gl_x = gl_y
-        gl_y = target.width - temp_x
-    end
-    
-    log("QR_TRANSFORM", "Content %.1f%%,%.1f%% -> Surface %.0f,%.0f -> GL %.0f,%.0f (rot=%d)", 
-        content_x, content_y, surface_x, surface_y, gl_x, gl_y, rotation)
-    
-    return gl_x, gl_y
-end
-
 util.data_mapper{
     ["event/keyboard"] = function(raw_event)
         local event = json.decode(raw_event)
@@ -2557,36 +2495,6 @@ util.data_mapper{
         end
         
         log("DEBUG", "================================")
-    end,
-    -- Handler to test coordinate transformation for QR positioning
-    ["debug/coords"] = function(data)
-        local payload = json.decode(data)
-        local x_percent = payload.x or 50
-        local y_percent = payload.y or 50
-        
-        log("COORD_TEST", "=== COORDINATE TRANSFORMATION TEST ===")
-        log("COORD_TEST", "Input: %.1f%%, %.1f%%", x_percent, y_percent)
-        
-        if screen._debug_info then
-            local info = screen._debug_info
-            log("COORD_TEST", "Screen Info: %dx%d -> %dx%d, rot=%d, portrait=%s", 
-                info.surface.width, info.surface.height, 
-                info.target.width, info.target.height, 
-                info.rotation, tostring(info.is_portrait))
-            
-            local raw_x = NATIVE_WIDTH * x_percent / 100
-            local raw_y = NATIVE_HEIGHT * y_percent / 100
-            
-            local trans_x, trans_y = transform_qr_coordinates(x_percent, y_percent)
-            
-            log("COORD_TEST", "Raw GL coordinates: (%.0f, %.0f)", raw_x, raw_y)
-            log("COORD_TEST", "Transformed coordinates: (%.0f, %.0f)", trans_x, trans_y)
-            log("COORD_TEST", "Difference: (%.0f, %.0f)", trans_x - raw_x, trans_y - raw_y)
-        else
-            log("COORD_TEST", "No screen transformation info available")
-        end
-        
-        log("COORD_TEST", "=====================================")
     end,
 }
 
@@ -2729,36 +2637,18 @@ function node.render()
                 local x_percent = pos_config.custom_x or 0
                 local y_percent = pos_config.custom_y or 0
                 
-                -- OLD METHOD: Raw GL coordinates (what we were using before)
-                local base_x_raw = NATIVE_WIDTH * x_percent / 100
-                local base_y_raw = NATIVE_HEIGHT * y_percent / 100
-                local qr_draw_x_raw = base_x_raw + dimensions.border_size
-                local qr_draw_y_raw = base_y_raw + dimensions.title_height + dimensions.border_size
+                -- Calculate base position as percentage of gl.setup dimensions
+                local base_x = NATIVE_WIDTH * x_percent / 100
+                local base_y = NATIVE_HEIGHT * y_percent / 100
                 
-                -- NEW METHOD: Properly transformed coordinates
-                local base_x_transformed, base_y_transformed = transform_qr_coordinates(x_percent, y_percent)
-                local qr_draw_x_transformed = base_x_transformed + dimensions.border_size
-                local qr_draw_y_transformed = base_y_transformed + dimensions.title_height + dimensions.border_size
+                -- For custom positioning, we position the entire QR code (including border/title)
+                -- at the specified percentage, then adjust to get the data area coordinates
+                qr_draw_x = base_x + dimensions.border_size
+                qr_draw_y = base_y + dimensions.title_height + dimensions.border_size
                 
-                -- EXTENSIVE DEBUGGING: Show both methods
-                print("QR_POSITION", "=== QR POSITIONING COMPARISON for %s ===", id)
-                print("QR_POSITION", "Percentage: %.1f%%, %.1f%%", x_percent, y_percent)
-                print("QR_POSITION", "RAW method: (%.0f, %.0f) -> draw at (%.0f, %.0f)", 
-                    base_x_raw, base_y_raw, qr_draw_x_raw, qr_draw_y_raw)
-                print("QR_POSITION", "TRANSFORMED method: (%.0f, %.0f) -> draw at (%.0f, %.0f)", 
-                    base_x_transformed, base_y_transformed, qr_draw_x_transformed, qr_draw_y_transformed)
-                print("QR_POSITION", "Difference: X=%.0f, Y=%.0f", 
-                    qr_draw_x_transformed - qr_draw_x_raw, qr_draw_y_transformed - qr_draw_y_raw)
-                print("QR_POSITION", "Canvas: %dx%d, QR size: %dx%d", 
-                    NATIVE_WIDTH, NATIVE_HEIGHT, qr_width, qr_height)
-                
-                -- Use the transformed coordinates (the correct method)
-                qr_draw_x = qr_draw_x_transformed
-                qr_draw_y = qr_draw_y_transformed
-                
-                -- Debug output for custom positioning (updated)
-                print("QR_POSITION", "Using TRANSFORMED coordinates for consistent positioning")
-                print("QR_POSITION", "============================================")
+                -- Debug output for custom positioning
+                print(string.format("QR Instance %s: Custom positioning - %.1f%% x %.1f%% = (%.0f, %.0f) on %dx%d canvas", 
+                    id, x_percent, y_percent, base_x, base_y, NATIVE_WIDTH, NATIVE_HEIGHT))
             else
                 -- Default to bottom-right if invalid position
                 qr_draw_x = NATIVE_WIDTH - qr_width - margin + dimensions.border_size
