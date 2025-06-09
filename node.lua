@@ -1,9 +1,9 @@
 gl.setup(NATIVE_WIDTH, NATIVE_HEIGHT)
 
 -- Debug: Print screen dimensions
-print("=== SCREEN DIMENSIONS DEBUG ===")
-print("GL Setup Dimensions (NATIVE): " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
-print("===============================")
+debug_print("=== SCREEN DIMENSIONS DEBUG ===")
+debug_print("GL Setup Dimensions (NATIVE): " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
+debug_print("===============================")
 
 node.alias "*" -- catch all communication
 
@@ -192,12 +192,12 @@ local function Screen()
         log("screen", "configured content resolution is %dx%d", width, height)
         
         -- Debug: Print all screen-related dimensions
-        print("\n=== SCREEN CONFIG DEBUG ===")
-        print("Configured Resolution: " .. width .. " x " .. height)
-        print("Rotation: " .. rotation .. " degrees")
-        print("Portrait Mode: " .. tostring(is_portrait))
-        print("GL Native Dimensions: " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
-        print("========================\n")
+        debug_print("\n=== SCREEN CONFIG DEBUG ===")
+        debug_print("Configured Resolution: " .. width .. " x " .. height)
+        debug_print("Rotation: " .. rotation .. " degrees")
+        debug_print("Portrait Mode: " .. tostring(is_portrait))
+        debug_print("GL Native Dimensions: " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
+        debug_print("========================\n")
 
         local surface = {
             width = width,
@@ -2286,16 +2286,16 @@ end)
 
 -- Function to update a specific QR code instance's positioning settings
 local function update_qr_position(instance_id, settings)
-    print("Attempting to update QR positioning for instance: " .. tostring(instance_id))
+    debug_print("Attempting to update QR positioning for instance: " .. tostring(instance_id))
 
     local instance = qr_code_instances[instance_id]
     if not instance then
-        print("ERROR: Cannot update position for non-existent QR instance ID: " .. tostring(instance_id))
+        debug_print("ERROR: Cannot update position for non-existent QR instance ID: " .. tostring(instance_id))
         return false
     end
 
     if type(settings) ~= "table" then
-        print("ERROR: Settings must be a table")
+        debug_print("ERROR: Settings must be a table")
         return false
     end
 
@@ -2318,29 +2318,29 @@ local function update_qr_position(instance_id, settings)
 
         if valid_positions[settings.position] then
             instance.position_config.position = settings.position
-            print("Instance " .. instance_id .. ": Updated position to " .. settings.position)
+            debug_print("Instance " .. instance_id .. ": Updated position to " .. settings.position)
             config_updated = true
         else
-            print("ERROR: Invalid position value: " .. settings.position)
+            debug_print("ERROR: Invalid position value: " .. settings.position)
         end
     end
 
     if settings.margin then
         instance.position_config.margin = settings.margin
-        print("Instance " .. instance_id .. ": Updated margin to " .. settings.margin)
+        debug_print("Instance " .. instance_id .. ": Updated margin to " .. settings.margin)
         config_updated = true
     end
 
     -- Handle custom_x and custom_y as percentages
     if settings.custom_x ~= nil then
         instance.position_config.custom_x = settings.custom_x
-        print("Instance " .. instance_id .. ": Updated custom_x to " .. settings.custom_x .. "%")
+        debug_print("Instance " .. instance_id .. ": Updated custom_x to " .. settings.custom_x .. "%")
         config_updated = true
     end
 
     if settings.custom_y ~= nil then
         instance.position_config.custom_y = settings.custom_y
-        print("Instance " .. instance_id .. ": Updated custom_y to " .. settings.custom_y .. "%")
+        debug_print("Instance " .. instance_id .. ": Updated custom_y to " .. settings.custom_y .. "%")
         config_updated = true
     end
 
@@ -2351,15 +2351,15 @@ end
 local function validate_qr_positioning(instance_id)
     local instance = qr_code_instances[instance_id]
     if not instance or not instance.position_config then
-        print("ERROR: Invalid QR instance for positioning validation: " .. tostring(instance_id))
+        debug_print("ERROR: Invalid QR instance for positioning validation: " .. tostring(instance_id))
         return false
     end
     
     local pos_config = instance.position_config
     
-    print("\n=== QR POSITIONING VALIDATION for " .. instance_id .. " ===")
-    print("GL Setup Dimensions: " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT .. " pixels")
-    print("Position Mode: " .. (pos_config.position or "unknown"))
+    debug_print("\n=== QR POSITIONING VALIDATION for " .. instance_id .. " ===")
+    debug_print("GL Setup Dimensions: " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT .. " pixels")
+    debug_print("Position Mode: " .. (pos_config.position or "unknown"))
     
     if pos_config.position == "custom" then
         local x_percent = pos_config.custom_x or 0
@@ -2367,24 +2367,24 @@ local function validate_qr_positioning(instance_id)
         local pixel_x = NATIVE_WIDTH * x_percent / 100
         local pixel_y = NATIVE_HEIGHT * y_percent / 100
         
-        print("Custom Position:")
-        print("  - X: " .. x_percent .. "% = " .. math.floor(pixel_x) .. " pixels from left")
-        print("  - Y: " .. y_percent .. "% = " .. math.floor(pixel_y) .. " pixels from top")
-        print("  - Coordinate System: (0,0) = top-left, (100,100) = bottom-right")
+        debug_print("Custom Position:")
+        debug_print("  - X: " .. x_percent .. "% = " .. math.floor(pixel_x) .. " pixels from left")
+        debug_print("  - Y: " .. y_percent .. "% = " .. math.floor(pixel_y) .. " pixels from top")
+        debug_print("  - Coordinate System: (0,0) = top-left, (100,100) = bottom-right")
         
         -- Validate ranges
         if x_percent < 0 or x_percent > 100 then
-            print("WARNING: custom_x (" .. x_percent .. "%) is outside 0-100% range")
+            debug_print("WARNING: custom_x (" .. x_percent .. "%) is outside 0-100% range")
         end
         if y_percent < 0 or y_percent > 100 then
-            print("WARNING: custom_y (" .. y_percent .. "%) is outside 0-100% range")
+            debug_print("WARNING: custom_y (" .. y_percent .. "%) is outside 0-100% range")
         end
     else
-        print("Preset Position: " .. (pos_config.position or "unknown"))
-        print("Margin: " .. (pos_config.margin or 20) .. " pixels")
+        debug_print("Preset Position: " .. (pos_config.position or "unknown"))
+        debug_print("Margin: " .. (pos_config.margin or 20) .. " pixels")
     end
     
-    print("=== END VALIDATION ===\n")
+    debug_print("=== END VALIDATION ===\n")
     return true
 end
 
@@ -2421,32 +2421,32 @@ util.data_mapper{
         if type(payload) == "table" and payload.id and payload.settings then
             update_qr_position(payload.id, payload.settings)
         else
-            print("ERROR: Invalid qr/position payload. Expected a table with id and settings fields")
+            debug_print("ERROR: Invalid qr/position payload. Expected a table with id and settings fields")
         end
     end,
     ["qr/appearance"] = function(data)
         local settings = json.decode(data)
         local needs_regen = qrcode_overlay.update_appearance(settings)
         if needs_regen then
-            print("QR appearance updated, triggering regeneration for visible instances.")
+            debug_print("QR appearance updated, triggering regeneration for visible instances.")
             -- Regenerate all visible QR codes as appearance affects all
             for id, instance in pairs(qr_code_instances) do
                 if instance.is_visible and instance.trigger_data then
-                    print("Regenerating QR instance: " .. id)
+                    debug_print("Regenerating QR instance: " .. id)
                     -- Use instance.trigger_data to regenerate the correct content
                     local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
                     if new_draw_details then
                         instance.draw_details = new_draw_details
-                        print("Successfully regenerated QR instance: " .. id)
+                        debug_print("Successfully regenerated QR instance: " .. id)
                     else
-                        print("ERROR: Failed to regenerate QR instance: " .. id)
+                        debug_print("ERROR: Failed to regenerate QR instance: " .. id)
                         instance.is_visible = false -- Hide if regeneration fails
                         instance.draw_details = nil
                     end
                 end
             end
         else
-            print("QR appearance updated, no regeneration needed.")
+            debug_print("QR appearance updated, no regeneration needed.")
         end
     end,
     -- Handler to validate QR positioning for debugging
@@ -2459,7 +2459,7 @@ util.data_mapper{
             validate_qr_positioning(payload)
         else
             -- Validate all instances if no specific ID provided
-            print("Validating all QR instances...")
+            debug_print("Validating all QR instances...")
             for id, _ in pairs(qr_code_instances) do
                 validate_qr_positioning(id)
             end
@@ -2467,8 +2467,8 @@ util.data_mapper{
     end,
     -- Handler to print screen dimensions for debugging
     ["debug/dimensions"] = function(data)
-        print("\n=== ON-DEMAND SCREEN DIMENSIONS ===")
-        print("GL Setup (NATIVE): " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
+        debug_print("\n=== ON-DEMAND SCREEN DIMENSIONS ===")
+        debug_print("GL Setup (NATIVE): " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
         
         -- Try to get current screen config if available
         local screen_info = screen.get_rotation and {
@@ -2476,32 +2476,32 @@ util.data_mapper{
         } or {}
         
         if screen_info.rotation then
-            print("Current Rotation: " .. screen_info.rotation .. " degrees")
+            debug_print("Current Rotation: " .. screen_info.rotation .. " degrees")
         end
         
         -- Try to get display info if available
         pcall(function()
             local fps, swap_interval = sys.get_ext("screen").get_display_info()
-            print("Display FPS: " .. fps .. ", Swap Interval: " .. swap_interval)
-            print("Frame Time: " .. (1/fps * swap_interval) .. " seconds")
+            debug_print("Display FPS: " .. fps .. ", Swap Interval: " .. swap_interval)
+            debug_print("Frame Time: " .. (1/fps * swap_interval) .. " seconds")
         end)
         
-        print("================================\n")
+        debug_print("================================\n")
     end,
 }
 
 -- Optional: Function to pre-generate QR codes for initially visible instances
 local function initialize_qr_codes()
-    print("Initializing predefined QR codes...")
+    debug_print("Initializing predefined QR codes...")
     for id, instance in pairs(qr_code_instances) do
         if instance.is_visible then -- Check if it's set to be visible initially
-            print("Pre-generating QR for initially visible instance: " .. id)
+            debug_print("Pre-generating QR for initially visible instance: " .. id)
             local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
             if new_draw_details then
                 instance.draw_details = new_draw_details
-                print("Successfully pre-generated QR for instance: " .. id)
+                debug_print("Successfully pre-generated QR for instance: " .. id)
             else
-                print("ERROR: Failed to pre-generate QR for instance: " .. id)
+                debug_print("ERROR: Failed to pre-generate QR for instance: " .. id)
                 instance.is_visible = false -- Don't show if generation failed
             end
         end
@@ -2559,7 +2559,7 @@ node.event("config_updated", function(config)
     end
 
     if force_reset then
-        print("config updated: forcing scheduler reset")
+        debug_print("config updated: forcing scheduler reset")
         reset_scheduler()
     end
 
@@ -2632,7 +2632,7 @@ function node.render()
                 qr_draw_y = base_y + dimensions.title_height + dimensions.border_size
                 
                 -- Debug output for custom positioning
-                print(string.format("QR Instance %s: Custom positioning - %.1f%% x %.1f%% = (%.0f, %.0f) on %dx%d canvas", 
+                debug_print(string.format("QR Instance %s: Custom positioning - %.1f%% x %.1f%% = (%.0f, %.0f) on %dx%d canvas", 
                     id, x_percent, y_percent, base_x, base_y, NATIVE_WIDTH, NATIVE_HEIGHT))
             else
                 -- Default to bottom-right if invalid position
@@ -2647,7 +2647,7 @@ function node.render()
                 total_drawn_qr = total_drawn_qr + 1
             else
                 -- If drawing failed (e.g., expired), mark as not visible
-                print("QR instance " .. id .. " failed to draw (likely expired). Hiding.")
+                debug_print("QR instance " .. id .. " failed to draw (likely expired). Hiding.")
                 instance.is_visible = false
                 instance.draw_details = nil -- Clear details
             end
@@ -2677,20 +2677,20 @@ function node.render()
     -- Print debugging info every few seconds
     local print_debug = (math.floor(now_for_qr) % 5 == 0)
     if print_debug and total_drawn_qr > 0 then
-        print("\n==== QR CODE INSTANCE DEBUG INFO (" .. total_drawn_qr .. " visible) ====")
+        debug_print("\n==== QR CODE INSTANCE DEBUG INFO (" .. total_drawn_qr .. " visible) ====")
         for id, instance in pairs(qr_code_instances) do
             if instance.is_visible and instance.draw_details then
                 local dims = instance.draw_details.dimensions
                 local pos_cfg = instance.position_config
-                print("  Instance ID:", id)
-                print("    Position Cfg:", pos_cfg.position, "(Margin:", pos_cfg.margin, ")", "Custom:", pos_cfg.custom_x, ",", pos_cfg.custom_y)
-                print("    Dimensions (Total):" .. dims.total_width .. "x" .. dims.total_height)
-                print("    Permanent:", tostring(instance.draw_details.permanent_display), "Expiry:", instance.draw_details.expiry_time > 0 and math.floor(instance.draw_details.expiry_time - now_for_qr) or "N/A")
+                debug_print("  Instance ID:", id)
+                debug_print("    Position Cfg:", pos_cfg.position, "(Margin:", pos_cfg.margin, ")", "Custom:", pos_cfg.custom_x, ",", pos_cfg.custom_y)
+                debug_print("    Dimensions (Total):" .. dims.total_width .. "x" .. dims.total_height)
+                debug_print("    Permanent:", tostring(instance.draw_details.permanent_display), "Expiry:", instance.draw_details.expiry_time > 0 and math.floor(instance.draw_details.expiry_time - now_for_qr) or "N/A")
             end
         end
-        print("============================================")
+        debug_print("============================================")
     elseif print_debug then
-        print("[QR DEBUG] No QR instances visible.")
+        debug_print("[QR DEBUG] No QR instances visible.")
     end
 
     -- Old Debugging for reference:
