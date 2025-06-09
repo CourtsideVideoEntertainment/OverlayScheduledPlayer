@@ -2741,15 +2741,15 @@ function node.render()
                 local qr_draw_y_transformed = base_y_transformed + dimensions.title_height + dimensions.border_size
                 
                 -- EXTENSIVE DEBUGGING: Show both methods
-                log("QR_POSITION", "=== QR POSITIONING COMPARISON for %s ===", id)
-                log("QR_POSITION", "Percentage: %.1f%%, %.1f%%", x_percent, y_percent)
-                log("QR_POSITION", "RAW method: (%.0f, %.0f) -> draw at (%.0f, %.0f)", 
+                print("QR_POSITION", "=== QR POSITIONING COMPARISON for %s ===", id)
+                print("QR_POSITION", "Percentage: %.1f%%, %.1f%%", x_percent, y_percent)
+                print("QR_POSITION", "RAW method: (%.0f, %.0f) -> draw at (%.0f, %.0f)", 
                     base_x_raw, base_y_raw, qr_draw_x_raw, qr_draw_y_raw)
-                log("QR_POSITION", "TRANSFORMED method: (%.0f, %.0f) -> draw at (%.0f, %.0f)", 
+                print("QR_POSITION", "TRANSFORMED method: (%.0f, %.0f) -> draw at (%.0f, %.0f)", 
                     base_x_transformed, base_y_transformed, qr_draw_x_transformed, qr_draw_y_transformed)
-                log("QR_POSITION", "Difference: X=%.0f, Y=%.0f", 
+                print("QR_POSITION", "Difference: X=%.0f, Y=%.0f", 
                     qr_draw_x_transformed - qr_draw_x_raw, qr_draw_y_transformed - qr_draw_y_raw)
-                log("QR_POSITION", "Canvas: %dx%d, QR size: %dx%d", 
+                print("QR_POSITION", "Canvas: %dx%d, QR size: %dx%d", 
                     NATIVE_WIDTH, NATIVE_HEIGHT, qr_width, qr_height)
                 
                 -- Use the transformed coordinates (the correct method)
@@ -2757,8 +2757,8 @@ function node.render()
                 qr_draw_y = qr_draw_y_transformed
                 
                 -- Debug output for custom positioning (updated)
-                log("QR_POSITION", "Using TRANSFORMED coordinates for consistent positioning")
-                log("QR_POSITION", "============================================")
+                print("QR_POSITION", "Using TRANSFORMED coordinates for consistent positioning")
+                print("QR_POSITION", "============================================")
             else
                 -- Default to bottom-right if invalid position
                 qr_draw_x = NATIVE_WIDTH - qr_width - margin + dimensions.border_size
