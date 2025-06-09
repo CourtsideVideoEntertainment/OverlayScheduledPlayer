@@ -36,8 +36,8 @@ local qr_code_instances = {
         position_config = {
             position = "custom",
             margin = 30, -- Different margin for this instance
-            custom_x = 50, -- 5% from left
-            custom_y = 50 -- 15% from top
+            custom_x = 5, -- 5% from left (corrected comment)
+            custom_y = 15 -- 15% from top (corrected comment)
         },
         draw_details = nil,
         is_visible = false
@@ -2334,6 +2334,47 @@ local function update_qr_position(instance_id, settings)
     return config_updated
 end
 
+-- Helper function to validate and explain QR positioning relative to gl.setup dimensions
+local function validate_qr_positioning(instance_id)
+    local instance = qr_code_instances[instance_id]
+    if not instance or not instance.position_config then
+        print("ERROR: Invalid QR instance for positioning validation: " .. tostring(instance_id))
+        return false
+    end
+    
+    local pos_config = instance.position_config
+    
+    print("\n=== QR POSITIONING VALIDATION for " .. instance_id .. " ===")
+    print("GL Setup Dimensions: " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT .. " pixels")
+    print("Position Mode: " .. (pos_config.position or "unknown"))
+    
+    if pos_config.position == "custom" then
+        local x_percent = pos_config.custom_x or 0
+        local y_percent = pos_config.custom_y or 0
+        local pixel_x = NATIVE_WIDTH * x_percent / 100
+        local pixel_y = NATIVE_HEIGHT * y_percent / 100
+        
+        print("Custom Position:")
+        print("  - X: " .. x_percent .. "% = " .. math.floor(pixel_x) .. " pixels from left")
+        print("  - Y: " .. y_percent .. "% = " .. math.floor(pixel_y) .. " pixels from top")
+        print("  - Coordinate System: (0,0) = top-left, (100,100) = bottom-right")
+        
+        -- Validate ranges
+        if x_percent < 0 or x_percent > 100 then
+            print("WARNING: custom_x (" .. x_percent .. "%) is outside 0-100% range")
+        end
+        if y_percent < 0 or y_percent > 100 then
+            print("WARNING: custom_y (" .. y_percent .. "%) is outside 0-100% range")
+        end
+    else
+        print("Preset Position: " .. (pos_config.position or "unknown"))
+        print("Margin: " .. (pos_config.margin or 20) .. " pixels")
+    end
+    
+    print("=== END VALIDATION ===\n")
+    return true
+end
+
 util.data_mapper{
     ["event/keyboard"] = function(raw_event)
         local event = json.decode(raw_event)
@@ -2393,6 +2434,22 @@ util.data_mapper{
             end
         else
             print("QR appearance updated, no regeneration needed.")
+        end
+    end,
+    -- Handler to validate QR positioning for debugging
+    ["qr/validate"] = function(data)
+        local payload = json.decode(data)
+        if type(payload) == "table" and payload.id then
+            validate_qr_positioning(payload.id)
+        elseif type(payload) == "string" then
+            -- Allow direct string ID
+            validate_qr_positioning(payload)
+        else
+            -- Validate all instances if no specific ID provided
+            print("Validating all QR instances...")
+            for id, _ in pairs(qr_code_instances) do
+                validate_qr_positioning(id)
+            end
         end
     end,
 }
@@ -2524,13 +2581,23 @@ function node.render()
                 qr_draw_y = NATIVE_HEIGHT - qr_height - margin + dimensions.title_height + dimensions.border_size
             elseif pos_config.position == "custom" then
                 -- Convert percentage to pixels for custom positioning
+                -- Position relative to NATIVE_WIDTH/NATIVE_HEIGHT (gl.setup dimensions)
+                -- This ensures consistent positioning regardless of screen settings
                 local x_percent = pos_config.custom_x or 0
                 local y_percent = pos_config.custom_y or 0
-                -- Calculate actual pixel positions based on screen dimensions
-                local actual_x = (NATIVE_WIDTH * x_percent / 100) + dimensions.border_size
-                local actual_y = (NATIVE_HEIGHT * y_percent / 100) + dimensions.title_height + dimensions.border_size
-                qr_draw_x = actual_x
-                qr_draw_y = actual_y
+                
+                -- Calculate base position as percentage of gl.setup dimensions
+                local base_x = NATIVE_WIDTH * x_percent / 100
+                local base_y = NATIVE_HEIGHT * y_percent / 100
+                
+                -- For custom positioning, we position the entire QR code (including border/title)
+                -- at the specified percentage, then adjust to get the data area coordinates
+                qr_draw_x = base_x + dimensions.border_size
+                qr_draw_y = base_y + dimensions.title_height + dimensions.border_size
+                
+                -- Debug output for custom positioning
+                print(string.format("QR Instance %s: Custom positioning - %.1f%% x %.1f%% = (%.0f, %.0f) on %dx%d canvas", 
+                    id, x_percent, y_percent, base_x, base_y, NATIVE_WIDTH, NATIVE_HEIGHT))
             else
                 -- Default to bottom-right if invalid position
                 qr_draw_x = NATIVE_WIDTH - qr_width - margin + dimensions.border_size
