@@ -1,5 +1,10 @@
 gl.setup(NATIVE_WIDTH, NATIVE_HEIGHT)
 
+-- Debug: Print screen dimensions
+print("=== SCREEN DIMENSIONS DEBUG ===")
+print("GL Setup Dimensions (NATIVE): " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
+print("===============================")
+
 node.alias "*" -- catch all communication
 
 util.no_globals()
@@ -185,6 +190,14 @@ local function Screen()
         local is_portrait = rotation == 90 or rotation == 270
         local width, height = config.resolution[1], config.resolution[2]
         log("screen", "configured content resolution is %dx%d", width, height)
+        
+        -- Debug: Print all screen-related dimensions
+        print("\n=== SCREEN CONFIG DEBUG ===")
+        print("Configured Resolution: " .. width .. " x " .. height)
+        print("Rotation: " .. rotation .. " degrees")
+        print("Portrait Mode: " .. tostring(is_portrait))
+        print("GL Native Dimensions: " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
+        print("========================\n")
 
         local surface = {
             width = width,
@@ -2451,6 +2464,29 @@ util.data_mapper{
                 validate_qr_positioning(id)
             end
         end
+    end,
+    -- Handler to print screen dimensions for debugging
+    ["debug/dimensions"] = function(data)
+        print("\n=== ON-DEMAND SCREEN DIMENSIONS ===")
+        print("GL Setup (NATIVE): " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
+        
+        -- Try to get current screen config if available
+        local screen_info = screen.get_rotation and {
+            rotation = screen.get_rotation()
+        } or {}
+        
+        if screen_info.rotation then
+            print("Current Rotation: " .. screen_info.rotation .. " degrees")
+        end
+        
+        -- Try to get display info if available
+        pcall(function()
+            local fps, swap_interval = sys.get_ext("screen").get_display_info()
+            print("Display FPS: " .. fps .. ", Swap Interval: " .. swap_interval)
+            print("Frame Time: " .. (1/fps * swap_interval) .. " seconds")
+        end)
+        
+        print("================================\n")
     end,
 }
 
