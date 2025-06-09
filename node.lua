@@ -1,9 +1,9 @@
 gl.setup(NATIVE_WIDTH, NATIVE_HEIGHT)
 
--- Debug: Print screen dimensions
-print("=== SCREEN DIMENSIONS DEBUG ===")
-print("GL Setup Dimensions (NATIVE): " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
-print("===============================")
+-- Debug: Print screen dimensions using log function for better visibility
+log("STARTUP", "=== SCREEN DIMENSIONS DEBUG ===")
+log("STARTUP", "GL Setup Dimensions (NATIVE): %dx%d", NATIVE_WIDTH, NATIVE_HEIGHT)
+log("STARTUP", "===============================")
 
 node.alias "*" -- catch all communication
 
@@ -191,13 +191,13 @@ local function Screen()
         local width, height = config.resolution[1], config.resolution[2]
         log("screen", "configured content resolution is %dx%d", width, height)
         
-        -- Debug: Print all screen-related dimensions
-        print("\n=== SCREEN CONFIG DEBUG ===")
-        print("Configured Resolution: " .. width .. " x " .. height)
-        print("Rotation: " .. rotation .. " degrees")
-        print("Portrait Mode: " .. tostring(is_portrait))
-        print("GL Native Dimensions: " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
-        print("========================\n")
+        -- Debug: Print all screen-related dimensions using log function
+        log("screen", "=== SCREEN CONFIG DEBUG ===")
+        log("screen", "Configured Resolution: %dx%d", width, height)
+        log("screen", "Rotation: %d degrees", rotation)
+        log("screen", "Portrait Mode: %s", tostring(is_portrait))
+        log("screen", "GL Native Dimensions: %dx%d", NATIVE_WIDTH, NATIVE_HEIGHT)
+        log("screen", "========================")
 
         local surface = {
             width = width,
@@ -2467,8 +2467,8 @@ util.data_mapper{
     end,
     -- Handler to print screen dimensions for debugging
     ["debug/dimensions"] = function(data)
-        print("\n=== ON-DEMAND SCREEN DIMENSIONS ===")
-        print("GL Setup (NATIVE): " .. NATIVE_WIDTH .. " x " .. NATIVE_HEIGHT)
+        log("DEBUG", "=== ON-DEMAND SCREEN DIMENSIONS ===")
+        log("DEBUG", "GL Setup (NATIVE): %dx%d", NATIVE_WIDTH, NATIVE_HEIGHT)
         
         -- Try to get current screen config if available
         local screen_info = screen.get_rotation and {
@@ -2476,17 +2476,21 @@ util.data_mapper{
         } or {}
         
         if screen_info.rotation then
-            print("Current Rotation: " .. screen_info.rotation .. " degrees")
+            log("DEBUG", "Current Rotation: %d degrees", screen_info.rotation)
         end
         
         -- Try to get display info if available
-        pcall(function()
+        local success = pcall(function()
             local fps, swap_interval = sys.get_ext("screen").get_display_info()
-            print("Display FPS: " .. fps .. ", Swap Interval: " .. swap_interval)
-            print("Frame Time: " .. (1/fps * swap_interval) .. " seconds")
+            log("DEBUG", "Display FPS: %d, Swap Interval: %d", fps, swap_interval)
+            log("DEBUG", "Frame Time: %f seconds", (1/fps * swap_interval))
         end)
         
-        print("================================\n")
+        if not success then
+            log("DEBUG", "Could not get display info")
+        end
+        
+        log("DEBUG", "================================")
     end,
 }
 
@@ -2573,6 +2577,13 @@ function node.render()
     FontCache.tick()
     ImageCache.tick()
     screen.setup()
+
+    -- Debug: Log dimensions periodically in render function (definitely executes)
+    local current_time = sys.now()
+    if not node._last_dimension_log or current_time - node._last_dimension_log > 5 then
+        node._last_dimension_log = current_time
+        log("RENDER", "Dimensions check - NATIVE: %dx%d", NATIVE_WIDTH, NATIVE_HEIGHT)
+    end
 
     gl.clear(background.r, background.g, background.b, background.a)
 
