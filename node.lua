@@ -1,9 +1,9 @@
 gl.setup(NATIVE_WIDTH, NATIVE_HEIGHT)
 
 -- Debug: Print screen dimensions using log function for better visibility
-log("STARTUP", "=== SCREEN DIMENSIONS DEBUG ===")
-log("STARTUP", "GL Setup Dimensions (NATIVE): %dx%d", NATIVE_WIDTH, NATIVE_HEIGHT)
-log("STARTUP", "===============================")
+-- log("STARTUP", "=== SCREEN DIMENSIONS DEBUG ===")
+--log("STARTUP", "GL Setup Dimensions (NATIVE): %dx%d", NATIVE_WIDTH, NATIVE_HEIGHT)
+--log("STARTUP", "===============================")
 
 node.alias "*" -- catch all communication
 
