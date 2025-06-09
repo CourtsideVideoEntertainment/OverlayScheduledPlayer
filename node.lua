@@ -82,8 +82,8 @@ local function log(system, format, ...)
 end
 
 -- Now we can safely use the log function for dimensions
-log("INIT", "Screen dimensions after log function defined")
-log("INIT", "NATIVE_WIDTH x NATIVE_HEIGHT = %d x %d", NATIVE_WIDTH, NATIVE_HEIGHT)
+print("INIT", "Screen dimensions after log function defined")
+print("INIT", "NATIVE_WIDTH x NATIVE_HEIGHT = %d x %d", NATIVE_WIDTH, NATIVE_HEIGHT)
 
 local function permute(tab)
     for i = 1, #tab do
