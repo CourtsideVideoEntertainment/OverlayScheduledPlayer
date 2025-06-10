@@ -246,6 +246,7 @@ end
 -- Function to handle remote trigger and generate QR code details
 -- Returns a table with { draw_function, dimensions, expiry_time, permanent_display, generated_url } or nil on error
 function M.handle_remote_trigger(trigger_data, setup_id)
+    debug_print("setup_id: " .. tostring(setup_id))
     debug_print("Handle remote trigger called with trigger_data: " .. tostring(trigger_data) .. " and setup_id: " .. tostring(setup_id))
     
     -- Ensure we have a string value for trigger_data
