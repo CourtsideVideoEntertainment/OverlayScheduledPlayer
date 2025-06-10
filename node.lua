@@ -21,41 +21,156 @@ local qrcode_overlay = require "qrcode_overlay"
 -- QR code positioning configuration - REMOVED Global config
 -- local QR_POSITION_CONFIG = { ... }
 
--- NEW: Predefined QR code instances
-local qr_code_instances = {
-    activation_qr = {
-        id = "activation_qr",
-        trigger_data = "3", -- Data used to generate this QR code's content
-        position_config = {
-            position = "custom",
-            margin = 20,
-            custom_x = 0,
-            custom_y = 0
-        },
-        draw_details = nil, -- Will be populated by handle_remote_trigger
-        is_visible = false   -- Initially not visible
-    },
-    permanent_info_qr = {
-        id = "permanent_info_qr",
-        trigger_data = "3", -- Data used to generate this QR code's content
-        position_config = {
-            position = "custom",
-            margin = 30, -- Different margin for this instance
-            custom_x = 20, -- 5% from left (corrected comment)
-            custom_y = 30 -- 15% from top (corrected comment)
-        },
-        draw_details = nil,
-        is_visible = false
+-- NEW: Dynamic QR code instances - now managed via API
+local qr_code_instances = {}
+
+-- Function to create or update a QR code instance
+local function create_or_update_qr_instance(asset_id, position_config)
+    -- Generate a unique instance ID based on asset_id
+    local instance_id = "qr_" .. tostring(asset_id)
+    
+    -- Default position config if not provided
+    local default_config = {
+        position = "bottom-right",
+        margin = 20,
+        custom_x = 0,
+        custom_y = 0
     }
-    -- Add more predefined instances here if needed
-    -- example_qr = {
-    --     id = "example_qr",
-    --     trigger_data = "some_other_trigger_value_if_qrcode_overlay_handles_it",
-    --     position_config = { position = "custom", custom_x = 10, custom_y = 20, margin = 10}, -- 10% from left, 20% from top
-    --     draw_details = nil,
-    --     is_visible = false
-    -- }
-}
+    
+    -- Merge provided config with defaults
+    local final_config = {}
+    for k, v in pairs(default_config) do
+        final_config[k] = v
+    end
+    if position_config then
+        for k, v in pairs(position_config) do
+            final_config[k] = v
+        end
+    end
+    
+    -- Create or update the instance
+    local existing = qr_code_instances[instance_id]
+    if existing then
+        log("QR_API", "Updating existing QR instance: %s", instance_id)
+        -- Update existing instance
+        existing.trigger_data = tostring(asset_id)
+        existing.position_config = final_config
+        -- Clear existing draw details to force regeneration
+        existing.draw_details = nil
+        existing.is_visible = false -- Will be made visible when triggered
+    else
+        log("QR_API", "Creating new QR instance: %s", instance_id)
+        -- Create new instance
+        qr_code_instances[instance_id] = {
+            id = instance_id,
+            trigger_data = tostring(asset_id),
+            position_config = final_config,
+            draw_details = nil,
+            is_visible = false
+        }
+    end
+    
+    -- Auto-save after creating/updating instance
+    save_qr_instances()
+    
+    return instance_id
+end
+
+-- Function to remove a QR code instance
+local function remove_qr_instance(asset_id)
+    local instance_id = "qr_" .. tostring(asset_id)
+    if qr_code_instances[instance_id] then
+        log("QR_API", "Removing QR instance: %s", instance_id)
+        qr_code_instances[instance_id] = nil
+        -- Auto-save after removal
+        save_qr_instances()
+        return true
+    end
+    return false
+end
+
+-- Function to list all QR instances
+local function list_qr_instances()
+    local instances = {}
+    for id, instance in pairs(qr_code_instances) do
+        instances[id] = {
+            asset_id = instance.trigger_data,
+            position_config = instance.position_config,
+            is_visible = instance.is_visible,
+            has_draw_details = instance.draw_details ~= nil
+        }
+    end
+    return instances
+end
+
+-- Function to get a specific QR instance
+local function get_qr_instance(asset_id)
+    local instance_id = "qr_" .. tostring(asset_id)
+    return qr_code_instances[instance_id]
+end
+
+-- Function to save QR instances to file for persistence
+local function save_qr_instances()
+    local data_to_save = {}
+    for id, instance in pairs(qr_code_instances) do
+        data_to_save[id] = {
+            id = instance.id,
+            trigger_data = instance.trigger_data,
+            position_config = instance.position_config,
+            -- Don't save draw_details or is_visible as they're runtime state
+        }
+    end
+    
+    local success = pcall(function()
+        local file = io.open("qr_instances.json", "w")
+        if file then
+            file:write(json.encode(data_to_save))
+            file:close()
+            log("QR_PERSIST", "Saved %d QR instances to qr_instances.json", table.getn(data_to_save))
+        end
+    end)
+    
+    if not success then
+        log("QR_PERSIST", "Failed to save QR instances to file")
+    end
+    
+    -- ALSO: Send to setup config for setup-wide synchronization
+    -- This would require calling back to the info-beamer API to update the setup config
+    -- For now, we'll use the local file system, but this could be enhanced
+    log("QR_PERSIST", "QR instances saved locally. For setup-wide sync, use setup-level API calls.")
+end
+
+-- Function to load QR instances from file
+local function load_qr_instances()
+    local success, data = pcall(function()
+        local file = io.open("qr_instances.json", "r")
+        if file then
+            local content = file:read("*all")
+            file:close()
+            return json.decode(content)
+        end
+        return nil
+    end)
+    
+    if success and data then
+        local count = 0
+        for id, instance_data in pairs(data) do
+            qr_code_instances[id] = {
+                id = instance_data.id,
+                trigger_data = instance_data.trigger_data,
+                position_config = instance_data.position_config,
+                draw_details = nil,
+                is_visible = false
+            }
+            count = count + 1
+        end
+        log("QR_PERSIST", "Loaded %d QR instances from qr_instances.json", count)
+        return true
+    else
+        log("QR_PERSIST", "No QR instances file found or failed to load - starting with empty instances")
+        return false
+    end
+end
 
 local min, max, abs, floor, ceil = math.min, math.max, math.abs, math.floor, math.ceil
 
@@ -2496,6 +2611,172 @@ util.data_mapper{
         
         log("DEBUG", "================================")
     end,
+    -- API: Create or update QR code instance
+    ["qr/instance"] = function(data)
+        local payload = json.decode(data)
+        
+        if not payload.asset_id then
+            log("QR_API", "ERROR: asset_id is required")
+            return
+        end
+        
+        local position_config = {}
+        
+        -- Extract position configuration from payload
+        if payload.position then position_config.position = payload.position end
+        if payload.margin then position_config.margin = payload.margin end
+        if payload.custom_x then position_config.custom_x = payload.custom_x end
+        if payload.custom_y then position_config.custom_y = payload.custom_y end
+        
+        -- Create or update the instance
+        local instance_id = create_or_update_qr_instance(payload.asset_id, position_config)
+        
+        log("QR_API", "Successfully created/updated QR instance for asset_id: %s (instance: %s)", 
+            payload.asset_id, instance_id)
+        
+        -- If auto_show is true, immediately make it visible and generate QR
+        if payload.auto_show then
+            local instance = qr_code_instances[instance_id]
+            if instance then
+                local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
+                if new_draw_details then
+                    instance.draw_details = new_draw_details
+                    instance.is_visible = true
+                    log("QR_API", "Auto-showing QR instance: %s", instance_id)
+                else
+                    log("QR_API", "ERROR: Failed to generate QR for auto_show instance: %s", instance_id)
+                end
+            end
+        end
+    end,
+    
+    -- API: Remove QR code instance
+    ["qr/instance/remove"] = function(data)
+        local payload = json.decode(data)
+        
+        if not payload.asset_id then
+            log("QR_API", "ERROR: asset_id is required for removal")
+            return
+        end
+        
+        local success = remove_qr_instance(payload.asset_id)
+        if success then
+            log("QR_API", "Successfully removed QR instance for asset_id: %s", payload.asset_id)
+        else
+            log("QR_API", "No QR instance found for asset_id: %s", payload.asset_id)
+        end
+    end,
+    
+    -- API: List all QR code instances
+    ["qr/instance/list"] = function(data)
+        local instances = list_qr_instances()
+        log("QR_API", "Current QR instances:")
+        for id, info in pairs(instances) do
+            log("QR_API", "  %s: asset_id=%s, visible=%s, position=%s (%.1f%%, %.1f%%)", 
+                id, info.asset_id, tostring(info.is_visible), 
+                info.position_config.position or "unknown",
+                info.position_config.custom_x or 0,
+                info.position_config.custom_y or 0)
+        end
+        if not next(instances) then
+            log("QR_API", "  No QR instances found")
+        end
+    end,
+    
+    -- API: Get specific QR instance info
+    ["qr/instance/get"] = function(data)
+        local payload = json.decode(data)
+        
+        if not payload.asset_id then
+            log("QR_API", "ERROR: asset_id is required")
+            return
+        end
+        
+        local instance = get_qr_instance(payload.asset_id)
+        if instance then
+            log("QR_API", "QR instance for asset_id %s:", payload.asset_id)
+            log("QR_API", "  ID: %s", instance.id)
+            log("QR_API", "  Visible: %s", tostring(instance.is_visible))
+            log("QR_API", "  Position: %s", instance.position_config.position or "unknown")
+            log("QR_API", "  Custom X/Y: %.1f%%, %.1f%%", 
+                instance.position_config.custom_x or 0,
+                instance.position_config.custom_y or 0)
+            log("QR_API", "  Margin: %d", instance.position_config.margin or 20)
+        else
+            log("QR_API", "No QR instance found for asset_id: %s", payload.asset_id)
+        end
+    end,
+    -- SETUP-WIDE: QR instance management that syncs across all devices
+    ["setup/qr/instance"] = function(data)
+        local payload = json.decode(data)
+        
+        if not payload.asset_id then
+            log("QR_SETUP", "ERROR: asset_id is required")
+            return
+        end
+        
+        local position_config = {}
+        
+        -- Extract position configuration from payload
+        if payload.position then position_config.position = payload.position end
+        if payload.margin then position_config.margin = payload.margin end
+        if payload.custom_x then position_config.custom_x = payload.custom_x end
+        if payload.custom_y then position_config.custom_y = payload.custom_y end
+        
+        -- Create or update the instance
+        local instance_id = create_or_update_qr_instance(payload.asset_id, position_config)
+        
+        log("QR_SETUP", "Setup-wide QR instance created/updated for asset_id: %s (instance: %s)", 
+            payload.asset_id, instance_id)
+        
+        -- If auto_show is true, immediately make it visible and generate QR
+        if payload.auto_show then
+            local instance = qr_code_instances[instance_id]
+            if instance then
+                local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
+                if new_draw_details then
+                    instance.draw_details = new_draw_details
+                    instance.is_visible = true
+                    log("QR_SETUP", "Auto-showing setup-wide QR instance: %s", instance_id)
+                else
+                    log("QR_SETUP", "ERROR: Failed to generate QR for auto_show instance: %s", instance_id)
+                end
+            end
+        end
+    end,
+    
+    -- SETUP-WIDE: Remove QR instance across all devices
+    ["setup/qr/instance/remove"] = function(data)
+        local payload = json.decode(data)
+        
+        if not payload.asset_id then
+            log("QR_SETUP", "ERROR: asset_id is required for removal")
+            return
+        end
+        
+        local success = remove_qr_instance(payload.asset_id)
+        if success then
+            log("QR_SETUP", "Successfully removed setup-wide QR instance for asset_id: %s", payload.asset_id)
+        else
+            log("QR_SETUP", "No QR instance found for asset_id: %s", payload.asset_id)
+        end
+    end,
+    
+    -- SETUP-WIDE: List all QR instances (same as device-level)
+    ["setup/qr/instance/list"] = function(data)
+        local instances = list_qr_instances()
+        log("QR_SETUP", "Setup-wide QR instances:")
+        for id, info in pairs(instances) do
+            log("QR_SETUP", "  %s: asset_id=%s, visible=%s, position=%s (%.1f%%, %.1f%%)", 
+                id, info.asset_id, tostring(info.is_visible), 
+                info.position_config.position or "unknown",
+                info.position_config.custom_x or 0,
+                info.position_config.custom_y or 0)
+        end
+        if not next(instances) then
+            log("QR_SETUP", "  No QR instances found")
+        end
+    end,
 }
 
 -- Optional: Function to pre-generate QR codes for initially visible instances
@@ -2722,3 +3003,6 @@ function node.render()
     --           "Actual:", qr_dimensions.pixel_size.width, "×", qr_dimensions.pixel_size.height)
     -- end
 end
+
+-- Load QR instances from file on startup
+load_qr_instances()
