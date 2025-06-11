@@ -2794,8 +2794,23 @@ util.data_mapper{
     end,
     -- API: Create or update QR code instance (with root/ prefix)
     ["root/qr/instance"] = function(data)
-        print("[QR_PACKAGE] root/qr/instance handler called with data: " .. tostring(data))
-        local payload = json.decode(data)
+        print("[QR_PACKAGE] root/qr/instance handler called")
+        print("[QR_PACKAGE] Raw data type: " .. type(data))
+        print("[QR_PACKAGE] Raw data content: '" .. tostring(data) .. "'")
+        print("[QR_PACKAGE] Raw data length: " .. string.len(tostring(data)))
+        
+        local payload
+        local success, err = pcall(function()
+            payload = json.decode(data)
+        end)
+        
+        if not success then
+            print("[QR_PACKAGE] JSON decode failed: " .. tostring(err))
+            return
+        end
+        
+        print("[QR_PACKAGE] Decoded payload type: " .. type(payload))
+        print("[QR_PACKAGE] Payload asset_id: " .. tostring(payload.asset_id))
         
         if not payload.asset_id then
             print("[QR_PACKAGE] ERROR: asset_id is required")
