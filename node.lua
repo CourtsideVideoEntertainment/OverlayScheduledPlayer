@@ -2868,6 +2868,12 @@ util.data_mapper{
             print("[QR_PACKAGE]   No QR instances found")
         end
     end,
+    -- Test endpoint to verify package is updated
+    ["root/test"] = function(data)
+        print("[TEST] Package is running latest code! Data: " .. tostring(data))
+        print("[TEST] Current time: " .. tostring(sys.now()))
+        print("[TEST] Total QR instances: " .. table.getn(qr_code_instances))
+    end,
 }
 
 -- Optional: Function to pre-generate QR codes for initially visible instances
