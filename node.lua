@@ -2632,30 +2632,31 @@ util.data_mapper{
         print("[QR_PACKAGE] Raw data content: '" .. tostring(data) .. "'")
         print("[QR_PACKAGE] Raw data length: " .. string.len(tostring(data)))
         
-        -- Handle empty data case (info-beamer API behavior)
+        -- Handle different data formats that info-beamer might send
         local payload
         local success, err = pcall(function()
             if data == "" or data == nil then
-                print("[QR_PACKAGE] Data is empty - using default test values")
-                payload = {
-                    asset_id = "3",
-                    custom_x = 20,
-                    custom_y = 30,
-                    position = "custom",
-                    auto_show = true
-                }
+                print("[QR_PACKAGE] ERROR: No data received - dynamic parameters required")
+                print("[QR_PACKAGE] Expected JSON with: asset_id, custom_x, custom_y, position, auto_show")
+                return nil
             else
+                -- Try to parse as direct JSON
                 payload = json.decode(data)
             end
         end)
         
-        if not success then
-            print("[QR_PACKAGE] JSON decode failed: " .. tostring(err))
+        if not success or not payload then
+            print("[QR_PACKAGE] Failed to parse JSON data: " .. tostring(err))
+            print("[QR_PACKAGE] Please send valid JSON with required parameters")
             return
         end
         
         print("[QR_PACKAGE] Decoded payload type: " .. type(payload))
         print("[QR_PACKAGE] Payload asset_id: " .. tostring(payload.asset_id))
+        print("[QR_PACKAGE] Payload custom_x: " .. tostring(payload.custom_x))
+        print("[QR_PACKAGE] Payload custom_y: " .. tostring(payload.custom_y))
+        print("[QR_PACKAGE] Payload position: " .. tostring(payload.position))
+        print("[QR_PACKAGE] Payload auto_show: " .. tostring(payload.auto_show))
         
         if not payload.asset_id then
             print("[QR_PACKAGE] ERROR: asset_id is required")
@@ -2930,6 +2931,32 @@ util.data_mapper{
         print("[TEST] Package is running latest code! Data: " .. tostring(data))
         print("[TEST] Current time: " .. tostring(sys.now()))
         print("[TEST] Total QR instances: " .. table.getn(qr_code_instances))
+    end,
+    
+    -- Debug endpoint to test different data formats
+    ["root/debug_data"] = function(data)
+        print("[DEBUG_DATA] === Data Format Debug ===")
+        print("[DEBUG_DATA] Raw data type: " .. type(data))
+        print("[DEBUG_DATA] Raw data content: '" .. tostring(data) .. "'")
+        print("[DEBUG_DATA] Raw data length: " .. string.len(tostring(data)))
+        
+        -- Try parsing as JSON
+        local success, parsed = pcall(function()
+            return json.decode(data)
+        end)
+        
+        if success then
+            print("[DEBUG_DATA] JSON parsing SUCCESS")
+            print("[DEBUG_DATA] Parsed type: " .. type(parsed))
+            if type(parsed) == "table" then
+                for k, v in pairs(parsed) do
+                    print("[DEBUG_DATA] Key: " .. tostring(k) .. " = " .. tostring(v))
+                end
+            end
+        else
+            print("[DEBUG_DATA] JSON parsing FAILED: " .. tostring(parsed))
+        end
+        print("[DEBUG_DATA] === End Debug ===")
     end,
 }
 
