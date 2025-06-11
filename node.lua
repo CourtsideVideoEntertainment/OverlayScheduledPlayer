@@ -3083,11 +3083,11 @@ local function load_qr_instances_from_config(config)
                 is_visible = false
             }
             count = count + 1
-            -- log("QR_CONFIG", "Loaded QR instance %s: asset_id=%s, position=%s (%.1f%%, %.1f%%)",
-                instance_id, asset_id, 
-                qr_code_instances[instance_id].position_config.position,
-                qr_code_instances[instance_id].position_config.custom_x or 0,
-                qr_code_instances[instance_id].position_config.custom_y or 0)
+            --log("QR_CONFIG", "Loaded QR instance %s: asset_id=%s, position=%s (%.1f%%, %.1f%%)",
+            --    instance_id, asset_id, 
+            --    qr_code_instances[instance_id].position_config.position,
+            --    qr_code_instances[instance_id].position_config.custom_x or 0,
+            --    qr_code_instances[instance_id].position_config.custom_y or 0)
         end
         -- log("QR_CONFIG", "Loaded %d QR instances from package configuration", count)
         return true
