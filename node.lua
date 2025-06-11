@@ -2541,8 +2541,15 @@ util.data_mapper{
             impl.data_trigger(path, data)
         end
     end,
+    -- Debug: Log all incoming data mapper calls
+    ["(.*)"] = function(path, data)
+        print("[DATA_MAPPER_DEBUG] Received call to path: " .. path)
+        print("[DATA_MAPPER_DEBUG] Data: " .. tostring(data))
+        -- Don't return anything so other handlers can still process
+    end,
     -- Add handlers for updating QR code settings
     ["qr/position"] = function(data)
+        print("[QR_PACKAGE] qr/position handler called with data: " .. tostring(data))
         local payload = json.decode(data)
         if type(payload) == "table" and payload.id and payload.settings then
             update_qr_position(payload.id, payload.settings)
@@ -2620,6 +2627,7 @@ util.data_mapper{
     end,
     -- API: Create or update QR code instance
     ["qr/instance"] = function(data)
+        print("[QR_PACKAGE] qr/instance handler called with data: " .. tostring(data))
         local payload = json.decode(data)
         
         if not payload.asset_id then
