@@ -172,6 +172,59 @@ local function load_qr_instances()
     end
 end
 
+-- NEW: Load QR instances from package configuration
+-- Expected config structure:
+-- {
+--   "qr_instances": {
+--     "3": {
+--       "position_config": {
+--         "position": "custom",
+--         "custom_x": 20,
+--         "custom_y": 30,
+--         "margin": 25
+--       }
+--     },
+--     "activation_code": {
+--       "position_config": {
+--         "position": "bottom-right",
+--         "margin": 20
+--       }
+--     }
+--   }
+-- }
+local function load_qr_instances_from_config(config)
+    if config.qr_instances then
+        log("QR_CONFIG", "Loading QR instances from package configuration")
+        local count = 0
+        for asset_id, qr_config in pairs(config.qr_instances) do
+            local instance_id = "qr_" .. tostring(asset_id)
+            qr_code_instances[instance_id] = {
+                id = instance_id,
+                trigger_data = tostring(asset_id),
+                position_config = qr_config.position_config or {
+                    position = "bottom-right",
+                    margin = 20,
+                    custom_x = 0,
+                    custom_y = 0
+                },
+                draw_details = nil,
+                is_visible = false
+            }
+            count = count + 1
+            log("QR_CONFIG", "Loaded QR instance %s: asset_id=%s, position=%s (%.1f%%, %.1f%%)",
+                instance_id, asset_id, 
+                qr_code_instances[instance_id].position_config.position,
+                qr_code_instances[instance_id].position_config.custom_x or 0,
+                qr_code_instances[instance_id].position_config.custom_y or 0)
+        end
+        log("QR_CONFIG", "Loaded %d QR instances from package configuration", count)
+        return true
+    else
+        log("QR_CONFIG", "No QR instances found in package configuration")
+        return false
+    end
+end
+
 local min, max, abs, floor, ceil = math.min, math.max, math.abs, math.floor, math.ceil
 
 local font_regl = resource.load_font "default-font.ttf"
@@ -1608,6 +1661,9 @@ node.event("config_updated", function(config)
     else
         log("config_updated", "setup_id not found in config metadata")
     end
+    
+    -- Load QR instances from package configuration
+    load_qr_instances_from_config(config)
 end)
 
 local function Page(page)
@@ -3006,3 +3062,37 @@ end
 
 -- Load QR instances from file on startup
 load_qr_instances()
+
+-- NEW: Load QR instances from package configuration
+local function load_qr_instances_from_config(config)
+    if config.qr_instances then
+        log("QR_CONFIG", "Loading QR instances from package configuration")
+        local count = 0
+        for asset_id, qr_config in pairs(config.qr_instances) do
+            local instance_id = "qr_" .. tostring(asset_id)
+            qr_code_instances[instance_id] = {
+                id = instance_id,
+                trigger_data = tostring(asset_id),
+                position_config = qr_config.position_config or {
+                    position = "bottom-right",
+                    margin = 20,
+                    custom_x = 0,
+                    custom_y = 0
+                },
+                draw_details = nil,
+                is_visible = false
+            }
+            count = count + 1
+            log("QR_CONFIG", "Loaded QR instance %s: asset_id=%s, position=%s (%.1f%%, %.1f%%)",
+                instance_id, asset_id, 
+                qr_code_instances[instance_id].position_config.position,
+                qr_code_instances[instance_id].position_config.custom_x or 0,
+                qr_code_instances[instance_id].position_config.custom_y or 0)
+        end
+        log("QR_CONFIG", "Loaded %d QR instances from package configuration", count)
+        return true
+    else
+        log("QR_CONFIG", "No QR instances found in package configuration")
+        return false
+    end
+end
