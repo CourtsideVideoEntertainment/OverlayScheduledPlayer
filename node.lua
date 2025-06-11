@@ -2792,6 +2792,82 @@ util.data_mapper{
             log("QR_SETUP", "  No QR instances found")
         end
     end,
+    -- API: Create or update QR code instance (with root/ prefix)
+    ["root/qr/instance"] = function(data)
+        print("[QR_PACKAGE] root/qr/instance handler called with data: " .. tostring(data))
+        local payload = json.decode(data)
+        
+        if not payload.asset_id then
+            print("[QR_PACKAGE] ERROR: asset_id is required")
+            return
+        end
+        
+        local position_config = {}
+        
+        -- Extract position configuration from payload
+        if payload.position then position_config.position = payload.position end
+        if payload.margin then position_config.margin = payload.margin end
+        if payload.custom_x then position_config.custom_x = payload.custom_x end
+        if payload.custom_y then position_config.custom_y = payload.custom_y end
+        
+        -- Create or update the instance
+        local instance_id = create_or_update_qr_instance(payload.asset_id, position_config)
+        
+        print("[QR_PACKAGE] Successfully created/updated QR instance for asset_id: " .. payload.asset_id .. " (instance: " .. instance_id .. ")")
+        
+        -- If auto_show is true, immediately make it visible and generate QR
+        if payload.auto_show then
+            local instance = qr_code_instances[instance_id]
+            if instance then
+                print("[QR_PACKAGE] Attempting to auto-show QR instance: " .. instance_id .. " with trigger_data: " .. instance.trigger_data)
+                print("[QR_PACKAGE] Current setup_id: " .. tostring(current_setup_id))
+                local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
+                if new_draw_details then
+                    instance.draw_details = new_draw_details
+                    instance.is_visible = true
+                    print("[QR_PACKAGE] Auto-showing QR instance: " .. instance_id .. " - SUCCESS")
+                else
+                    print("[QR_PACKAGE] ERROR: Failed to generate QR for auto_show instance: " .. instance_id)
+                    print("[QR_PACKAGE] qrcode_overlay.handle_remote_trigger returned nil")
+                end
+            else
+                print("[QR_PACKAGE] ERROR: Instance not found for auto_show: " .. instance_id)
+            end
+        end
+    end,
+    
+    -- API: Remove QR code instance (with root/ prefix)
+    ["root/qr/instance/remove"] = function(data)
+        print("[QR_PACKAGE] root/qr/instance/remove handler called")
+        local payload = json.decode(data)
+        
+        if not payload.asset_id then
+            print("[QR_PACKAGE] ERROR: asset_id is required for removal")
+            return
+        end
+        
+        local success = remove_qr_instance(payload.asset_id)
+        if success then
+            print("[QR_PACKAGE] Successfully removed QR instance for asset_id: " .. payload.asset_id)
+        else
+            print("[QR_PACKAGE] No QR instance found for asset_id: " .. payload.asset_id)
+        end
+    end,
+    
+    -- API: List all QR code instances (with root/ prefix)
+    ["root/qr/instance/list"] = function(data)
+        print("[QR_PACKAGE] root/qr/instance/list handler called")
+        local instances = list_qr_instances()
+        print("[QR_PACKAGE] Current QR instances:")
+        for id, info in pairs(instances) do
+            print("[QR_PACKAGE]   " .. id .. ": asset_id=" .. info.asset_id .. ", visible=" .. tostring(info.is_visible) .. 
+                  ", position=" .. (info.position_config.position or "unknown") .. 
+                  " (" .. (info.position_config.custom_x or 0) .. "%, " .. (info.position_config.custom_y or 0) .. "%)")
+        end
+        if not next(instances) then
+            print("[QR_PACKAGE]   No QR instances found")
+        end
+    end,
 }
 
 -- Optional: Function to pre-generate QR codes for initially visible instances
