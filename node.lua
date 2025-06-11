@@ -1851,6 +1851,7 @@ local function Scheduler(page_source, job_queue)
 
         -- Check if this trigger_data corresponds to any predefined QR instance's trigger_data
         for id, instance in pairs(qr_code_instances) do
+            print("[QR_DEBUG] Checking QR instance: " .. id .. " with trigger_data: " .. instance.trigger_data .. " against received: " .. trigger_data)
             if instance.trigger_data == trigger_data then
                 print("Trigger " .. trigger_data .. " matches predefined QR instance: " .. id)
                 local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
@@ -2637,14 +2638,19 @@ util.data_mapper{
         if payload.auto_show then
             local instance = qr_code_instances[instance_id]
             if instance then
+                print("[QR_PACKAGE] Attempting to auto-show QR instance: " .. instance_id .. " with trigger_data: " .. instance.trigger_data)
+                print("[QR_PACKAGE] Current setup_id: " .. tostring(current_setup_id))
                 local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
                 if new_draw_details then
                     instance.draw_details = new_draw_details
                     instance.is_visible = true
-                    print("[QR_PACKAGE] Auto-showing QR instance: " .. instance_id)
+                    print("[QR_PACKAGE] Auto-showing QR instance: " .. instance_id .. " - SUCCESS")
                 else
                     print("[QR_PACKAGE] ERROR: Failed to generate QR for auto_show instance: " .. instance_id)
+                    print("[QR_PACKAGE] qrcode_overlay.handle_remote_trigger returned nil")
                 end
+            else
+                print("[QR_PACKAGE] ERROR: Instance not found for auto_show: " .. instance_id)
             end
         end
     end,
