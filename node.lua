@@ -51,7 +51,7 @@ local function create_or_update_qr_instance(asset_id, position_config)
     -- Create or update the instance
     local existing = qr_code_instances[instance_id]
     if existing then
-        log("QR_API", "Updating existing QR instance: %s", instance_id)
+        print("[QR_API] Updating existing QR instance: " .. instance_id)
         -- Update existing instance
         existing.trigger_data = tostring(asset_id)
         existing.position_config = final_config
@@ -59,7 +59,7 @@ local function create_or_update_qr_instance(asset_id, position_config)
         existing.draw_details = nil
         existing.is_visible = false -- Will be made visible when triggered
     else
-        log("QR_API", "Creating new QR instance: %s", instance_id)
+        print("[QR_API] Creating new QR instance: " .. instance_id)
         -- Create new instance
         qr_code_instances[instance_id] = {
             id = instance_id,
@@ -80,7 +80,7 @@ end
 local function remove_qr_instance(asset_id)
     local instance_id = "qr_" .. tostring(asset_id)
     if qr_code_instances[instance_id] then
-        log("QR_API", "Removing QR instance: %s", instance_id)
+        print("[QR_API] Removing QR instance: " .. instance_id)
         qr_code_instances[instance_id] = nil
         -- Auto-save after removal
         save_qr_instances()
@@ -126,18 +126,18 @@ local function save_qr_instances()
         if file then
             file:write(json.encode(data_to_save))
             file:close()
-            log("QR_PERSIST", "Saved %d QR instances to qr_instances.json", table.getn(data_to_save))
+            print("[QR_PERSIST] Saved " .. table.getn(data_to_save) .. " QR instances to qr_instances.json")
         end
     end)
     
     if not success then
-        log("QR_PERSIST", "Failed to save QR instances to file")
+        print("[QR_PERSIST] Failed to save QR instances to file")
     end
     
     -- ALSO: Send to setup config for setup-wide synchronization
     -- This would require calling back to the info-beamer API to update the setup config
     -- For now, we'll use the local file system, but this could be enhanced
-    log("QR_PERSIST", "QR instances saved locally. For setup-wide sync, use setup-level API calls.")
+    print("[QR_PERSIST] QR instances saved locally. Package-level configuration applies to all setups using this package.")
 end
 
 -- Function to load QR instances from file
@@ -164,10 +164,10 @@ local function load_qr_instances()
             }
             count = count + 1
         end
-        log("QR_PERSIST", "Loaded %d QR instances from qr_instances.json", count)
+        print("[QR_PERSIST] Loaded " .. count .. " QR instances from qr_instances.json")
         return true
     else
-        log("QR_PERSIST", "No QR instances file found or failed to load - starting with empty instances")
+        print("[QR_PERSIST] No QR instances file found or failed to load - starting with empty instances")
         return false
     end
 end
@@ -2616,7 +2616,7 @@ util.data_mapper{
         local payload = json.decode(data)
         
         if not payload.asset_id then
-            log("QR_API", "ERROR: asset_id is required")
+            print("[QR_PACKAGE] ERROR: asset_id is required")
             return
         end
         
@@ -2631,8 +2631,7 @@ util.data_mapper{
         -- Create or update the instance
         local instance_id = create_or_update_qr_instance(payload.asset_id, position_config)
         
-        log("QR_API", "Successfully created/updated QR instance for asset_id: %s (instance: %s)", 
-            payload.asset_id, instance_id)
+        print("[QR_PACKAGE] Successfully created/updated QR instance for asset_id: " .. payload.asset_id .. " (instance: " .. instance_id .. ")")
         
         -- If auto_show is true, immediately make it visible and generate QR
         if payload.auto_show then
@@ -2642,9 +2641,9 @@ util.data_mapper{
                 if new_draw_details then
                     instance.draw_details = new_draw_details
                     instance.is_visible = true
-                    log("QR_API", "Auto-showing QR instance: %s", instance_id)
+                    print("[QR_PACKAGE] Auto-showing QR instance: " .. instance_id)
                 else
-                    log("QR_API", "ERROR: Failed to generate QR for auto_show instance: %s", instance_id)
+                    print("[QR_PACKAGE] ERROR: Failed to generate QR for auto_show instance: " .. instance_id)
                 end
             end
         end
@@ -2655,31 +2654,29 @@ util.data_mapper{
         local payload = json.decode(data)
         
         if not payload.asset_id then
-            log("QR_API", "ERROR: asset_id is required for removal")
+            print("[QR_PACKAGE] ERROR: asset_id is required for removal")
             return
         end
         
         local success = remove_qr_instance(payload.asset_id)
         if success then
-            log("QR_API", "Successfully removed QR instance for asset_id: %s", payload.asset_id)
+            print("[QR_PACKAGE] Successfully removed QR instance for asset_id: " .. payload.asset_id)
         else
-            log("QR_API", "No QR instance found for asset_id: %s", payload.asset_id)
+            print("[QR_PACKAGE] No QR instance found for asset_id: " .. payload.asset_id)
         end
     end,
     
     -- API: List all QR code instances
     ["qr/instance/list"] = function(data)
         local instances = list_qr_instances()
-        log("QR_API", "Current QR instances:")
+        print("[QR_PACKAGE] Current QR instances:")
         for id, info in pairs(instances) do
-            log("QR_API", "  %s: asset_id=%s, visible=%s, position=%s (%.1f%%, %.1f%%)", 
-                id, info.asset_id, tostring(info.is_visible), 
-                info.position_config.position or "unknown",
-                info.position_config.custom_x or 0,
-                info.position_config.custom_y or 0)
+            print("[QR_PACKAGE]   " .. id .. ": asset_id=" .. info.asset_id .. ", visible=" .. tostring(info.is_visible) .. 
+                  ", position=" .. (info.position_config.position or "unknown") .. 
+                  " (" .. (info.position_config.custom_x or 0) .. "%, " .. (info.position_config.custom_y or 0) .. "%)")
         end
         if not next(instances) then
-            log("QR_API", "  No QR instances found")
+            print("[QR_PACKAGE]   No QR instances found")
         end
     end,
     
@@ -2688,22 +2685,20 @@ util.data_mapper{
         local payload = json.decode(data)
         
         if not payload.asset_id then
-            log("QR_API", "ERROR: asset_id is required")
+            print("[QR_PACKAGE] ERROR: asset_id is required")
             return
         end
         
         local instance = get_qr_instance(payload.asset_id)
         if instance then
-            log("QR_API", "QR instance for asset_id %s:", payload.asset_id)
-            log("QR_API", "  ID: %s", instance.id)
-            log("QR_API", "  Visible: %s", tostring(instance.is_visible))
-            log("QR_API", "  Position: %s", instance.position_config.position or "unknown")
-            log("QR_API", "  Custom X/Y: %.1f%%, %.1f%%", 
-                instance.position_config.custom_x or 0,
-                instance.position_config.custom_y or 0)
-            log("QR_API", "  Margin: %d", instance.position_config.margin or 20)
+            print("[QR_PACKAGE] QR instance for asset_id " .. payload.asset_id .. ":")
+            print("[QR_PACKAGE]   ID: " .. instance.id)
+            print("[QR_PACKAGE]   Visible: " .. tostring(instance.is_visible))
+            print("[QR_PACKAGE]   Position: " .. (instance.position_config.position or "unknown"))
+            print("[QR_PACKAGE]   Custom X/Y: " .. (instance.position_config.custom_x or 0) .. "%, " .. (instance.position_config.custom_y or 0) .. "%")
+            print("[QR_PACKAGE]   Margin: " .. (instance.position_config.margin or 20))
         else
-            log("QR_API", "No QR instance found for asset_id: %s", payload.asset_id)
+            print("[QR_PACKAGE] No QR instance found for asset_id: " .. payload.asset_id)
         end
     end,
     -- SETUP-WIDE: QR instance management that syncs across all devices
