@@ -2627,8 +2627,35 @@ util.data_mapper{
     end,
     -- API: Create or update QR code instance
     ["qr/instance"] = function(data)
-        print("[QR_PACKAGE] qr/instance handler called with data: " .. tostring(data))
-        local payload = json.decode(data)
+        print("[QR_PACKAGE] qr/instance handler called")
+        print("[QR_PACKAGE] Raw data type: " .. type(data))
+        print("[QR_PACKAGE] Raw data content: '" .. tostring(data) .. "'")
+        print("[QR_PACKAGE] Raw data length: " .. string.len(tostring(data)))
+        
+        -- Handle empty data case (info-beamer API behavior)
+        local payload
+        local success, err = pcall(function()
+            if data == "" or data == nil then
+                print("[QR_PACKAGE] Data is empty - using default test values")
+                payload = {
+                    asset_id = "3",
+                    custom_x = 20,
+                    custom_y = 30,
+                    position = "custom",
+                    auto_show = true
+                }
+            else
+                payload = json.decode(data)
+            end
+        end)
+        
+        if not success then
+            print("[QR_PACKAGE] JSON decode failed: " .. tostring(err))
+            return
+        end
+        
+        print("[QR_PACKAGE] Decoded payload type: " .. type(payload))
+        print("[QR_PACKAGE] Payload asset_id: " .. tostring(payload.asset_id))
         
         if not payload.asset_id then
             print("[QR_PACKAGE] ERROR: asset_id is required")
