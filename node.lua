@@ -51,7 +51,7 @@ local function create_or_update_qr_instance(asset_id, position_config)
     -- Create or update the instance
     local existing = qr_code_instances[instance_id]
     if existing then
-        log("QR_API", "Updating existing QR instance: %s", instance_id)
+        -- log("QR_API", "Updating existing QR instance: %s", instance_id)
         -- Update existing instance
         existing.trigger_data = tostring(asset_id)
         existing.position_config = final_config
@@ -59,7 +59,7 @@ local function create_or_update_qr_instance(asset_id, position_config)
         existing.draw_details = nil
         existing.is_visible = false -- Will be made visible when triggered
     else
-        log("QR_API", "Creating new QR instance: %s", instance_id)
+        -- log("QR_API", "Creating new QR instance: %s", instance_id)
         -- Create new instance
         qr_code_instances[instance_id] = {
             id = instance_id,
@@ -80,7 +80,7 @@ end
 local function remove_qr_instance(asset_id)
     local instance_id = "qr_" .. tostring(asset_id)
     if qr_code_instances[instance_id] then
-        log("QR_API", "Removing QR instance: %s", instance_id)
+        -- log("QR_API", "Removing QR instance: %s", instance_id)
         qr_code_instances[instance_id] = nil
         -- Auto-save after removal
         save_qr_instances()
@@ -126,18 +126,18 @@ local function save_qr_instances()
         if file then
             file:write(json.encode(data_to_save))
             file:close()
-            log("QR_PERSIST", "Saved %d QR instances to qr_instances.json", table.getn(data_to_save))
+            -- log("QR_PERSIST", "Saved %d QR instances to qr_instances.json", table.getn(data_to_save))
         end
     end)
     
     if not success then
-        log("QR_PERSIST", "Failed to save QR instances to file")
+        -- log("QR_PERSIST", "Failed to save QR instances to file")
     end
     
     -- ALSO: Send to setup config for setup-wide synchronization
     -- This would require calling back to the info-beamer API to update the setup config
     -- For now, we'll use the local file system, but this could be enhanced
-    log("QR_PERSIST", "QR instances saved locally. For setup-wide sync, use setup-level API calls.")
+    -- log("QR_PERSIST", "QR instances saved locally. For setup-wide sync, use setup-level API calls.")
 end
 
 -- Function to load QR instances from file
@@ -3066,7 +3066,7 @@ load_qr_instances()
 -- NEW: Load QR instances from package configuration
 local function load_qr_instances_from_config(config)
     if config.qr_instances then
-        log("QR_CONFIG", "Loading QR instances from package configuration")
+        -- log("QR_CONFIG", "Loading QR instances from package configuration")
         local count = 0
         for asset_id, qr_config in pairs(config.qr_instances) do
             local instance_id = "qr_" .. tostring(asset_id)
@@ -3083,16 +3083,16 @@ local function load_qr_instances_from_config(config)
                 is_visible = false
             }
             count = count + 1
-            log("QR_CONFIG", "Loaded QR instance %s: asset_id=%s, position=%s (%.1f%%, %.1f%%)",
+            -- log("QR_CONFIG", "Loaded QR instance %s: asset_id=%s, position=%s (%.1f%%, %.1f%%)",
                 instance_id, asset_id, 
                 qr_code_instances[instance_id].position_config.position,
                 qr_code_instances[instance_id].position_config.custom_x or 0,
                 qr_code_instances[instance_id].position_config.custom_y or 0)
         end
-        log("QR_CONFIG", "Loaded %d QR instances from package configuration", count)
+        -- log("QR_CONFIG", "Loaded %d QR instances from package configuration", count)
         return true
     else
-        log("QR_CONFIG", "No QR instances found in package configuration")
+        -- log("QR_CONFIG", "No QR instances found in package configuration")
         return false
     end
 end
