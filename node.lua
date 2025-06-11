@@ -1846,6 +1846,12 @@ local function Scheduler(page_source, job_queue)
 
     local function handle_remote_trigger(trigger_data)
         print("Remote trigger received:", trigger_data)
+        
+        -- Debug: Show all existing QR instances
+        print("[QR_DEBUG] Total QR instances: " .. table.getn(qr_code_instances))
+        for id, instance in pairs(qr_code_instances) do
+            print("[QR_DEBUG] Found QR instance: " .. id .. " with trigger_data: " .. instance.trigger_data)
+        end
 
         local qr_instance_updated = false
 
