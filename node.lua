@@ -1001,26 +1001,18 @@ local function Streams()
     local function get_stream(url, audio)
         local key = stream_key(url, audio)
         if not streams[key] then
-            print("[STREAM] Initializing new RTSP stream: " .. url)
-            -- Initialize the stream only once with RTSP optimizations
+            -- Initialize the stream only once
             streams[key] = {
                 vid = resource.load_video{
                     file = url,
                     audio = audio,
                     raw = true,
-                    -- RTSP optimizations
-                    loop = false,           -- Don't loop RTSP streams
-                    paused = false,         -- Start immediately
-                    buffering = "minimal",  -- Reduce buffering for lower latency
                 },
                 last_used = frame,
                 url = url,  -- Store URL for debugging
-                connection_attempts = 0,
-                last_reconnect = 0,
             }
-            -- Keep stream running but hidden initially
+            -- Keep stream running but hidden
             streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
-            print("[STREAM] RTSP stream initialized and started: " .. url)
         end
 
         streams[key].last_used = frame
@@ -1029,22 +1021,16 @@ local function Streams()
 
     local function tick()
         frame = frame + 1
-        
-        -- Debug info every 5 seconds instead of 5
         if frame % 300 == 0 then
-            print("[STREAM] Active streams debug:")
-            for key, stream in pairs(streams) do
-                local age = frame - stream.last_used
-                print("[STREAM]   " .. stream.url .. " - Age: " .. age .. " frames")
-            end
+            print "[stream] active streams"
+            pp(streams)
         end
 
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
-            -- RTSP optimization: Keep streams alive longer to avoid reconnection delays
-            -- Changed from 300 to 1800 frames (30 seconds at 60fps)
-            if frame_delta > 1800 then  
-                print("[STREAM] Disposing inactive RTSP stream: " .. stream.url)
+            -- Increase this value significantly, maybe 300 frames or more
+            if frame_delta > 300 then  -- About 5 seconds at 60fps
+                print("[stream] disposing stream", stream.url)
                 if stream.vid then
                     stream.vid:dispose()
                 end
@@ -1066,32 +1052,13 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local audio = config.audio
 
     return function(starts, ends)
-        -- Pre-load stream before it's needed (RTSP optimization)
-        helper.wait_t(starts - 3) -- Wait 3 seconds before start time
-        
-        -- Ensure RTSP stream is ready before switching
-        if string.find(url:lower(), "rtsp://") then
-            print("[STREAM_TILE] Pre-loading RTSP stream: " .. url)
-            local vid_preload = streams.get_stream(url, audio)
-            if vid_preload then
-                vid_preload:start() -- Ensure it's running
-                print("[STREAM_TILE] RTSP stream pre-loaded successfully")
-            else
-                print("[STREAM_TILE] WARNING: RTSP stream pre-load failed")
-            end
-        end
-
         -- player
         for now in helper.frame_between(starts, ends) do
             local vid = streams.get_stream(url, audio)
             if vid then
                 screen.place_video(vid, layer, 1, x1, y1, x2, y2)
-            else
-                print("[STREAM_TILE] ERROR: Stream not available at " .. url)
             end
         end
-        
-        print("[STREAM_TILE] Stream tile finished for: " .. url)
     end
 end
 
@@ -2423,38 +2390,17 @@ local job_queue = JobQueue()
 local scheduler = Scheduler(page_source, job_queue)
 
 local function init_streams(config)
-    -- Initialize all configured streams with RTSP optimizations
-    print("[STREAM_INIT] Scanning configuration for RTSP streams...")
-    local stream_count = 0
-    
+    -- Initialize all configured streams
     for _, schedule in ipairs(config.schedules) do
         for _, page in ipairs(schedule.pages) do
             for _, tile in ipairs(page.tiles) do
                 if tile.type == "stream" and tile.config.url then
-                    local url = tile.config.url
-                    print("[STREAM_INIT] Found stream: " .. url)
-                    
                     -- Pre-initialize the stream
-                    local vid = streams.get_stream(url, tile.config.audio)
-                    if vid then
-                        print("[STREAM_INIT] Successfully pre-loaded stream: " .. url)
-                        stream_count = stream_count + 1
-                        
-                        -- For RTSP streams, ensure they're properly started
-                        if string.find(url:lower(), "rtsp://") then
-                            print("[STREAM_INIT] RTSP stream detected, applying optimizations: " .. url)
-                            -- Ensure the stream is actively running (not just initialized)
-                            vid:start()
-                        end
-                    else
-                        print("[STREAM_INIT] WARNING: Failed to pre-load stream: " .. url)
-                    end
+                    streams.get_stream(tile.config.url, tile.config.audio)
                 end
             end
         end
     end
-    
-    print("[STREAM_INIT] Completed initialization of " .. stream_count .. " streams")
 end
 
 -- Add to your config update handler
@@ -2463,42 +2409,6 @@ util.json_watch("config.json", function(config)
     node.dispatch("config_updated", config)
     node.gc()
 end)
-
--- RTSP Stream Management - Add specific handling for the user's stream
-local function manage_rtsp_streams()
-    local rtsp_url = "rtsp://34.222.112.239:8554/live.stream"
-    
-    -- Pre-load the specific RTSP stream to reduce switch time
-    local function ensure_rtsp_ready()
-        local vid = streams.get_stream(rtsp_url, true) -- Enable audio
-        if vid then
-            print("[RTSP_MANAGER] Stream ready: " .. rtsp_url)
-            -- Keep the stream actively running in background
-            vid:start()
-            return true
-        else
-            print("[RTSP_MANAGER] WARNING: Stream not ready: " .. rtsp_url)
-            return false
-        end
-    end
-    
-    -- Call this periodically to maintain connection
-    local function maintain_connection()
-        local current_time = sys.now()
-        -- Check every 10 seconds
-        if not node._last_rtsp_check or current_time - node._last_rtsp_check > 10 then
-            node._last_rtsp_check = current_time
-            ensure_rtsp_ready()
-        end
-    end
-    
-    return {
-        ensure_ready = ensure_rtsp_ready,
-        maintain = maintain_connection
-    }
-end
-
-local rtsp_manager = manage_rtsp_streams()
 
 -- Function to update a specific QR code instance's positioning settings
 local function update_qr_position(instance_id, settings)
@@ -3048,58 +2958,6 @@ util.data_mapper{
         end
         print("[DEBUG_DATA] === End Debug ===")
     end,
-    
-    -- RTSP Stream Management Endpoints
-    ["rtsp/status"] = function(data)
-        print("[RTSP_DEBUG] === RTSP Stream Status ===")
-        local rtsp_url = "rtsp://34.222.112.239:8554/live.stream"
-        
-        -- Check if stream exists in streams table
-        local key = rtsp_url .. "|true" -- assuming audio is enabled
-        local stream_exists = false
-        
-        for stream_key, stream in pairs(streams) do
-            if stream_key == key or string.find(stream_key, rtsp_url) then
-                stream_exists = true
-                print("[RTSP_DEBUG] Stream found in cache: " .. stream_key)
-                print("[RTSP_DEBUG] Stream URL: " .. stream.url)
-                print("[RTSP_DEBUG] Last used: " .. stream.last_used .. " frames ago")
-                break
-            end
-        end
-        
-        if not stream_exists then
-            print("[RTSP_DEBUG] Stream NOT found in cache")
-        end
-        
-        print("[RTSP_DEBUG] Total active streams: " .. table.getn(streams))
-        print("[RTSP_DEBUG] === End Status ===")
-    end,
-    
-    ["rtsp/restart"] = function(data)
-        print("[RTSP_RESTART] Forcing RTSP stream restart...")
-        local rtsp_url = "rtsp://34.222.112.239:8554/live.stream"
-        
-        -- Force disposal of existing stream
-        for stream_key, stream in pairs(streams) do
-            if string.find(stream_key, rtsp_url) then
-                print("[RTSP_RESTART] Disposing existing stream: " .. stream_key)
-                if stream.vid then
-                    stream.vid:dispose()
-                end
-                streams[stream_key] = nil
-            end
-        end
-        
-        -- Force re-initialization
-        local vid = streams.get_stream(rtsp_url, true)
-        if vid then
-            vid:start()
-            print("[RTSP_RESTART] Stream restarted successfully")
-        else
-            print("[RTSP_RESTART] ERROR: Failed to restart stream")
-        end
-    end,
 }
 
 -- Optional: Function to pre-generate QR codes for initially visible instances
@@ -3185,9 +3043,6 @@ function node.render()
     FontCache.tick()
     ImageCache.tick()
     screen.setup()
-
-    -- Maintain RTSP connections
-    rtsp_manager.maintain()
 
     -- Debug: Log dimensions periodically in render function (definitely executes)
     local current_time = sys.now()
