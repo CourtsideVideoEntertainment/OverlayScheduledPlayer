@@ -3133,23 +3133,23 @@ function node.render()
 
     -- Draw debug marker last to ensure it's on top of all other content
     -- This ensures the marker doesn't get hidden by videos or other elements
-    -- gl.pushMatrix()
+    gl.pushMatrix()
         -- Use explicit Z coordinate to ensure it's drawn on top
-        -- gl.translate(0, 0, 0.1)
+        gl.translate(0, 0, 0.1)
 
         -- Draw white border first (slightly larger than the marker)
-        -- colored:use{color = {1, 1, 1, 1}}  -- White color
-        -- white_pixel:draw(8, 8, 32, 32)     -- White border
-        -- colored:deactivate()
+        colored:use{color = {1, 1, 1, 1}}  -- White color
+        white_pixel:draw(8, 8, 32, 32)     -- White border
+        colored:deactivate()
 
         -- Create blinking effect by varying alpha based on time
-        -- local blink_alpha = math.abs(math.sin(now * 3)) * 0.5 + 0.5  -- Oscillates between 0.5 and 1.0
-        -- colored:use{color = {1, 0, 0, blink_alpha}}  -- Red with changing alpha
-        -- debug_marker:draw(10, 10, 30, 30)  -- Small red square in corner
-        -- colored:deactivate()
+        local blink_alpha = math.abs(math.sin(now * 3)) * 0.5 + 0.5  -- Oscillates between 0.5 and 1.0
+        colored:use{color = {1, 0, 0, blink_alpha}}  -- Red with changing alpha
+        debug_marker:draw(10, 10, 30, 30)  -- Small red square in corner
+        colored:deactivate()
 
         -- Removed: Green background rectangle drawing code
-    -- gl.popMatrix()
+    gl.popMatrix()
 
     -- Print debugging info every few seconds
     local print_debug = (math.floor(now_for_qr) % 5 == 0)
