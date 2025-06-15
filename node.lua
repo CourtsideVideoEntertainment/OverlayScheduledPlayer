@@ -3208,9 +3208,9 @@ end
 local gif_overlay = {
     enabled = false,
     image = nil,
-    position = "top-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
+    position = "center",  -- Changed to center to make it more visible
     margin = 20,
-    scale = 0.2,  -- 20% of original size (tiny!)
+    scale = 0.5,  -- Increased from 0.2 to 0.5 to make it more visible
     alpha = 0.9,  -- 90% opacity
     custom_x = 85,  -- 85% from left (only used if position = "custom")
     custom_y = 5,   -- 5% from top (only used if position = "custom")
@@ -3253,6 +3253,9 @@ local function draw_gif_overlay()
         return
     end
     
+    -- Debug: Show screen dimensions
+    log("gif_overlay", "DEBUG: Screen dimensions - NATIVE: %dx%d", NATIVE_WIDTH, NATIVE_HEIGHT)
+    
     -- For video objects, we need to get dimensions differently
     local img_width, img_height = gif_overlay.image:size()
     
@@ -3261,6 +3264,12 @@ local function draw_gif_overlay()
         gif_overlay.image:start()
         img_width, img_height = gif_overlay.image:size()
         log("gif_overlay", "DEBUG: Started video, new size: %dx%d", img_width, img_height)
+        
+        -- If still 0x0, use a default size for positioning
+        if img_width == 0 or img_height == 0 then
+            log("gif_overlay", "WARNING: Video still has 0x0 dimensions, using default 100x100 for positioning")
+            img_width, img_height = 100, 100
+        end
     end
     
     local scaled_width = img_width * gif_overlay.scale
@@ -3295,8 +3304,12 @@ local function draw_gif_overlay()
         draw_y = gif_overlay.margin
     end
     
-    log("gif_overlay", "DEBUG: Drawing at position: %.1f, %.1f (position: %s, margin: %d)", 
-        draw_x, draw_y, gif_overlay.position, gif_overlay.margin)
+    -- Clamp positions to screen bounds
+    draw_x = math.max(0, math.min(draw_x, NATIVE_WIDTH - scaled_width))
+    draw_y = math.max(0, math.min(draw_y, NATIVE_HEIGHT - scaled_height))
+    
+    log("gif_overlay", "DEBUG: Final position after clamping: %.1f, %.1f (screen bounds: %dx%d)", 
+        draw_x, draw_y, NATIVE_WIDTH, NATIVE_HEIGHT)
     
     -- Draw the video overlay with specified alpha and start it
     gif_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, gif_overlay.alpha):start()
