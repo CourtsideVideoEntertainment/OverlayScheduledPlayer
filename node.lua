@@ -3223,16 +3223,18 @@ local function load_gif_overlay(asset_name)
     end
     
     local success, image = pcall(function()
-        return resource.load_image{
+        return resource.load_video{
             file = asset_name or "stephen_a_smith_weed_GIF.gif",
-            mipmap = true,
+            looped = true,
+            paused = false,
+            audio = false,
         }
     end)
     
     if success then
         gif_overlay.image = image
         gif_overlay.enabled = true
-        log("gif_overlay", "Loaded Stephen A. Smith GIF overlay: %s", asset_name or "stephen_a_smith_weed_GIF.gif")
+        log("gif_overlay", "Loaded Stephen A. Smith GIF overlay as video: %s", asset_name or "stephen_a_smith_weed_GIF.gif")
     else
         log("gif_overlay", "Failed to load Stephen A. Smith GIF overlay: %s", tostring(image))
         gif_overlay.enabled = false
@@ -3251,7 +3253,16 @@ local function draw_gif_overlay()
         return
     end
     
+    -- For video objects, we need to get dimensions differently
     local img_width, img_height = gif_overlay.image:size()
+    
+    -- If size is still 0x0, try to start the video first
+    if img_width == 0 or img_height == 0 then
+        gif_overlay.image:start()
+        img_width, img_height = gif_overlay.image:size()
+        log("gif_overlay", "DEBUG: Started video, new size: %dx%d", img_width, img_height)
+    end
+    
     local scaled_width = img_width * gif_overlay.scale
     local scaled_height = img_height * gif_overlay.scale
     
@@ -3287,8 +3298,8 @@ local function draw_gif_overlay()
     log("gif_overlay", "DEBUG: Drawing at position: %.1f, %.1f (position: %s, margin: %d)", 
         draw_x, draw_y, gif_overlay.position, gif_overlay.margin)
     
-    -- Draw the overlay with specified alpha
-    gif_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, gif_overlay.alpha)
+    -- Draw the video overlay with specified alpha and start it
+    gif_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, gif_overlay.alpha):start()
 end
 
 -- Override the render function to add QR code display
