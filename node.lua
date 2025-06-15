@@ -3090,7 +3090,7 @@ local coke_overlay = {
     image = nil,
     position = "top-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
     margin = 20,
-    scale = 0.5,  -- 50% of original size
+    scale = 0.2,  -- 20% of original size (tiny!)
     alpha = 0.9,  -- 90% opacity
     custom_x = 85,  -- 85% from left (only used if position = "custom")
     custom_y = 5,   -- 5% from top (only used if position = "custom")
