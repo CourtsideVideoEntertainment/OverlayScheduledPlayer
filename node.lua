@@ -3242,12 +3242,21 @@ end
 -- Function to draw Stephen A. Smith GIF overlay
 local function draw_gif_overlay()
     if not gif_overlay.enabled or not gif_overlay.image then
+        if not gif_overlay.enabled then
+            log("gif_overlay", "DEBUG: Overlay not enabled")
+        end
+        if not gif_overlay.image then
+            log("gif_overlay", "DEBUG: No image loaded")
+        end
         return
     end
     
     local img_width, img_height = gif_overlay.image:size()
     local scaled_width = img_width * gif_overlay.scale
     local scaled_height = img_height * gif_overlay.scale
+    
+    log("gif_overlay", "DEBUG: Drawing GIF - Original: %dx%d, Scaled: %.1fx%.1f, Scale: %.2f", 
+        img_width, img_height, scaled_width, scaled_height, gif_overlay.scale)
     
     local draw_x, draw_y
     
@@ -3274,6 +3283,9 @@ local function draw_gif_overlay()
         draw_x = NATIVE_WIDTH - scaled_width - gif_overlay.margin
         draw_y = gif_overlay.margin
     end
+    
+    log("gif_overlay", "DEBUG: Drawing at position: %.1f, %.1f (position: %s, margin: %d)", 
+        draw_x, draw_y, gif_overlay.position, gif_overlay.margin)
     
     -- Draw the overlay with specified alpha
     gif_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, gif_overlay.alpha)
@@ -3373,9 +3385,6 @@ function node.render()
         end
     end
 
-    -- === Draw Coke Zero Overlay ===
-    draw_coke_overlay()
-
     -- === Draw Stephen A. Smith GIF Overlay ===
     draw_gif_overlay()
 
@@ -3435,9 +3444,6 @@ end
 
 -- Load QR instances from file on startup
 load_qr_instances()
-
--- Initialize Coke Zero overlay on startup
-load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
 
 -- Initialize Stephen A. Smith GIF overlay on startup
 load_gif_overlay("stephen_a_smith_weed_GIF.gif")
