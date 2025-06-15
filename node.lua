@@ -3003,6 +3003,51 @@ util.data_mapper{
         end
         print("[DEBUG_DATA] === End Debug ===")
     end,
+    -- === STEPHEN A. SMITH GIF OVERLAY HANDLERS ===
+    -- Handler to load/enable Stephen A. Smith GIF overlay
+    ["gif/load"] = function(data)
+        local asset_name = data and data ~= "" and data or "stephen_a_smith_weed_GIF.gif"
+        load_gif_overlay(asset_name)
+        log("gif_overlay", "Load command received for asset: %s", asset_name)
+    end,
+    -- Handler to enable/disable overlay
+    ["gif/toggle"] = function(data)
+        gif_overlay.enabled = not gif_overlay.enabled
+        log("gif_overlay", "Overlay toggled: %s", gif_overlay.enabled and "enabled" or "disabled")
+    end,
+    -- Handler to set overlay position
+    ["gif/position"] = function(data)
+        local payload = json.decode(data)
+        if type(payload) == "table" then
+            if payload.position then gif_overlay.position = payload.position end
+            if payload.margin then gif_overlay.margin = payload.margin end
+            if payload.custom_x then gif_overlay.custom_x = payload.custom_x end
+            if payload.custom_y then gif_overlay.custom_y = payload.custom_y end
+            log("gif_overlay", "Position updated: %s (margin: %d)", gif_overlay.position, gif_overlay.margin)
+        elseif type(payload) == "string" then
+            gif_overlay.position = payload
+            log("gif_overlay", "Position set to: %s", payload)
+        end
+    end,
+    -- Handler to set overlay appearance
+    ["gif/appearance"] = function(data)
+        local payload = json.decode(data)
+        if type(payload) == "table" then
+            if payload.scale then gif_overlay.scale = payload.scale end
+            if payload.alpha then gif_overlay.alpha = payload.alpha end
+            log("gif_overlay", "Appearance updated: scale=%.2f, alpha=%.2f", gif_overlay.scale, gif_overlay.alpha)
+        end
+    end,
+    -- Handler to get current overlay status
+    ["gif/status"] = function(data)
+        log("gif_overlay", "=== STEPHEN A. SMITH GIF OVERLAY STATUS ===")
+        log("gif_overlay", "Enabled: %s", tostring(gif_overlay.enabled))
+        log("gif_overlay", "Position: %s (margin: %d)", gif_overlay.position, gif_overlay.margin)
+        log("gif_overlay", "Scale: %.2f, Alpha: %.2f", gif_overlay.scale, gif_overlay.alpha)
+        log("gif_overlay", "Custom Position: %.1f%%, %.1f%%", gif_overlay.custom_x, gif_overlay.custom_y)
+        log("gif_overlay", "Image Loaded: %s", gif_overlay.image and "yes" or "no")
+        log("gif_overlay", "===============================")
+    end,
 }
 
 -- Optional: Function to pre-generate QR codes for initially visible instances
@@ -3159,6 +3204,81 @@ local function draw_coke_overlay()
     coke_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, coke_overlay.alpha)
 end
 
+-- Stephen A. Smith GIF Overlay System
+local gif_overlay = {
+    enabled = false,
+    image = nil,
+    position = "top-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
+    margin = 20,
+    scale = 0.2,  -- 20% of original size (tiny!)
+    alpha = 0.9,  -- 90% opacity
+    custom_x = 85,  -- 85% from left (only used if position = "custom")
+    custom_y = 5,   -- 5% from top (only used if position = "custom")
+}
+
+-- Function to load Stephen A. Smith GIF overlay
+local function load_gif_overlay(asset_name)
+    if gif_overlay.image then
+        gif_overlay.image:dispose()
+    end
+    
+    local success, image = pcall(function()
+        return resource.load_image{
+            file = asset_name or "stephen_a_smith_weed_GIF.gif",
+            mipmap = true,
+        }
+    end)
+    
+    if success then
+        gif_overlay.image = image
+        gif_overlay.enabled = true
+        log("gif_overlay", "Loaded Stephen A. Smith GIF overlay: %s", asset_name or "stephen_a_smith_weed_GIF.gif")
+    else
+        log("gif_overlay", "Failed to load Stephen A. Smith GIF overlay: %s", tostring(image))
+        gif_overlay.enabled = false
+    end
+end
+
+-- Function to draw Stephen A. Smith GIF overlay
+local function draw_gif_overlay()
+    if not gif_overlay.enabled or not gif_overlay.image then
+        return
+    end
+    
+    local img_width, img_height = gif_overlay.image:size()
+    local scaled_width = img_width * gif_overlay.scale
+    local scaled_height = img_height * gif_overlay.scale
+    
+    local draw_x, draw_y
+    
+    if gif_overlay.position == "top-left" then
+        draw_x = gif_overlay.margin
+        draw_y = gif_overlay.margin
+    elseif gif_overlay.position == "top-right" then
+        draw_x = NATIVE_WIDTH - scaled_width - gif_overlay.margin
+        draw_y = gif_overlay.margin
+    elseif gif_overlay.position == "bottom-left" then
+        draw_x = gif_overlay.margin
+        draw_y = NATIVE_HEIGHT - scaled_height - gif_overlay.margin
+    elseif gif_overlay.position == "bottom-right" then
+        draw_x = NATIVE_WIDTH - scaled_width - gif_overlay.margin
+        draw_y = NATIVE_HEIGHT - scaled_height - gif_overlay.margin
+    elseif gif_overlay.position == "center" then
+        draw_x = NATIVE_WIDTH / 2 - scaled_width / 2
+        draw_y = NATIVE_HEIGHT / 2 - scaled_height / 2
+    elseif gif_overlay.position == "custom" then
+        draw_x = NATIVE_WIDTH * gif_overlay.custom_x / 100
+        draw_y = NATIVE_HEIGHT * gif_overlay.custom_y / 100
+    else
+        -- Default to top-right
+        draw_x = NATIVE_WIDTH - scaled_width - gif_overlay.margin
+        draw_y = gif_overlay.margin
+    end
+    
+    -- Draw the overlay with specified alpha
+    gif_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, gif_overlay.alpha)
+end
+
 -- Override the render function to add QR code display
 function node.render()
     streams.tick()
@@ -3256,6 +3376,9 @@ function node.render()
     -- === Draw Coke Zero Overlay ===
     draw_coke_overlay()
 
+    -- === Draw Stephen A. Smith GIF Overlay ===
+    draw_gif_overlay()
+
     -- Draw debug marker last to ensure it's on top of all other content
     -- This ensures the marker doesn't get hidden by videos or other elements
     gl.pushMatrix()
@@ -3315,3 +3438,6 @@ load_qr_instances()
 
 -- Initialize Coke Zero overlay on startup
 load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
+
+-- Initialize Stephen A. Smith GIF overlay on startup
+load_gif_overlay("stephen_a_smith_weed_GIF.gif")
