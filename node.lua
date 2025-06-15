@@ -3006,7 +3006,7 @@ util.data_mapper{
     -- === STEPHEN A. SMITH GIF OVERLAY HANDLERS ===
     -- Handler to load/enable Stephen A. Smith GIF overlay
     ["gif/load"] = function(data)
-        local asset_name = data and data ~= "" and data or "stephen_a_smith_weed_GIF.gif"
+        local asset_name = data and data ~= "" and data or "stephen_a_smith_weed.mp4"
         load_gif_overlay(asset_name)
         log("gif_overlay", "Load command received for asset: %s", asset_name)
     end,
@@ -3224,7 +3224,7 @@ local function load_gif_overlay(asset_name)
     
     local success, image = pcall(function()
         return resource.load_video{
-            file = asset_name or "stephen_a_smith_weed_GIF.gif",
+            file = asset_name or "stephen_a_smith_weed.mp4",
             looped = true,
             paused = false,
             audio = false,
@@ -3234,9 +3234,9 @@ local function load_gif_overlay(asset_name)
     if success then
         gif_overlay.image = image
         gif_overlay.enabled = true
-        log("gif_overlay", "Loaded Stephen A. Smith GIF overlay as video: %s", asset_name or "stephen_a_smith_weed_GIF.gif")
+        log("gif_overlay", "Loaded Stephen A. Smith MP4 overlay as video: %s", asset_name or "stephen_a_smith_weed.mp4")
     else
-        log("gif_overlay", "Failed to load Stephen A. Smith GIF overlay: %s", tostring(image))
+        log("gif_overlay", "Failed to load Stephen A. Smith MP4 overlay: %s", tostring(image))
         gif_overlay.enabled = false
     end
 end
@@ -3470,4 +3470,4 @@ end
 load_qr_instances()
 
 -- Initialize Stephen A. Smith GIF overlay on startup
-load_gif_overlay("stephen_a_smith_weed_GIF.gif")
+load_gif_overlay("stephen_a_smith_weed.mp4")
