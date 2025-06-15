@@ -3208,12 +3208,12 @@ end
 local gif_overlay = {
     enabled = false,
     image = nil,
-    position = "top-left",  -- Changed to top-left as requested
+    position = "custom",  -- Changed to custom
     margin = 20,
-    scale = 0.5,  -- Increased from 0.2 to 0.5 to make it more visible
+    scale = 0.5,  -- Adjust as needed
     alpha = 0.9,  -- 90% opacity
-    custom_x = 85,  -- 85% from left (only used if position = "custom")
-    custom_y = 5,   -- 5% from top (only used if position = "custom")
+    custom_x = 10,  -- 10% from the left
+    custom_y = 10,  -- 10% from the top
 }
 
 -- Function to load Stephen A. Smith GIF overlay
