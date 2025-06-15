@@ -1,0 +1,88 @@
+{
+    "name": "Coke Zero Overlay",
+    "permissions": {},
+    "options": [{
+        "title": "Coke Zero Image",
+        "ui_width": 6,
+        "name": "asset_name",
+        "type": "resource",
+        "valid": ["image"],
+        "default": "Coke_Zero_Revised_1_lowres.png"
+    }, {
+        "title": "Position",
+        "ui_width": 3,
+        "name": "position",
+        "type": "select",
+        "options": [
+            ["top-left", "Top Left"],
+            ["top-right", "Top Right"],
+            ["bottom-left", "Bottom Left"],
+            ["bottom-right", "Bottom Right"],
+            ["center", "Center"],
+            ["custom", "Custom Position"]
+        ],
+        "default": "top-right"
+    }, {
+        "title": "Margin (pixels)",
+        "ui_width": 3,
+        "name": "margin",
+        "type": "integer",
+        "default": 20
+    }, {
+        "title": "Custom X Position (%)",
+        "ui_width": 3,
+        "name": "custom_x",
+        "type": "float",
+        "default": 0,
+        "hint": "Only used when position is 'Custom Position'"
+    }, {
+        "title": "Custom Y Position (%)",
+        "ui_width": 3,
+        "name": "custom_y",
+        "type": "float",
+        "default": 0,
+        "hint": "Only used when position is 'Custom Position'"
+    }, {
+        "title": "Scale",
+        "ui_width": 3,
+        "name": "scale",
+        "type": "select",
+        "options": [
+            [0.25, "25%"],
+            [0.5, "50%"],
+            [0.75, "75%"],
+            [1.0, "100% (Original)"],
+            [1.25, "125%"],
+            [1.5, "150%"],
+            [2.0, "200%"]
+        ],
+        "default": 1.0
+    }, {
+        "title": "Transparency",
+        "ui_width": 3,
+        "name": "alpha",
+        "type": "select",
+        "options": [
+            [0.1, "10% (Very Transparent)"],
+            [0.3, "30%"],
+            [0.5, "50%"],
+            [0.7, "70%"],
+            [0.9, "90%"],
+            [1.0, "100% (Opaque)"]
+        ],
+        "default": 1.0
+    }, {
+        "title": "Fade Time (seconds)",
+        "ui_width": 3,
+        "name": "fade_time",
+        "type": "select",
+        "options": [
+            [0, "No Fade"],
+            [0.5, "0.5 seconds"],
+            [1.0, "1 second"],
+            [1.5, "1.5 seconds"],
+            [2.0, "2 seconds"]
+        ],
+        "default": 0.5
+    }]
+} 

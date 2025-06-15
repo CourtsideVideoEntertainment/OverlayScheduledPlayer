@@ -2625,6 +2625,51 @@ util.data_mapper{
         
         log("DEBUG", "================================")
     end,
+    -- === COKE ZERO OVERLAY HANDLERS ===
+    -- Handler to load/enable Coke Zero overlay
+    ["coke/load"] = function(data)
+        local asset_name = data and data ~= "" and data or "Coke_Zero_Revised_1_lowres.png"
+        load_coke_overlay(asset_name)
+        log("coke_overlay", "Load command received for asset: %s", asset_name)
+    end,
+    -- Handler to enable/disable overlay
+    ["coke/toggle"] = function(data)
+        coke_overlay.enabled = not coke_overlay.enabled
+        log("coke_overlay", "Overlay toggled: %s", coke_overlay.enabled and "enabled" or "disabled")
+    end,
+    -- Handler to set overlay position
+    ["coke/position"] = function(data)
+        local payload = json.decode(data)
+        if type(payload) == "table" then
+            if payload.position then coke_overlay.position = payload.position end
+            if payload.margin then coke_overlay.margin = payload.margin end
+            if payload.custom_x then coke_overlay.custom_x = payload.custom_x end
+            if payload.custom_y then coke_overlay.custom_y = payload.custom_y end
+            log("coke_overlay", "Position updated: %s (margin: %d)", coke_overlay.position, coke_overlay.margin)
+        elseif type(payload) == "string" then
+            coke_overlay.position = payload
+            log("coke_overlay", "Position set to: %s", payload)
+        end
+    end,
+    -- Handler to set overlay appearance
+    ["coke/appearance"] = function(data)
+        local payload = json.decode(data)
+        if type(payload) == "table" then
+            if payload.scale then coke_overlay.scale = payload.scale end
+            if payload.alpha then coke_overlay.alpha = payload.alpha end
+            log("coke_overlay", "Appearance updated: scale=%.2f, alpha=%.2f", coke_overlay.scale, coke_overlay.alpha)
+        end
+    end,
+    -- Handler to get current overlay status
+    ["coke/status"] = function(data)
+        log("coke_overlay", "=== COKE ZERO OVERLAY STATUS ===")
+        log("coke_overlay", "Enabled: %s", tostring(coke_overlay.enabled))
+        log("coke_overlay", "Position: %s (margin: %d)", coke_overlay.position, coke_overlay.margin)
+        log("coke_overlay", "Scale: %.2f, Alpha: %.2f", coke_overlay.scale, coke_overlay.alpha)
+        log("coke_overlay", "Custom Position: %.1f%%, %.1f%%", coke_overlay.custom_x, coke_overlay.custom_y)
+        log("coke_overlay", "Image Loaded: %s", coke_overlay.image and "yes" or "no")
+        log("coke_overlay", "===============================")
+    end,
     -- API: Create or update QR code instance
     ["qr/instance"] = function(data)
         print("[QR_PACKAGE] qr/instance handler called")
@@ -3037,6 +3082,83 @@ node.event("config_updated", function(config)
     last_config_hash = config_hash
 end)
 
+-- Add after the existing image cache and before the render function
+
+-- Coke Zero Overlay System
+local coke_overlay = {
+    enabled = false,
+    image = nil,
+    position = "top-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
+    margin = 20,
+    scale = 0.5,  -- 50% of original size
+    alpha = 0.9,  -- 90% opacity
+    custom_x = 85,  -- 85% from left (only used if position = "custom")
+    custom_y = 5,   -- 5% from top (only used if position = "custom")
+}
+
+-- Function to load Coke Zero overlay
+local function load_coke_overlay(asset_name)
+    if coke_overlay.image then
+        coke_overlay.image:dispose()
+    end
+    
+    local success, image = pcall(function()
+        return resource.load_image{
+            file = asset_name or "Coke_Zero_Revised_1_lowres.png",
+            mipmap = true,
+        }
+    end)
+    
+    if success then
+        coke_overlay.image = image
+        coke_overlay.enabled = true
+        log("coke_overlay", "Loaded Coke Zero overlay: %s", asset_name or "Coke_Zero_Revised_1_lowres.png")
+    else
+        log("coke_overlay", "Failed to load Coke Zero overlay: %s", tostring(image))
+        coke_overlay.enabled = false
+    end
+end
+
+-- Function to draw Coke Zero overlay
+local function draw_coke_overlay()
+    if not coke_overlay.enabled or not coke_overlay.image then
+        return
+    end
+    
+    local img_width, img_height = coke_overlay.image:size()
+    local scaled_width = img_width * coke_overlay.scale
+    local scaled_height = img_height * coke_overlay.scale
+    
+    local draw_x, draw_y
+    
+    if coke_overlay.position == "top-left" then
+        draw_x = coke_overlay.margin
+        draw_y = coke_overlay.margin
+    elseif coke_overlay.position == "top-right" then
+        draw_x = NATIVE_WIDTH - scaled_width - coke_overlay.margin
+        draw_y = coke_overlay.margin
+    elseif coke_overlay.position == "bottom-left" then
+        draw_x = coke_overlay.margin
+        draw_y = NATIVE_HEIGHT - scaled_height - coke_overlay.margin
+    elseif coke_overlay.position == "bottom-right" then
+        draw_x = NATIVE_WIDTH - scaled_width - coke_overlay.margin
+        draw_y = NATIVE_HEIGHT - scaled_height - coke_overlay.margin
+    elseif coke_overlay.position == "center" then
+        draw_x = NATIVE_WIDTH / 2 - scaled_width / 2
+        draw_y = NATIVE_HEIGHT / 2 - scaled_height / 2
+    elseif coke_overlay.position == "custom" then
+        draw_x = NATIVE_WIDTH * coke_overlay.custom_x / 100
+        draw_y = NATIVE_HEIGHT * coke_overlay.custom_y / 100
+    else
+        -- Default to top-right
+        draw_x = NATIVE_WIDTH - scaled_width - coke_overlay.margin
+        draw_y = coke_overlay.margin
+    end
+    
+    -- Draw the overlay with specified alpha
+    coke_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, coke_overlay.alpha)
+end
+
 -- Override the render function to add QR code display
 function node.render()
     streams.tick()
@@ -3131,6 +3253,9 @@ function node.render()
         end
     end
 
+    -- === Draw Coke Zero Overlay ===
+    draw_coke_overlay()
+
     -- Draw debug marker last to ensure it's on top of all other content
     -- This ensures the marker doesn't get hidden by videos or other elements
     gl.pushMatrix()
@@ -3187,3 +3312,6 @@ end
 
 -- Load QR instances from file on startup
 load_qr_instances()
+
+-- Initialize Coke Zero overlay on startup
+load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
