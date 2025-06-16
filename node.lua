@@ -3131,7 +3131,7 @@ end)
 
 -- Coke Zero Overlay System
 local coke_overlay = {
-    enabled = false,
+    enabled = true,  -- Changed to true to display by default
     image = nil,
     position = "top-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
     margin = 20,
