@@ -3131,11 +3131,11 @@ end)
 
 -- Coke Zero Overlay System
 local coke_overlay = {
-    enabled = true,  -- Changed to true to display by default
+    enabled = true,  -- Enable by default
     image = nil,
     position = "top-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
     margin = 20,
-    scale = 0.2,  -- 20% of original size (tiny!)
+    scale = 0.5,  -- Make it bigger so it's more visible
     alpha = 0.9,  -- 90% opacity
     custom_x = 85,  -- 85% from left (only used if position = "custom")
     custom_y = 5,   -- 5% from top (only used if position = "custom")
@@ -3167,12 +3167,23 @@ end
 -- Function to draw Coke Zero overlay
 local function draw_coke_overlay()
     if not coke_overlay.enabled or not coke_overlay.image then
+        if not coke_overlay.enabled then
+            log("coke_overlay", "DEBUG: Coke overlay not enabled")
+        end
+        if not coke_overlay.image then
+            log("coke_overlay", "DEBUG: No Coke image loaded")
+        end
         return
     end
+    
+    log("coke_overlay", "DEBUG: Drawing Coke overlay...")
     
     local img_width, img_height = coke_overlay.image:size()
     local scaled_width = img_width * coke_overlay.scale
     local scaled_height = img_height * coke_overlay.scale
+    
+    log("coke_overlay", "DEBUG: Coke image - Original: %dx%d, Scaled: %.1fx%.1f, Scale: %.2f", 
+        img_width, img_height, scaled_width, scaled_height, coke_overlay.scale)
     
     local draw_x, draw_y
     
@@ -3199,6 +3210,9 @@ local function draw_coke_overlay()
         draw_x = NATIVE_WIDTH - scaled_width - coke_overlay.margin
         draw_y = coke_overlay.margin
     end
+    
+    log("coke_overlay", "DEBUG: Coke position: %.1f, %.1f (position: %s)", 
+        draw_x, draw_y, coke_overlay.position)
     
     -- Draw the overlay with specified alpha
     coke_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, coke_overlay.alpha)
@@ -3411,6 +3425,9 @@ function node.render()
 
     -- === Draw Stephen A. Smith GIF Overlay ===
     draw_gif_overlay()
+
+    -- === Draw Coke Zero Overlay ===
+    draw_coke_overlay()
 
     -- Draw debug marker last to ensure it's on top of all other content
     -- This ensures the marker doesn't get hidden by videos or other elements
