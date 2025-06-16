@@ -3471,3 +3471,5 @@ load_qr_instances()
 
 -- Initialize Stephen A. Smith GIF overlay on startup
 load_gif_overlay("stephen_a_smith_weed.mp4")
+
+load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
