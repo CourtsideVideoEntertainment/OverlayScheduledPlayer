@@ -998,19 +998,38 @@ local function Streams()
         return string.format("%s|%s", url, audio)
     end
 
-    local function get_stream(url, audio)
+    local function get_stream(url, audio, no_buffer)
         local key = stream_key(url, audio)
         if not streams[key] then
+            -- Determine if this is a UDP stream
+            local is_udp_stream = string.match(url, "^udp://")
+            
             -- Initialize the stream only once
+            local stream_config = {
+                file = url,
+                audio = audio,
+                raw = true,
+            }
+            
+            -- Add UDP-specific settings for low latency
+            if is_udp_stream or no_buffer then
+                stream_config.stream = true      -- Enable stream mode for live content
+                stream_config.buffering = false  -- Disable buffering for low latency
+                stream_config.paused = false     -- Start immediately
+                stream_config.looped = false     -- Live streams don't loop
+                log("stream", "Creating UDP/no-buffer stream: %s", url)
+            else
+                stream_config.looped = true      -- Regular streams can loop
+                log("stream", "Creating regular stream: %s", url)
+            end
+            
             streams[key] = {
-                vid = resource.load_video{
-                    file = url,
-                    audio = audio,
-                    raw = true,
-                },
+                vid = resource.load_video(stream_config),
                 last_used = frame,
                 url = url,  -- Store URL for debugging
+                is_udp = is_udp_stream,
             }
+            
             -- Keep stream running but hidden
             streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
         end
@@ -1023,13 +1042,16 @@ local function Streams()
         frame = frame + 1
         if frame % 300 == 0 then
             print "[stream] active streams"
-            pp(streams)
+            for key, stream in pairs(streams) do
+                print(string.format("[stream] %s (UDP: %s)", stream.url, tostring(stream.is_udp)))
+            end
         end
 
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
-            -- Increase this value significantly, maybe 300 frames or more
-            if frame_delta > 300 then  -- About 5 seconds at 60fps
+            -- Keep UDP streams alive longer since they're live content
+            local max_idle = stream.is_udp and 1800 or 300  -- 30 seconds for UDP, 5 seconds for others
+            if frame_delta > max_idle then
                 print("[stream] disposing stream", stream.url)
                 if stream.vid then
                     stream.vid:dispose()
@@ -1050,11 +1072,12 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local layer = config.layer or 5
     local url = config.url or ""
     local audio = config.audio
+    local no_buffer = config.no_buffer or false  -- New option for UDP streams
 
     return function(starts, ends)
         -- player
         for now in helper.frame_between(starts, ends) do
-            local vid = streams.get_stream(url, audio)
+            local vid = streams.get_stream(url, audio, no_buffer)
             if vid then
                 screen.place_video(vid, layer, 1, x1, y1, x2, y2)
             end

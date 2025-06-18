@@ -41,6 +41,20 @@
             ["in_forever", "On config change when in 'forever trigger'"]
         ],
         "default": "none"
+    }, {
+        "title": "UDP Stream",
+        "type": "section"
+    }, {
+        "type": "stream",
+        "config": {
+            "url": "udp://236.0.0.1:2000",
+            "audio": true,
+            "layer": 1,
+            "stream": true,
+            "buffering": false,
+            "paused": false,
+            "looped": false
+        }
     },
 
     {
