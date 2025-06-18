@@ -1038,6 +1038,30 @@ local function Streams()
         return streams[key].vid
     end
 
+    -- Add function to immediately dispose all streams
+    local function dispose_all_streams()
+        for key, stream in pairs(streams) do
+            log("stream", "Force disposing stream: %s", stream.url)
+            if stream.vid then
+                stream.vid:dispose()
+            end
+            streams[key] = nil
+        end
+    end
+
+    -- Add function to dispose streams by URL pattern
+    local function dispose_streams_matching(pattern)
+        for key, stream in pairs(streams) do
+            if string.match(stream.url, pattern) then
+                log("stream", "Force disposing matching stream: %s", stream.url)
+                if stream.vid then
+                    stream.vid:dispose()
+                end
+                streams[key] = nil
+            end
+        end
+    end
+
     local function tick()
         frame = frame + 1
         if frame % 300 == 0 then
@@ -1049,8 +1073,8 @@ local function Streams()
 
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
-            -- Keep UDP streams alive longer since they're live content
-            local max_idle = stream.is_udp and 1800 or 300  -- 30 seconds for UDP, 5 seconds for others
+            -- Reduce UDP keep-alive time to prevent long delays when switching assets
+            local max_idle = stream.is_udp and 180 or 300  -- 3 seconds for UDP, 5 seconds for others
             if frame_delta > max_idle then
                 print("[stream] disposing stream", stream.url)
                 if stream.vid then
@@ -1064,6 +1088,10 @@ local function Streams()
     return {
         get_stream = get_stream;
         tick = tick;
+        dispose_all_streams = dispose_all_streams;
+        dispose_streams_matching = dispose_streams_matching;
+        _get_all_streams = function() return streams end;
+        _remove_stream = function(key) streams[key] = nil end;
     }
 end
 local streams = Streams()
@@ -1075,6 +1103,19 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local no_buffer = config.no_buffer or false  -- New option for UDP streams
 
     return function(starts, ends)
+        -- Dispose other streams when this stream starts to prevent conflicts
+        helper.wait_t(starts - 0.1)  -- Wait just before starting
+        -- Only dispose streams if this is not the same URL
+        for key, stream in pairs(streams._get_all_streams()) do
+            if stream.url ~= url then
+                log("stream", "Disposing old stream %s to start new stream %s", stream.url, url)
+                if stream.vid then
+                    stream.vid:dispose()
+                end
+                streams._remove_stream(key)
+            end
+        end
+        
         -- player
         for now in helper.frame_between(starts, ends) do
             local vid = streams.get_stream(url, audio, no_buffer)
@@ -1596,7 +1637,10 @@ local function JobQueue()
     end
 
     local function flush()
+        log("jobqueue", "Flushing job queue and disposing all streams")
         jobs = {}
+        -- Immediately dispose all streams when flushing jobs to prevent delays
+        streams.dispose_all_streams()
         node.gc()
     end
 
@@ -1796,6 +1840,9 @@ local function Scheduler(page_source, job_queue)
     end
 
     local function reset_scheduler()
+        log("scheduler", "Resetting scheduler and disposing streams for fast transition")
+        -- Dispose all streams immediately for faster asset transitions
+        streams.dispose_all_streams()
         job_queue.flush()
         scheduled_forever = false
         scheduled_until = sys.now()
