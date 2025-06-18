@@ -1011,22 +1011,15 @@ local function Streams()
                 raw = true,
             }
             
-            -- Add UDP-specific settings for ultra-low latency
+            -- Add UDP-specific settings for low latency
             if is_udp_stream or no_buffer then
-                stream_config.stream = true          -- Enable stream mode for live content
-                stream_config.buffering = false     -- Disable buffering for low latency
-                stream_config.paused = false        -- Start immediately
-                stream_config.looped = false        -- Live streams don't loop
-                -- Ultra-low latency settings
-                stream_config.tcp_nodelay = true    -- Disable TCP Nagle algorithm
-                stream_config.timeout = 1000        -- 1 second timeout for connection
-                stream_config.probe_size = 32        -- Minimal probe size for faster detection
-                stream_config.analyze_duration = 0   -- Skip analysis for faster startup
-                stream_config.fflags = "nobuffer+fastseek+flush_packets"  -- Additional low-latency flags
-                log("stream", "Creating ultra-low-latency UDP stream: %s", url)
+                stream_config.stream = true      -- Enable stream mode for live content
+                stream_config.buffering = false  -- Disable buffering for low latency
+                stream_config.paused = false     -- Start immediately
+                stream_config.looped = false     -- Live streams don't loop
+                log("stream", "Creating UDP/no-buffer stream: %s", url)
             else
-                stream_config.looped = true          -- Regular streams can loop
-                stream_config.timeout = 5000        -- 5 second timeout for regular streams
+                stream_config.looped = true      -- Regular streams can loop
                 log("stream", "Creating regular stream: %s", url)
             end
             
@@ -1035,26 +1028,14 @@ local function Streams()
                 last_used = frame,
                 url = url,  -- Store URL for debugging
                 is_udp = is_udp_stream,
-                created_at = frame,  -- Track when stream was created
             }
             
-            -- Keep stream running but hidden - start immediately for UDP
-            if is_udp_stream then
-                streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
-                log("stream", "UDP stream started immediately: %s", url)
-            else
-                streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0)
-            end
+            -- Keep stream running but hidden
+            streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
         end
 
         streams[key].last_used = frame
         return streams[key].vid
-    end
-
-    -- Add function to pre-load a stream without displaying it
-    local function preload_stream(url, audio, no_buffer)
-        log("stream", "Pre-loading stream for faster transition: %s", url)
-        return get_stream(url, audio, no_buffer)
     end
 
     -- Add function to immediately dispose all streams
@@ -1086,17 +1067,16 @@ local function Streams()
         if frame % 300 == 0 then
             print "[stream] active streams"
             for key, stream in pairs(streams) do
-                print(string.format("[stream] %s (UDP: %s, Age: %d frames)", 
-                    stream.url, tostring(stream.is_udp), frame - stream.created_at))
+                print(string.format("[stream] %s (UDP: %s)", stream.url, tostring(stream.is_udp)))
             end
         end
 
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
-            -- Aggressive timeout reduction for ultra-fast switching
-            local max_idle = stream.is_udp and 60 or 180  -- 1 second for UDP, 3 seconds for others
+            -- Reduce UDP keep-alive time to prevent long delays when switching assets
+            local max_idle = stream.is_udp and 180 or 300  -- 3 seconds for UDP, 5 seconds for others
             if frame_delta > max_idle then
-                print("[stream] disposing idle stream", stream.url, "after", frame_delta, "frames")
+                print("[stream] disposing stream", stream.url)
                 if stream.vid then
                     stream.vid:dispose()
                 end
@@ -1107,7 +1087,6 @@ local function Streams()
 
     return {
         get_stream = get_stream;
-        preload_stream = preload_stream;
         tick = tick;
         dispose_all_streams = dispose_all_streams;
         dispose_streams_matching = dispose_streams_matching;
@@ -1124,18 +1103,12 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local no_buffer = config.no_buffer or false  -- New option for UDP streams
 
     return function(starts, ends)
-        -- Pre-load stream earlier for faster startup
-        helper.wait_t(starts - 2)  -- Pre-load 2 seconds early
-        local vid = streams.get_stream(url, audio, no_buffer)
-        log("stream", "Pre-loaded stream %s for faster transition", url)
-        
-        -- Hot swap preparation - dispose competing streams immediately
-        helper.wait_t(starts - 0.01)  -- Minimal wait time for hot swap
-        
         -- Dispose other streams when this stream starts to prevent conflicts
+        helper.wait_t(starts - 0.1)  -- Wait just before starting
+        -- Only dispose streams if this is not the same URL
         for key, stream in pairs(streams._get_all_streams()) do
             if stream.url ~= url then
-                log("stream", "Hot swap: disposing old stream %s for new stream %s", stream.url, url)
+                log("stream", "Disposing old stream %s to start new stream %s", stream.url, url)
                 if stream.vid then
                     stream.vid:dispose()
                 end
@@ -1143,16 +1116,9 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
             end
         end
         
-        -- Make sure our stream is ready and start it immediately
-        if vid then
-            -- Force immediate start and display
-            vid:start()
-            vid:layer(layer)  -- Set correct layer immediately
-            log("stream", "Hot swap: stream %s started immediately at %f", url, starts)
-        end
-        
-        -- player loop - stream should already be visible
+        -- player
         for now in helper.frame_between(starts, ends) do
+            local vid = streams.get_stream(url, audio, no_buffer)
             if vid then
                 screen.place_video(vid, layer, 1, x1, y1, x2, y2)
             end
@@ -1821,15 +1787,6 @@ local function Scheduler(page_source, job_queue)
         }
 
         local tiles = page.get_tiles()
-        
-        -- Pre-load streams immediately when page is scheduled for faster transitions
-        for n, tile in ipairs(tiles) do
-            if tile.type == 'stream' and tile.config.url then
-                log("scheduler", "Pre-loading stream for page: %s", tile.config.url)
-                streams.preload_stream(tile.config.url, tile.config.audio, tile.config.no_buffer)
-            end
-        end
-        
         for n, tile in ipairs(tiles) do
             local handler = ({
                 image = ImageTile,
