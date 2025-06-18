@@ -42,19 +42,19 @@
         ],
         "default": "none"
     }, {
-        "title": "UDP Stream",
-        "type": "section"
+        "title": "Default UDP Stream URL",
+        "ui_width": 8,
+        "name": "default_udp_url",
+        "type": "string",
+        "hint": "Default UDP stream URL for stream tiles (e.g., udp://236.0.0.1:2000)",
+        "default": "udp://236.0.0.1:2000"
     }, {
-        "type": "stream",
-        "config": {
-            "url": "udp://236.0.0.1:2000",
-            "audio": true,
-            "layer": 1,
-            "stream": true,
-            "buffering": false,
-            "paused": false,
-            "looped": false
-        }
+        "title": "UDP Stream Audio",
+        "ui_width": 4,
+        "name": "default_udp_audio",
+        "type": "boolean",
+        "hint": "Enable audio for UDP streams by default",
+        "default": true
     },
 
     {
