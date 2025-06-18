@@ -1068,16 +1068,54 @@ local function Streams()
 end
 local streams = Streams()
 
+-- Alternative UDP Stream handling using util.auto_loader
+local udp_streams = util.auto_loader(_G, {
+    video = function(url)
+        log("udp_auto_loader", "Creating UDP stream for: %s", url)
+        return {
+            filename = url,
+            paused = false,
+            loop = false,           -- Live streams don't loop
+            playback_rate = 1.0,
+            stream = true,          -- Must be true for live streams
+            buffering = false,      -- Disable buffering for low latency
+            audio = true,           -- Enable audio by default
+            raw = true,             -- Use raw video for better performance
+        }
+    end
+})
+
+-- Function to get UDP stream using auto_loader approach
+local function get_udp_stream_auto_loader(url, audio)
+    local stream_config = udp_streams.video(url)
+    if audio ~= nil then
+        stream_config.audio = audio
+    end
+    return resource.load_video(stream_config)
+end
+
 local function StreamTile(asset, config, x1, y1, x2, y2)
     local layer = config.layer or 5
     local url = config.url or ""
     local audio = config.audio
     local no_buffer = config.no_buffer or false  -- New option for UDP streams
+    local use_auto_loader = config.use_auto_loader or false  -- New option to use util.auto_loader
 
     return function(starts, ends)
         -- player
         for now in helper.frame_between(starts, ends) do
-            local vid = streams.get_stream(url, audio, no_buffer)
+            local vid
+            
+            -- Choose between auto_loader approach or existing streams approach
+            if use_auto_loader and string.match(url, "^udp://") then
+                -- Use util.auto_loader approach for UDP streams
+                vid = get_udp_stream_auto_loader(url, audio)
+                log("stream_tile", "Using auto_loader for UDP stream: %s", url)
+            else
+                -- Use existing streams approach
+                vid = streams.get_stream(url, audio, no_buffer)
+            end
+            
             if vid then
                 screen.place_video(vid, layer, 1, x1, y1, x2, y2)
             end
@@ -3070,6 +3108,59 @@ util.data_mapper{
         log("gif_overlay", "Custom Position: %.1f%%, %.1f%%", gif_overlay.custom_x, gif_overlay.custom_y)
         log("gif_overlay", "Image Loaded: %s", gif_overlay.image and "yes" or "no")
         log("gif_overlay", "===============================")
+    end,
+    -- === UDP STREAM TESTING HANDLERS ===
+    -- Test the util.auto_loader UDP stream approach
+    ["udp/test_auto_loader"] = function(data)
+        local url = data and data ~= "" and data or "udp://236.0.0.1:2000"
+        log("udp_test", "Testing util.auto_loader approach for URL: %s", url)
+        
+        local vid = get_udp_stream_auto_loader(url, true)
+        if vid then
+            log("udp_test", "Successfully created UDP stream using auto_loader")
+            -- Place it in a corner for testing
+            vid:layer(1):place(0, 0, 320, 240):alpha(0.8):start()
+        else
+            log("udp_test", "Failed to create UDP stream using auto_loader")
+        end
+    end,
+    -- Test the existing streams approach with no_buffer
+    ["udp/test_streams"] = function(data)
+        local url = data and data ~= "" and data or "udp://236.0.0.1:2000"
+        log("udp_test", "Testing existing streams approach with no_buffer for URL: %s", url)
+        
+        local vid = streams.get_stream(url, true, true) -- audio=true, no_buffer=true
+        if vid then
+            log("udp_test", "Successfully created UDP stream using streams approach")
+            -- Place it in opposite corner for comparison
+            vid:layer(1):place(NATIVE_WIDTH-320, 0, NATIVE_WIDTH, 240):alpha(0.8):start()
+        else
+            log("udp_test", "Failed to create UDP stream using streams approach")
+        end
+    end,
+    -- Compare both approaches side by side
+    ["udp/test_both"] = function(data)
+        local url = data and data ~= "" and data or "udp://236.0.0.1:2000"
+        log("udp_test", "Testing both UDP stream approaches for URL: %s", url)
+        
+        -- Test auto_loader (left side)
+        local vid1 = get_udp_stream_auto_loader(url, true)
+        if vid1 then
+            vid1:layer(1):place(0, 0, NATIVE_WIDTH/2-10, NATIVE_HEIGHT/2):alpha(0.9):start()
+            log("udp_test", "Auto_loader stream placed on left")
+        end
+        
+        -- Test streams (right side)  
+        local vid2 = streams.get_stream(url, true, true)
+        if vid2 then
+            vid2:layer(1):place(NATIVE_WIDTH/2+10, 0, NATIVE_WIDTH, NATIVE_HEIGHT/2):alpha(0.9):start()
+            log("udp_test", "Streams approach placed on right")
+        end
+    end,
+    -- Stop all test streams
+    ["udp/stop_tests"] = function(data)
+        log("udp_test", "Stopping all test UDP streams")
+        -- The streams will be automatically disposed by the existing cleanup logic
     end,
 }
 
