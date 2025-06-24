@@ -2744,46 +2744,84 @@ util.data_mapper{
     -- === LOGO OVERLAY SWITCHING API ===
     -- Handler to switch between logos (similar to remote/trigger)
     ["logo/switch"] = function(data)
+        log("logo_switch", "=== LOGO SWITCH DEBUG START ===")
+        log("logo_switch", "Raw data received: '%s'", tostring(data))
+        log("logo_switch", "Data type: %s", type(data))
+        log("logo_switch", "Data length: %d", string.len(tostring(data)))
+        
         local trigger = data and data ~= "" and data or "1"
+        log("logo_switch", "Processed trigger: '%s'", trigger)
         
         if trigger == "1" then
             -- Switch to Courtside logo
+            log("logo_switch", "Attempting to load Courtside logo...")
             load_coke_overlay("Courtside_logo.png")
             log("logo_switch", "Switched to Courtside logo via trigger: %s", trigger)
         elseif trigger == "2" then
             -- Switch to Coke Zero logo
+            log("logo_switch", "Attempting to load Coke Zero logo...")
             load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
             log("logo_switch", "Switched to Coke Zero logo via trigger: %s", trigger)
         else
             log("logo_switch", "Invalid trigger: %s. Use '1' for Courtside or '2' for Coke Zero", trigger)
         end
+        
+        log("logo_switch", "Current overlay state after switch:")
+        log("logo_switch", "  - Enabled: %s", tostring(coke_overlay.enabled))
+        log("logo_switch", "  - Current asset: %s", tostring(coke_overlay.current_asset))
+        log("logo_switch", "  - Image loaded: %s", coke_overlay.image and "yes" or "no")
+        log("logo_switch", "=== LOGO SWITCH DEBUG END ===")
     end,
     
     -- Handler to directly set logo by name
     ["logo/set"] = function(data)
+        log("logo_switch", "=== LOGO SET DEBUG START ===")
+        log("logo_switch", "Raw data received: '%s'", tostring(data))
+        log("logo_switch", "Data type: %s", type(data))
+        
         local logo_name = data and data ~= "" and data or "Courtside_logo.png"
+        log("logo_switch", "Processed logo name: '%s'", logo_name)
         
         -- Validate that it's one of our supported logos
         if logo_name == "Courtside_logo.png" or logo_name == "Coke_Zero_Revised_1_lowres.png" then
+            log("logo_switch", "Valid logo name, attempting to load...")
             load_coke_overlay(logo_name)
             log("logo_switch", "Logo set to: %s", logo_name)
         else
             log("logo_switch", "Invalid logo name: %s. Use 'Courtside_logo.png' or 'Coke_Zero_Revised_1_lowres.png'", logo_name)
         end
+        
+        log("logo_switch", "Current overlay state after set:")
+        log("logo_switch", "  - Enabled: %s", tostring(coke_overlay.enabled))
+        log("logo_switch", "  - Current asset: %s", tostring(coke_overlay.current_asset))
+        log("logo_switch", "  - Image loaded: %s", coke_overlay.image and "yes" or "no")
+        log("logo_switch", "=== LOGO SET DEBUG END ===")
     end,
     
     -- Handler to toggle between the two logos
     ["logo/toggle"] = function(data)
+        log("logo_switch", "=== LOGO TOGGLE DEBUG START ===")
+        log("logo_switch", "Raw data received: '%s'", tostring(data))
+        
         -- Check current logo and switch to the other one
         local current_asset = coke_overlay.current_asset or "Coke_Zero_Revised_1_lowres.png"
+        log("logo_switch", "Current asset before toggle: %s", current_asset)
         
         if current_asset == "Courtside_logo.png" then
+            log("logo_switch", "Currently showing Courtside, switching to Coke Zero...")
             load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
             log("logo_switch", "Toggled from Courtside to Coke Zero logo")
         else
+            log("logo_switch", "Currently showing Coke Zero (or unknown), switching to Courtside...")
             load_coke_overlay("Courtside_logo.png")
             log("logo_switch", "Toggled from Coke Zero to Courtside logo")
         end
+        
+        log("logo_switch", "Current overlay state after toggle:")
+        log("logo_switch", "  - Enabled: %s", tostring(coke_overlay.enabled))
+        log("logo_switch", "  - Current asset: %s", tostring(coke_overlay.current_asset))
+        log("logo_switch", "  - Image loaded: %s", coke_overlay.image and "yes" or "no")
+        log("logo_switch", "=== LOGO TOGGLE DEBUG END ===")
     end,
     
     -- Handler to get current logo status
@@ -2793,8 +2831,58 @@ util.data_mapper{
         log("logo_switch", "Enabled: %s", tostring(coke_overlay.enabled))
         log("logo_switch", "Position: %s (margin: %d)", coke_overlay.position, coke_overlay.margin)
         log("logo_switch", "Scale: %.2f, Alpha: %.2f", coke_overlay.scale, coke_overlay.alpha)
+        log("logo_switch", "Image Object: %s", coke_overlay.image and "loaded" or "not loaded")
+        log("logo_switch", "Custom Position: %.1f%%, %.1f%%", coke_overlay.custom_x, coke_overlay.custom_y)
+        if coke_overlay.image then
+            local w, h = coke_overlay.image:size()
+            log("logo_switch", "Image Dimensions: %dx%d", w, h)
+        end
         log("logo_switch", "========================")
     end,
+    
+    -- Test endpoint to verify API calls are working
+    ["logo/test"] = function(data)
+        log("logo_switch", "=== LOGO TEST ENDPOINT ===")
+        log("logo_switch", "API call received successfully!")
+        log("logo_switch", "Data: '%s'", tostring(data))
+        log("logo_switch", "Time: %s", tostring(sys.now()))
+        log("logo_switch", "=========================")
+    end,
+    
+    -- Debug endpoint to check file existence
+    ["logo/debug"] = function(data)
+        log("logo_switch", "=== LOGO DEBUG FILE CHECK ===")
+        
+        -- Check if files exist by trying to open them
+        local files_to_check = {"Courtside_logo.png", "Coke_Zero_Revised_1_lowres.png"}
+        
+        for _, filename in ipairs(files_to_check) do
+            local success, result = pcall(function()
+                return resource.open_file(filename)
+            end)
+            
+            if success then
+                log("logo_switch", "File '%s': EXISTS", filename)
+                -- Try to get file info
+                local file_success, file_info = pcall(function()
+                    local f = result
+                    return f:size()
+                end)
+                if file_success then
+                    log("logo_switch", "  - Size: %d bytes", file_info)
+                end
+            else
+                log("logo_switch", "File '%s': NOT FOUND or ERROR: %s", filename, tostring(result))
+            end
+        end
+        
+        log("logo_switch", "Current overlay system state:")
+        log("logo_switch", "  - Enabled: %s", tostring(coke_overlay.enabled))
+        log("logo_switch", "  - Current asset: %s", tostring(coke_overlay.current_asset))
+        log("logo_switch", "  - Image loaded: %s", coke_overlay.image and "yes" or "no")
+        log("logo_switch", "=============================")
+    end,
+    
     -- API: Create or update QR code instance
     ["qr/instance"] = function(data)
         print("[QR_PACKAGE] qr/instance handler called")
