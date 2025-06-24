@@ -2740,6 +2740,61 @@ util.data_mapper{
         log("coke_overlay", "Image Loaded: %s", coke_overlay.image and "yes" or "no")
         log("coke_overlay", "===============================")
     end,
+    
+    -- === LOGO OVERLAY SWITCHING API ===
+    -- Handler to switch between logos (similar to remote/trigger)
+    ["logo/switch"] = function(data)
+        local trigger = data and data ~= "" and data or "1"
+        
+        if trigger == "1" then
+            -- Switch to Courtside logo
+            load_coke_overlay("Courtside_logo.png")
+            log("logo_switch", "Switched to Courtside logo via trigger: %s", trigger)
+        elseif trigger == "2" then
+            -- Switch to Coke Zero logo
+            load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
+            log("logo_switch", "Switched to Coke Zero logo via trigger: %s", trigger)
+        else
+            log("logo_switch", "Invalid trigger: %s. Use '1' for Courtside or '2' for Coke Zero", trigger)
+        end
+    end,
+    
+    -- Handler to directly set logo by name
+    ["logo/set"] = function(data)
+        local logo_name = data and data ~= "" and data or "Courtside_logo.png"
+        
+        -- Validate that it's one of our supported logos
+        if logo_name == "Courtside_logo.png" or logo_name == "Coke_Zero_Revised_1_lowres.png" then
+            load_coke_overlay(logo_name)
+            log("logo_switch", "Logo set to: %s", logo_name)
+        else
+            log("logo_switch", "Invalid logo name: %s. Use 'Courtside_logo.png' or 'Coke_Zero_Revised_1_lowres.png'", logo_name)
+        end
+    end,
+    
+    -- Handler to toggle between the two logos
+    ["logo/toggle"] = function(data)
+        -- Check current logo and switch to the other one
+        local current_asset = coke_overlay.current_asset or "Coke_Zero_Revised_1_lowres.png"
+        
+        if current_asset == "Courtside_logo.png" then
+            load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
+            log("logo_switch", "Toggled from Courtside to Coke Zero logo")
+        else
+            load_coke_overlay("Courtside_logo.png")
+            log("logo_switch", "Toggled from Coke Zero to Courtside logo")
+        end
+    end,
+    
+    -- Handler to get current logo status
+    ["logo/status"] = function(data)
+        log("logo_switch", "=== LOGO OVERLAY STATUS ===")
+        log("logo_switch", "Current Logo: %s", coke_overlay.current_asset or "unknown")
+        log("logo_switch", "Enabled: %s", tostring(coke_overlay.enabled))
+        log("logo_switch", "Position: %s (margin: %d)", coke_overlay.position, coke_overlay.margin)
+        log("logo_switch", "Scale: %.2f, Alpha: %.2f", coke_overlay.scale, coke_overlay.alpha)
+        log("logo_switch", "========================")
+    end,
     -- API: Create or update QR code instance
     ["qr/instance"] = function(data)
         print("[QR_PACKAGE] qr/instance handler called")
@@ -3203,6 +3258,7 @@ end)
 local coke_overlay = {
     enabled = true,  -- Enable by default
     image = nil,
+    current_asset = "Courtside_logo.png",  -- Track current asset - default to Courtside
     position = "top-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
     margin = 20,
     scale = 0.2,  -- Make it bigger so it's more visible
@@ -3213,24 +3269,28 @@ local coke_overlay = {
 
 -- Function to load Coke Zero overlay
 local function load_coke_overlay(asset_name)
+    local actual_asset = asset_name or "Courtside_logo.png"
+    
     if coke_overlay.image then
         coke_overlay.image:dispose()
     end
     
     local success, image = pcall(function()
         return resource.load_image{
-            file = asset_name or "Coke_Zero_Revised_1_lowres.png",
+            file = actual_asset,
             mipmap = true,
         }
     end)
     
     if success then
         coke_overlay.image = image
+        coke_overlay.current_asset = actual_asset  -- Track current asset
         coke_overlay.enabled = true
-        log("coke_overlay", "Loaded Coke Zero overlay: %s", asset_name or "Coke_Zero_Revised_1_lowres.png")
+        log("coke_overlay", "Loaded overlay: %s", actual_asset)
     else
-        log("coke_overlay", "Failed to load Coke Zero overlay: %s", tostring(image))
+        log("coke_overlay", "Failed to load overlay: %s - Error: %s", actual_asset, tostring(image))
         coke_overlay.enabled = false
+        coke_overlay.current_asset = nil
     end
 end
 
@@ -3559,4 +3619,4 @@ load_qr_instances()
 -- Initialize Stephen A. Smith GIF overlay on startup
 load_gif_overlay("stephen_a_smith_weed.mp4")
 
-load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
+load_coke_overlay("Courtside_logo.png")
