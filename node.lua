@@ -2597,15 +2597,58 @@ local coke_overlay = {
     alpha = 0.9,  -- 90% opacity
     custom_x = 85,  -- 85% from left (only used if position = "custom")
     custom_y = 5,   -- 5% from top (only used if position = "custom")
+    
+    -- NEW: Preloaded images for instant switching
+    preloaded_images = {},
+    logos = {
+        ["1"] = "Courtside_logo.png",
+        ["2"] = "Coke_Zero_Revised_1_lowres.png"
+    }
 }
 
--- Function to load Coke Zero overlay
+-- Function to preload all logo images for instant switching
+local function preload_logo_assets()
+    log("coke_overlay", "Preloading logo assets for instant switching...")
+    
+    for key, asset_name in pairs(coke_overlay.logos) do
+        if not coke_overlay.preloaded_images[asset_name] then
+            local success, image = pcall(function()
+                return resource.load_image{
+                    file = asset_name,
+                    mipmap = true,
+                }
+            end)
+            
+            if success then
+                coke_overlay.preloaded_images[asset_name] = image
+                log("coke_overlay", "Preloaded: %s", asset_name)
+            else
+                log("coke_overlay", "Failed to preload: %s - Error: %s", asset_name, tostring(image))
+            end
+        end
+    end
+    
+    -- Set the default active image
+    coke_overlay.image = coke_overlay.preloaded_images[coke_overlay.current_asset]
+    log("coke_overlay", "Logo preloading complete. Ready for instant switching.")
+end
+
+-- Optimized function for instant logo switching
 local function load_coke_overlay(asset_name)
     local actual_asset = asset_name or "Courtside_logo.png"
     
-    if coke_overlay.image then
-        coke_overlay.image:dispose()
+    -- Check if we have this asset preloaded
+    if coke_overlay.preloaded_images[actual_asset] then
+        -- INSTANT SWITCH - no loading delay!
+        coke_overlay.image = coke_overlay.preloaded_images[actual_asset]
+        coke_overlay.current_asset = actual_asset
+        coke_overlay.enabled = true
+        log("coke_overlay", "INSTANT SWITCH to: %s", actual_asset)
+        return
     end
+    
+    -- Fallback: load on demand if not preloaded (shouldn't happen for our main logos)
+    log("coke_overlay", "Asset not preloaded, loading on demand: %s", actual_asset)
     
     local success, image = pcall(function()
         return resource.load_image{
@@ -2615,15 +2658,28 @@ local function load_coke_overlay(asset_name)
     end)
     
     if success then
+        -- Cache it for next time
+        coke_overlay.preloaded_images[actual_asset] = image
         coke_overlay.image = image
-        coke_overlay.current_asset = actual_asset  -- Track current asset
+        coke_overlay.current_asset = actual_asset
         coke_overlay.enabled = true
-        log("coke_overlay", "Loaded overlay: %s", actual_asset)
+        log("coke_overlay", "Loaded and cached: %s", actual_asset)
     else
         log("coke_overlay", "Failed to load overlay: %s - Error: %s", actual_asset, tostring(image))
         coke_overlay.enabled = false
         coke_overlay.current_asset = nil
     end
+end
+
+-- Function to cleanup preloaded images (call when package shuts down)
+local function cleanup_preloaded_logos()
+    for asset_name, image in pairs(coke_overlay.preloaded_images) do
+        if image then
+            image:dispose()
+            log("coke_overlay", "Disposed preloaded image: %s", asset_name)
+        end
+    end
+    coke_overlay.preloaded_images = {}
 end
 
 -- Function to draw Coke Zero overlay
@@ -2898,37 +2954,24 @@ util.data_mapper{
     -- === LOGO OVERLAY SWITCHING API ===
     -- Handler to switch between logos (similar to remote/trigger)
     ["logo/switch"] = function(data)
+        local start_time = sys.now()
         print("LOGO SWITCH CALLED! Raw data: " .. tostring(data))
         
-        -- Try to decode JSON data if it's a JSON string
-        local trigger = "1" -- default
-        if data and data ~= "" then
-            local success, decoded = pcall(function()
-                return json.decode(data)
-            end)
-            
-            if success and type(decoded) == "table" and decoded.data then
-                trigger = tostring(decoded.data)
-                print("DECODED JSON data field: " .. trigger)
-            else
-                -- If not JSON or no data field, use raw data
-                trigger = tostring(data)
-                print("USING RAW data: " .. trigger)
-            end
-        end
+        -- Data comes directly as the form field value, no JSON parsing needed
+        local trigger = data and tostring(data) or "1"
         
         print("FINAL TRIGGER VALUE: " .. trigger)
         
-        if trigger == "1" then
-            load_coke_overlay("Courtside_logo.png")
-            print("SWITCHED TO COURTSIDE LOGO!")
-            log("logo_switch", "Switched to Courtside logo")
-        elseif trigger == "2" then
-            load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
-            print("SWITCHED TO COKE ZERO LOGO!")
-            log("logo_switch", "Switched to Coke Zero logo")
+        -- Use the optimized preloaded system for instant switching
+        if coke_overlay.logos[trigger] then
+            local asset_name = coke_overlay.logos[trigger]
+            load_coke_overlay(asset_name)
+            local end_time = sys.now()
+            local switch_time_ms = (end_time - start_time) * 1000
+            print("INSTANT SWITCHED TO: " .. asset_name .. " in " .. string.format("%.2f", switch_time_ms) .. "ms")
+            log("logo_switch", "Instant switch to: %s (%.2fms)", asset_name, switch_time_ms)
         else
-            print("INVALID TRIGGER: " .. tostring(trigger))
+            print("INVALID TRIGGER: " .. tostring(trigger) .. " (valid: 1, 2)")
             log("logo_switch", "Invalid trigger: %s. Use '1' for Courtside or '2' for Coke Zero", trigger)
         end
     end,
@@ -2960,9 +3003,21 @@ util.data_mapper{
     
     -- Handler to get current logo status
     ["logo/status"] = function(data)
+        log("logo_switch", "=== LOGO SYSTEM STATUS ===")
         log("logo_switch", "Current: %s, Enabled: %s", 
             coke_overlay.current_asset or "unknown", 
             tostring(coke_overlay.enabled))
+        
+        -- Show preloading status
+        local preloaded_count = 0
+        for asset_name, image in pairs(coke_overlay.preloaded_images) do
+            preloaded_count = preloaded_count + 1
+            log("logo_switch", "Preloaded: %s (%s)", asset_name, image and "ready" or "failed")
+        end
+        
+        log("logo_switch", "Total preloaded assets: %d", preloaded_count)
+        log("logo_switch", "Ready for instant switching: %s", preloaded_count > 0 and "YES" or "NO")
+        log("logo_switch", "========================")
     end,
     
     -- Test endpoint to verify API calls are working
@@ -3575,4 +3630,5 @@ load_qr_instances()
 -- Initialize Stephen A. Smith GIF overlay on startup
 load_gif_overlay("stephen_a_smith_weed.mp4")
 
-load_coke_overlay("Courtside_logo.png")
+-- Preload all logo assets for instant switching
+preload_logo_assets()
