@@ -2898,8 +2898,26 @@ util.data_mapper{
     -- === LOGO OVERLAY SWITCHING API ===
     -- Handler to switch between logos (similar to remote/trigger)
     ["logo/switch"] = function(data)
-        print("LOGO SWITCH CALLED! Data: " .. tostring(data))
-        local trigger = data and data ~= "" and data or "1"
+        print("LOGO SWITCH CALLED! Raw data: " .. tostring(data))
+        
+        -- Try to decode JSON data if it's a JSON string
+        local trigger = "1" -- default
+        if data and data ~= "" then
+            local success, decoded = pcall(function()
+                return json.decode(data)
+            end)
+            
+            if success and type(decoded) == "table" and decoded.data then
+                trigger = tostring(decoded.data)
+                print("DECODED JSON data field: " .. trigger)
+            else
+                -- If not JSON or no data field, use raw data
+                trigger = tostring(data)
+                print("USING RAW data: " .. trigger)
+            end
+        end
+        
+        print("FINAL TRIGGER VALUE: " .. trigger)
         
         if trigger == "1" then
             load_coke_overlay("Courtside_logo.png")
@@ -2956,38 +2974,37 @@ util.data_mapper{
         log("logo_switch", "=========================")
     end,
     
-    -- Debug endpoint to check file existence
-    ["logo/debug"] = function(data)
-        log("logo_switch", "=== LOGO DEBUG FILE CHECK ===")
+    -- Comprehensive debug endpoint to test data formats
+    ["logo/debug_data"] = function(data)
+        print("=== LOGO DEBUG DATA ANALYSIS ===")
+        print("Raw data type: " .. type(data))
+        print("Raw data value: '" .. tostring(data) .. "'")
+        print("Raw data length: " .. (data and string.len(tostring(data)) or "nil"))
         
-        -- Check if files exist by trying to open them
-        local files_to_check = {"Courtside_logo.png", "Coke_Zero_Revised_1_lowres.png"}
-        
-        for _, filename in ipairs(files_to_check) do
-            local success, result = pcall(function()
-                return resource.open_file(filename)
+        if data and data ~= "" then
+            -- Try JSON decode
+            local success, decoded = pcall(function()
+                return json.decode(data)
             end)
             
             if success then
-                log("logo_switch", "File '%s': EXISTS", filename)
-                -- Try to get file info
-                local file_success, file_info = pcall(function()
-                    local f = result
-                    return f:size()
-                end)
-                if file_success then
-                    log("logo_switch", "  - Size: %d bytes", file_info)
+                print("JSON decode: SUCCESS")
+                print("Decoded type: " .. type(decoded))
+                if type(decoded) == "table" then
+                    for k, v in pairs(decoded) do
+                        print("  Key: " .. tostring(k) .. " = " .. tostring(v))
+                    end
+                else
+                    print("Decoded value: " .. tostring(decoded))
                 end
             else
-                log("logo_switch", "File '%s': NOT FOUND or ERROR: %s", filename, tostring(result))
+                print("JSON decode: FAILED - " .. tostring(decoded))
+                print("Treating as raw string")
             end
+        else
+            print("Data is empty or nil")
         end
-        
-        log("logo_switch", "Current overlay system state:")
-        log("logo_switch", "  - Enabled: %s", tostring(coke_overlay.enabled))
-        log("logo_switch", "  - Current asset: %s", tostring(coke_overlay.current_asset))
-        log("logo_switch", "  - Image loaded: %s", coke_overlay.image and "yes" or "no")
-        log("logo_switch", "=============================")
+        print("=== END DEBUG ===")
     end,
     
     -- API: Create or update QR code instance
