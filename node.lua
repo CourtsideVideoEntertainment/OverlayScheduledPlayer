@@ -2755,6 +2755,7 @@ util.data_mapper{
         return scheduler.handle_gpio(event)
     end,
     ["remote/trigger"] = function(data)
+        print("Remote Trigger LOG: " .. tostring(data))
         -- The unified handle_remote_trigger now handles both QR and scheduler
         return scheduler.handle_remote_trigger(data)
     end,
