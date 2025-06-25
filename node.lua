@@ -2744,100 +2744,49 @@ util.data_mapper{
     -- === LOGO OVERLAY SWITCHING API ===
     -- Handler to switch between logos (similar to remote/trigger)
     ["logo/switch"] = function(data)
-        log("logo_switch", "=== LOGO SWITCH DEBUG START ===")
-        log("logo_switch", "Raw data received: '%s'", tostring(data))
-        log("logo_switch", "Data type: %s", type(data))
-        log("logo_switch", "Data length: %d", string.len(tostring(data)))
-        
         local trigger = data and data ~= "" and data or "1"
-        log("logo_switch", "Processed trigger: '%s'", trigger)
         
         if trigger == "1" then
-            -- Switch to Courtside logo
-            log("logo_switch", "Attempting to load Courtside logo...")
             load_coke_overlay("Courtside_logo.png")
-            log("logo_switch", "Switched to Courtside logo via trigger: %s", trigger)
+            log("logo_switch", "Switched to Courtside logo")
         elseif trigger == "2" then
-            -- Switch to Coke Zero logo
-            log("logo_switch", "Attempting to load Coke Zero logo...")
             load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
-            log("logo_switch", "Switched to Coke Zero logo via trigger: %s", trigger)
+            log("logo_switch", "Switched to Coke Zero logo")
         else
             log("logo_switch", "Invalid trigger: %s. Use '1' for Courtside or '2' for Coke Zero", trigger)
         end
-        
-        log("logo_switch", "Current overlay state after switch:")
-        log("logo_switch", "  - Enabled: %s", tostring(coke_overlay.enabled))
-        log("logo_switch", "  - Current asset: %s", tostring(coke_overlay.current_asset))
-        log("logo_switch", "  - Image loaded: %s", coke_overlay.image and "yes" or "no")
-        log("logo_switch", "=== LOGO SWITCH DEBUG END ===")
     end,
     
     -- Handler to directly set logo by name
     ["logo/set"] = function(data)
-        log("logo_switch", "=== LOGO SET DEBUG START ===")
-        log("logo_switch", "Raw data received: '%s'", tostring(data))
-        log("logo_switch", "Data type: %s", type(data))
-        
         local logo_name = data and data ~= "" and data or "Courtside_logo.png"
-        log("logo_switch", "Processed logo name: '%s'", logo_name)
         
-        -- Validate that it's one of our supported logos
         if logo_name == "Courtside_logo.png" or logo_name == "Coke_Zero_Revised_1_lowres.png" then
-            log("logo_switch", "Valid logo name, attempting to load...")
             load_coke_overlay(logo_name)
             log("logo_switch", "Logo set to: %s", logo_name)
         else
-            log("logo_switch", "Invalid logo name: %s. Use 'Courtside_logo.png' or 'Coke_Zero_Revised_1_lowres.png'", logo_name)
+            log("logo_switch", "Invalid logo: %s", logo_name)
         end
-        
-        log("logo_switch", "Current overlay state after set:")
-        log("logo_switch", "  - Enabled: %s", tostring(coke_overlay.enabled))
-        log("logo_switch", "  - Current asset: %s", tostring(coke_overlay.current_asset))
-        log("logo_switch", "  - Image loaded: %s", coke_overlay.image and "yes" or "no")
-        log("logo_switch", "=== LOGO SET DEBUG END ===")
     end,
     
     -- Handler to toggle between the two logos
     ["logo/toggle"] = function(data)
-        log("logo_switch", "=== LOGO TOGGLE DEBUG START ===")
-        log("logo_switch", "Raw data received: '%s'", tostring(data))
-        
-        -- Check current logo and switch to the other one
-        local current_asset = coke_overlay.current_asset or "Coke_Zero_Revised_1_lowres.png"
-        log("logo_switch", "Current asset before toggle: %s", current_asset)
+        local current_asset = coke_overlay.current_asset or "Courtside_logo.png"
         
         if current_asset == "Courtside_logo.png" then
-            log("logo_switch", "Currently showing Courtside, switching to Coke Zero...")
             load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
-            log("logo_switch", "Toggled from Courtside to Coke Zero logo")
+            log("logo_switch", "Toggled to Coke Zero logo")
         else
-            log("logo_switch", "Currently showing Coke Zero (or unknown), switching to Courtside...")
             load_coke_overlay("Courtside_logo.png")
-            log("logo_switch", "Toggled from Coke Zero to Courtside logo")
+            log("logo_switch", "Toggled to Courtside logo")
         end
-        
-        log("logo_switch", "Current overlay state after toggle:")
-        log("logo_switch", "  - Enabled: %s", tostring(coke_overlay.enabled))
-        log("logo_switch", "  - Current asset: %s", tostring(coke_overlay.current_asset))
-        log("logo_switch", "  - Image loaded: %s", coke_overlay.image and "yes" or "no")
-        log("logo_switch", "=== LOGO TOGGLE DEBUG END ===")
     end,
     
     -- Handler to get current logo status
     ["logo/status"] = function(data)
-        log("logo_switch", "=== LOGO OVERLAY STATUS ===")
-        log("logo_switch", "Current Logo: %s", coke_overlay.current_asset or "unknown")
-        log("logo_switch", "Enabled: %s", tostring(coke_overlay.enabled))
-        log("logo_switch", "Position: %s (margin: %d)", coke_overlay.position, coke_overlay.margin)
-        log("logo_switch", "Scale: %.2f, Alpha: %.2f", coke_overlay.scale, coke_overlay.alpha)
-        log("logo_switch", "Image Object: %s", coke_overlay.image and "loaded" or "not loaded")
-        log("logo_switch", "Custom Position: %.1f%%, %.1f%%", coke_overlay.custom_x, coke_overlay.custom_y)
-        if coke_overlay.image then
-            local w, h = coke_overlay.image:size()
-            log("logo_switch", "Image Dimensions: %dx%d", w, h)
-        end
-        log("logo_switch", "========================")
+        log("logo_switch", "Current: %s, Enabled: %s", 
+            coke_overlay.current_asset or "unknown", 
+            tostring(coke_overlay.enabled))
     end,
     
     -- Test endpoint to verify API calls are working
@@ -2885,72 +2834,33 @@ util.data_mapper{
     
     -- API: Create or update QR code instance
     ["qr/instance"] = function(data)
-        print("[QR_PACKAGE] qr/instance handler called")
-        print("[QR_PACKAGE] Raw data type: " .. type(data))
-        print("[QR_PACKAGE] Raw data content: '" .. tostring(data) .. "'")
-        print("[QR_PACKAGE] Raw data length: " .. string.len(tostring(data)))
-        
-        -- Handle different data formats that info-beamer might send
-        local payload
-        local success, err = pcall(function()
-            if data == "" or data == nil then
-                print("[QR_PACKAGE] ERROR: No data received - dynamic parameters required")
-                print("[QR_PACKAGE] Expected JSON with: asset_id, custom_x, custom_y, position, auto_show")
-                return nil
-            else
-                -- Try to parse as direct JSON
-                payload = json.decode(data)
-            end
-        end)
-        
-        if not success or not payload then
-            print("[QR_PACKAGE] Failed to parse JSON data: " .. tostring(err))
-            print("[QR_PACKAGE] Please send valid JSON with required parameters")
-            return
-        end
-        
-        print("[QR_PACKAGE] Decoded payload type: " .. type(payload))
-        print("[QR_PACKAGE] Payload asset_id: " .. tostring(payload.asset_id))
-        print("[QR_PACKAGE] Payload custom_x: " .. tostring(payload.custom_x))
-        print("[QR_PACKAGE] Payload custom_y: " .. tostring(payload.custom_y))
-        print("[QR_PACKAGE] Payload position: " .. tostring(payload.position))
-        print("[QR_PACKAGE] Payload auto_show: " .. tostring(payload.auto_show))
+        local payload = json.decode(data or "{}")
         
         if not payload.asset_id then
-            print("[QR_PACKAGE] ERROR: asset_id is required")
+            log("qr", "ERROR: asset_id required")
             return
         end
         
         local position_config = {}
-        
-        -- Extract position configuration from payload
         if payload.position then position_config.position = payload.position end
         if payload.margin then position_config.margin = payload.margin end
         if payload.custom_x then position_config.custom_x = payload.custom_x end
         if payload.custom_y then position_config.custom_y = payload.custom_y end
         
-        -- Create or update the instance
         local instance_id = create_or_update_qr_instance(payload.asset_id, position_config)
+        log("qr", "Created/updated QR instance: %s", instance_id)
         
-        print("[QR_PACKAGE] Successfully created/updated QR instance for asset_id: " .. payload.asset_id .. " (instance: " .. instance_id .. ")")
-        
-        -- If auto_show is true, immediately make it visible and generate QR
         if payload.auto_show then
             local instance = qr_code_instances[instance_id]
             if instance then
-                print("[QR_PACKAGE] Attempting to auto-show QR instance: " .. instance_id .. " with trigger_data: " .. instance.trigger_data)
-                print("[QR_PACKAGE] Current setup_id: " .. tostring(current_setup_id))
                 local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
                 if new_draw_details then
                     instance.draw_details = new_draw_details
                     instance.is_visible = true
-                    print("[QR_PACKAGE] Auto-showing QR instance: " .. instance_id .. " - SUCCESS")
+                    log("qr", "Auto-showing QR instance: %s", instance_id)
                 else
-                    print("[QR_PACKAGE] ERROR: Failed to generate QR for auto_show instance: " .. instance_id)
-                    print("[QR_PACKAGE] qrcode_overlay.handle_remote_trigger returned nil")
+                    log("qr", "ERROR: Failed to generate QR for instance: %s", instance_id)
                 end
-            else
-                print("[QR_PACKAGE] ERROR: Instance not found for auto_show: " .. instance_id)
             end
         end
     end,
@@ -2958,31 +2868,17 @@ util.data_mapper{
     -- API: Remove QR code instance
     ["qr/instance/remove"] = function(data)
         local payload = json.decode(data)
-        
-        if not payload.asset_id then
-            print("[QR_PACKAGE] ERROR: asset_id is required for removal")
-            return
-        end
-        
-        local success = remove_qr_instance(payload.asset_id)
-        if success then
-            print("[QR_PACKAGE] Successfully removed QR instance for asset_id: " .. payload.asset_id)
-        else
-            print("[QR_PACKAGE] No QR instance found for asset_id: " .. payload.asset_id)
+        if payload.asset_id and remove_qr_instance(payload.asset_id) then
+            log("qr", "Removed QR instance: %s", payload.asset_id)
         end
     end,
     
     -- API: List all QR code instances
     ["qr/instance/list"] = function(data)
         local instances = list_qr_instances()
-        print("[QR_PACKAGE] Current QR instances:")
+        log("qr", "QR instances: %d", table.getn(instances))
         for id, info in pairs(instances) do
-            print("[QR_PACKAGE]   " .. id .. ": asset_id=" .. info.asset_id .. ", visible=" .. tostring(info.is_visible) .. 
-                  ", position=" .. (info.position_config.position or "unknown") .. 
-                  " (" .. (info.position_config.custom_x or 0) .. "%, " .. (info.position_config.custom_y or 0) .. "%)")
-        end
-        if not next(instances) then
-            print("[QR_PACKAGE]   No QR instances found")
+            log("qr", "  %s: %s (%s)", id, info.asset_id, info.position_config.position or "default")
         end
     end,
     
