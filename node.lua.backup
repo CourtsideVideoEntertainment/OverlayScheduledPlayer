@@ -3398,6 +3398,159 @@ node.event("config_updated", function(config)
     last_setup_id = setup_id
     last_config_hash = config_hash
 end)
+
+-- Add after the existing image cache and before the render function
+
+-- Coke Zero Overlay System
+local coke_overlay = {
+    enabled = true,  -- Enable by default
+    image = nil,
+    current_asset = "Courtside_logo.png",  -- Track current asset - default to Courtside
+    position = "top-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
+    margin = 20,
+    scale = 0.2,  -- Make it bigger so it's more visible
+    alpha = 0.9,  -- 90% opacity
+    custom_x = 85,  -- 85% from left (only used if position = "custom")
+    custom_y = 5,   -- 5% from top (only used if position = "custom")
+}
+
+-- Function to load Coke Zero overlay
+local function load_coke_overlay(asset_name)
+    local actual_asset = asset_name or "Courtside_logo.png"
+    
+    if coke_overlay.image then
+        coke_overlay.image:dispose()
+    end
+    
+    local success, image = pcall(function()
+        return resource.load_image{
+            file = actual_asset,
+            mipmap = true,
+        }
+    end)
+    
+    if success then
+        coke_overlay.image = image
+        coke_overlay.current_asset = actual_asset  -- Track current asset
+        coke_overlay.enabled = true
+        log("coke_overlay", "Loaded overlay: %s", actual_asset)
+    else
+        log("coke_overlay", "Failed to load overlay: %s - Error: %s", actual_asset, tostring(image))
+        coke_overlay.enabled = false
+        coke_overlay.current_asset = nil
+    end
+end
+
+-- Function to draw Coke Zero overlay
+local function draw_coke_overlay()
+    if not coke_overlay.enabled or not coke_overlay.image then
+        return
+    end
+    
+    local img_width, img_height = coke_overlay.image:size()
+    local scaled_width = img_width * coke_overlay.scale
+    local scaled_height = img_height * coke_overlay.scale
+    
+    local draw_x, draw_y
+    
+    if coke_overlay.position == "top-left" then
+        draw_x = coke_overlay.margin
+        draw_y = coke_overlay.margin
+    elseif coke_overlay.position == "top-right" then
+        draw_x = NATIVE_WIDTH - scaled_width - coke_overlay.margin
+        draw_y = coke_overlay.margin
+    elseif coke_overlay.position == "bottom-left" then
+        draw_x = coke_overlay.margin
+        draw_y = NATIVE_HEIGHT - scaled_height - coke_overlay.margin
+    elseif coke_overlay.position == "bottom-right" then
+        draw_x = NATIVE_WIDTH - scaled_width - coke_overlay.margin
+        draw_y = NATIVE_HEIGHT - scaled_height - coke_overlay.margin
+    elseif coke_overlay.position == "center" then
+        draw_x = NATIVE_WIDTH / 2 - scaled_width / 2
+        draw_y = NATIVE_HEIGHT / 2 - scaled_height / 2
+    elseif coke_overlay.position == "custom" then
+        draw_x = NATIVE_WIDTH * coke_overlay.custom_x / 100
+        draw_y = NATIVE_HEIGHT * coke_overlay.custom_y / 100
+    else
+        draw_x = NATIVE_WIDTH - scaled_width - coke_overlay.margin
+        draw_y = coke_overlay.margin
+    end
+    
+    coke_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, coke_overlay.alpha)
+end
+
+-- Stephen A. Smith GIF Overlay System
+local gif_overlay = {
+    enabled = false,
+    image = nil,
+    position = "custom",  -- Changed to custom
+    margin = 20,
+    scale = 0.5,  -- Adjust as needed
+    alpha = 0.9,  -- 90% opacity
+    custom_x = 10,  -- 10% from the left
+    custom_y = 10,  -- 10% from the top
+}
+
+-- Function to load Stephen A. Smith GIF overlay
+local function load_gif_overlay(asset_name)
+    if gif_overlay.image then
+        gif_overlay.image:dispose()
+    end
+    
+    local success, image = pcall(function()
+        return resource.load_video{
+            file = asset_name or "stephen_a_smith_weed.mp4",
+            looped = true,
+            paused = false,
+            audio = false,
+        }
+    end)
+    
+    if success then
+        gif_overlay.image = image
+        gif_overlay.enabled = true
+        log("gif_overlay", "Loaded Stephen A. Smith MP4 overlay as video: %s", asset_name or "stephen_a_smith_weed.mp4")
+    else
+        log("gif_overlay", "Failed to load Stephen A. Smith MP4 overlay: %s", tostring(image))
+        gif_overlay.enabled = false
+    end
+end
+
+-- Function to draw Stephen A. Smith GIF overlay
+local function draw_gif_overlay()
+    if not gif_overlay.enabled or not gif_overlay.image then
+        return
+    end
+    
+    local img_width, img_height = gif_overlay.image:size()
+    
+    if img_width == 0 or img_height == 0 then
+        gif_overlay.image:start()
+        img_width, img_height = gif_overlay.image:size()
+        if img_width == 0 or img_height == 0 then
+            img_width, img_height = 100, 100
+        end
+    end
+    
+    local scaled_width = img_width * gif_overlay.scale
+    local scaled_height = img_height * gif_overlay.scale
+    
+    local draw_x, draw_y
+    
+    if gif_overlay.position == "custom" then
+        draw_x = NATIVE_WIDTH * gif_overlay.custom_x / 100
+        draw_y = NATIVE_HEIGHT * gif_overlay.custom_y / 100
+    else
+        draw_x = NATIVE_WIDTH - scaled_width - gif_overlay.margin
+        draw_y = gif_overlay.margin
+    end
+    
+    draw_x = math.max(0, math.min(draw_x, NATIVE_WIDTH - scaled_width))
+    draw_y = math.max(0, math.min(draw_y, NATIVE_HEIGHT - scaled_height))
+    
+    gif_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, gif_overlay.alpha):start()
+end
+
 -- Override the render function to add QR code display
 function node.render()
     streams.tick()
