@@ -2744,15 +2744,19 @@ util.data_mapper{
     -- === LOGO OVERLAY SWITCHING API ===
     -- Handler to switch between logos (similar to remote/trigger)
     ["logo/switch"] = function(data)
+        print("LOGO SWITCH CALLED! Data: " .. tostring(data))
         local trigger = data and data ~= "" and data or "1"
         
         if trigger == "1" then
             load_coke_overlay("Courtside_logo.png")
+            print("SWITCHED TO COURTSIDE LOGO!")
             log("logo_switch", "Switched to Courtside logo")
         elseif trigger == "2" then
             load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
+            print("SWITCHED TO COKE ZERO LOGO!")
             log("logo_switch", "Switched to Coke Zero logo")
         else
+            print("INVALID TRIGGER: " .. tostring(trigger))
             log("logo_switch", "Invalid trigger: %s. Use '1' for Courtside or '2' for Coke Zero", trigger)
         end
     end,
@@ -3156,6 +3160,11 @@ util.data_mapper{
         log("gif_overlay", "Custom Position: %.1f%%, %.1f%%", gif_overlay.custom_x, gif_overlay.custom_y)
         log("gif_overlay", "Image Loaded: %s", gif_overlay.image and "yes" or "no")
         log("gif_overlay", "===============================")
+    end,
+    -- Simple test to verify API is working
+    ["logo/ping"] = function(data)
+        print("LOGO PING RECEIVED: " .. tostring(data))
+        log("logo_test", "PING received with data: %s", tostring(data))
     end,
 }
 
