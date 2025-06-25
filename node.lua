@@ -3281,23 +3281,12 @@ end
 -- Function to draw Coke Zero overlay
 local function draw_coke_overlay()
     if not coke_overlay.enabled or not coke_overlay.image then
-        if not coke_overlay.enabled then
-            log("coke_overlay", "DEBUG: Coke overlay not enabled")
-        end
-        if not coke_overlay.image then
-            log("coke_overlay", "DEBUG: No Coke image loaded")
-        end
         return
     end
-    
-    log("coke_overlay", "DEBUG: Drawing Coke overlay...")
     
     local img_width, img_height = coke_overlay.image:size()
     local scaled_width = img_width * coke_overlay.scale
     local scaled_height = img_height * coke_overlay.scale
-    
-    log("coke_overlay", "DEBUG: Coke image - Original: %dx%d, Scaled: %.1fx%.1f, Scale: %.2f", 
-        img_width, img_height, scaled_width, scaled_height, coke_overlay.scale)
     
     local draw_x, draw_y
     
@@ -3320,15 +3309,10 @@ local function draw_coke_overlay()
         draw_x = NATIVE_WIDTH * coke_overlay.custom_x / 100
         draw_y = NATIVE_HEIGHT * coke_overlay.custom_y / 100
     else
-        -- Default to top-right
         draw_x = NATIVE_WIDTH - scaled_width - coke_overlay.margin
         draw_y = coke_overlay.margin
     end
     
-    log("coke_overlay", "DEBUG: Coke position: %.1f, %.1f (position: %s)", 
-        draw_x, draw_y, coke_overlay.position)
-    
-    -- Draw the overlay with specified alpha
     coke_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, coke_overlay.alpha)
 end
 
@@ -3372,30 +3356,15 @@ end
 -- Function to draw Stephen A. Smith GIF overlay
 local function draw_gif_overlay()
     if not gif_overlay.enabled or not gif_overlay.image then
-        if not gif_overlay.enabled then
-            log("gif_overlay", "DEBUG: Overlay not enabled")
-        end
-        if not gif_overlay.image then
-            log("gif_overlay", "DEBUG: No image loaded")
-        end
         return
     end
     
-    -- Debug: Show screen dimensions
-    log("gif_overlay", "DEBUG: Screen dimensions - NATIVE: %dx%d", NATIVE_WIDTH, NATIVE_HEIGHT)
-    
-    -- For video objects, we need to get dimensions differently
     local img_width, img_height = gif_overlay.image:size()
     
-    -- If size is still 0x0, try to start the video first
     if img_width == 0 or img_height == 0 then
         gif_overlay.image:start()
         img_width, img_height = gif_overlay.image:size()
-        log("gif_overlay", "DEBUG: Started video, new size: %dx%d", img_width, img_height)
-        
-        -- If still 0x0, use a default size for positioning
         if img_width == 0 or img_height == 0 then
-            log("gif_overlay", "WARNING: Video still has 0x0 dimensions, using default 100x100 for positioning")
             img_width, img_height = 100, 100
         end
     end
@@ -3403,43 +3372,19 @@ local function draw_gif_overlay()
     local scaled_width = img_width * gif_overlay.scale
     local scaled_height = img_height * gif_overlay.scale
     
-    log("gif_overlay", "DEBUG: Drawing GIF - Original: %dx%d, Scaled: %.1fx%.1f, Scale: %.2f", 
-        img_width, img_height, scaled_width, scaled_height, gif_overlay.scale)
-    
     local draw_x, draw_y
     
-    if gif_overlay.position == "top-left" then
-        draw_x = gif_overlay.margin
-        draw_y = gif_overlay.margin
-    elseif gif_overlay.position == "top-right" then
-        draw_x = NATIVE_WIDTH - scaled_width - gif_overlay.margin
-        draw_y = gif_overlay.margin
-    elseif gif_overlay.position == "bottom-left" then
-        draw_x = gif_overlay.margin
-        draw_y = NATIVE_HEIGHT - scaled_height - gif_overlay.margin
-    elseif gif_overlay.position == "bottom-right" then
-        draw_x = NATIVE_WIDTH - scaled_width - gif_overlay.margin
-        draw_y = NATIVE_HEIGHT - scaled_height - gif_overlay.margin
-    elseif gif_overlay.position == "center" then
-        draw_x = NATIVE_WIDTH / 2 - scaled_width / 2
-        draw_y = NATIVE_HEIGHT / 2 - scaled_height / 2
-    elseif gif_overlay.position == "custom" then
+    if gif_overlay.position == "custom" then
         draw_x = NATIVE_WIDTH * gif_overlay.custom_x / 100
         draw_y = NATIVE_HEIGHT * gif_overlay.custom_y / 100
     else
-        -- Default to top-right
         draw_x = NATIVE_WIDTH - scaled_width - gif_overlay.margin
         draw_y = gif_overlay.margin
     end
     
-    -- Clamp positions to screen bounds
     draw_x = math.max(0, math.min(draw_x, NATIVE_WIDTH - scaled_width))
     draw_y = math.max(0, math.min(draw_y, NATIVE_HEIGHT - scaled_height))
     
-    log("gif_overlay", "DEBUG: Final position after clamping: %.1f, %.1f (screen bounds: %dx%d)", 
-        draw_x, draw_y, NATIVE_WIDTH, NATIVE_HEIGHT)
-    
-    -- Draw the video overlay with specified alpha and start it
     gif_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, gif_overlay.alpha):start()
 end
 
