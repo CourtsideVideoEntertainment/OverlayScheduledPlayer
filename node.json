@@ -175,6 +175,7 @@
                     ["flat", "Flat"],
                     ["time", "Time"],
                     ["countdown", "Countdown"],
+                    ["scroller", "Scroller"],
                     ["page", "Page Content"]
                 ],
                 "default": "image"
@@ -314,7 +315,8 @@
                         ["markup", "Markup"],
                         ["flat", "Flat"],
                         ["time", "Time"],
-                        ["countdown", "Countdown"]
+                        ["countdown", "Countdown"],
+                        ["scroller", "Scroller"]
                     ],
                     "default": "image"
                 }, {

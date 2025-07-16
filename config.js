@@ -1396,6 +1396,65 @@ Vue.component('tile-option-markup', TileOption.extend({
   }
 }))
 
+Vue.component('tile-option-scroller', TileOption.extend({
+  template: '#tile-option-scroller',
+  data: () => ({
+    newText: "",
+    speeds: [
+      [ 50, "Slow"],
+      [100, "Normal"],
+      [140, "Fast"],
+      [200, "Faster"],
+      [300, "Even faster"]
+    ],
+  }),
+  computed: {
+    color: {
+      get() { 
+        const defaultColor = [1, 1, 1, 1];
+        const configColor = this.config.color || defaultColor;
+        // Convert from [r,g,b,a] array to hex color
+        const r = Math.round((configColor[0] || 1) * 255);
+        const g = Math.round((configColor[1] || 1) * 255);
+        const b = Math.round((configColor[2] || 1) * 255);
+        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+      },
+      set(value) { 
+        // Convert hex color to [r,g,b,a] array
+        const hex = value.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16) / 255;
+        const g = parseInt(hex.substr(2, 2), 16) / 255;
+        const b = parseInt(hex.substr(4, 2), 16) / 255;
+        this.onSetValue('color', [r, g, b, 1]);
+      },
+    },
+    texts: {
+      get() { return this.config.texts || [] },
+      set(value) { this.onSetValue('texts', value) },
+    }
+  },
+  methods: {
+    onAddText() {
+      if (this.newText.trim()) {
+        const currentTexts = [...this.texts];
+        currentTexts.push({
+          text: this.newText.trim(),
+          show: true,
+          blink: false,
+          color: [0, 0, 0, 1] // Default transparent color
+        });
+        this.texts = currentTexts;
+        this.newText = "";
+      }
+    },
+    onRemoveText(index) {
+      const currentTexts = [...this.texts];
+      currentTexts.splice(index, 1);
+      this.texts = currentTexts;
+    }
+  }
+}))
+
 Vue.component('tile-box', {
   template: '#tile-box',
   props: ["tile", "is_selected"],

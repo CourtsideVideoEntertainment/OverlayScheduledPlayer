@@ -798,6 +798,13 @@ local function ChildTile(asset, config, x1, y1, x2, y2)
     end
 end
 
+local function ScrollerTile(asset, config, x1, y1, x2, y2)
+    return function(starts, ends)
+        local impl = tile_loader.modules["scroller"]
+        return impl.task(starts, ends, config, x1, y1, x2, y2)
+    end
+end
+
 local function ImageTile(asset, config, x1, y1, x2, y2)
     -- config:
     --   kenburns: true/false
@@ -1794,6 +1801,7 @@ local function Scheduler(page_source, job_queue)
                 rawvideo = RawVideoTile,
                 stream = StreamTile,
                 child = ChildTile,
+                scroller = ScrollerTile,
                 flat = FlatTile,
                 time = TimeTile,
                 countdown = CountdownTile,
