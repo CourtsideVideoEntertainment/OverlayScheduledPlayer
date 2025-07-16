@@ -1495,11 +1495,11 @@
       <div class='tile-option'>
         <label class='field-label'>Scroller Configuration</label><br/>
         <div class='row'>
-          <div class='col-xs-3'>
+          <div class='col-xs-4'>
             <label class='field-label'>Font Color</label><br/>
             <input type="color" v-model="color" class='form-control'/>
           </div>
-          <div class='col-xs-3'>
+          <div class='col-xs-4'>
             <label class='field-label'>Scroll Speed</label><br/>
             <select-dropdown
               :selected="config.speed || 100"
@@ -1507,10 +1507,10 @@
               @onSelected="onSetValue('speed', $event)"/>
             </select-dropdown>
           </div>
-          <div class='col-xs-6'>
-            <label class='field-label'>Add Text Item</label><br/>
+          <div class='col-xs-4'>
+            <label class='field-label'>Add Text</label><br/>
             <div class='input-group'>
-              <input type="text" v-model="newText" placeholder="Enter text to add" class='form-control'/>
+              <input type="text" v-model="newText" placeholder="Add text line" class='form-control'/>
               <span class='input-group-btn'>
                 <button class='btn btn-default' @click="onAddText">Add</button>
               </span>
@@ -1519,7 +1519,7 @@
         </div>
         <div class='row' v-if="texts.length > 0">
           <div class='col-xs-12'>
-            <label class='field-label'>Text Items</label><br/>
+            <label class='field-label'>Text Lines</label><br/>
             <table class="table table-condensed">
               <tbody>
                 <tr v-for="text, idx in texts" :key="idx">

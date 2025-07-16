@@ -817,25 +817,14 @@ local function ScrollerTile(asset, config, x1, y1, x2, y2)
                 }
             end
             
-            -- Convert text items and their colors
-            local converted_texts = {}
-            for i, text_item in ipairs(config.texts or {}) do
-                converted_texts[i] = {
-                    text = text_item.text,
-                    show = text_item.show,
-                    blink = text_item.blink,
-                    color = convert_color(text_item.color)
-                }
-            end
-            
-            -- Prepare scroller config in the format the scroller module expects
+            -- Prepare scroller config in the format the scroller module expects (simple reception style)
             local scroller_config = {
                 font = {
                     asset_name = asset.asset_name  -- Use the font asset from the tile
                 },
                 color = convert_color(config.color),  -- Convert main color
                 speed = config.speed or 100,  -- Default speed
-                texts = converted_texts  -- Converted text items
+                texts = config.texts or {}  -- Simple text array
             }
             
             log("scroller", "scroller_config prepared with %d texts", #scroller_config.texts)

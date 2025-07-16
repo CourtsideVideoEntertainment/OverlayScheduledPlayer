@@ -1403,9 +1403,7 @@ Vue.component('tile-option-scroller', TileOption.extend({
     speeds: [
       [ 50, "Slow"],
       [100, "Normal"],
-      [140, "Fast"],
-      [200, "Faster"],
-      [300, "Even faster"]
+      [140, "Faster"]
     ],
   }),
   computed: {
@@ -1438,10 +1436,7 @@ Vue.component('tile-option-scroller', TileOption.extend({
       if (this.newText.trim()) {
         const currentTexts = [...this.texts];
         currentTexts.push({
-          text: this.newText.trim(),
-          show: true,
-          blink: false,
-          color: [0, 0, 0, 1] // Default transparent color
+          text: this.newText.trim()
         });
         this.texts = currentTexts;
         this.newText = "";
