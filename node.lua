@@ -800,8 +800,38 @@ end
 
 local function ScrollerTile(asset, config, x1, y1, x2, y2)
     return function(starts, ends)
+        log("scroller", "ScrollerTile starting - asset: %s, coords: %d,%d,%d,%d", asset.asset_name, x1, y1, x2, y2)
+        log("scroller", "ScrollerTile config: texts=%d, speed=%s", #(config.texts or {}), tostring(config.speed))
+        
         local impl = tile_loader.modules["scroller"]
-        return impl.task(starts, ends, config, x1, y1, x2, y2)
+        if impl then
+            log("scroller", "scroller module found, initializing...")
+            -- Prepare scroller config in the format the scroller module expects
+            local scroller_config = {
+                font = {
+                    asset_name = asset.asset_name  -- Use the font asset from the tile
+                },
+                color = config.color or {1, 1, 1, 1},  -- Default to white
+                speed = config.speed or 100,  -- Default speed
+                texts = config.texts or {}  -- Text items
+            }
+            
+            log("scroller", "scroller_config prepared with %d texts", #scroller_config.texts)
+            
+            -- Initialize the scroller with proper config
+            if impl.updated_config_json then
+                impl.updated_config_json(scroller_config)
+                log("scroller", "scroller configured successfully")
+            end
+            
+            return impl.task(starts, ends, scroller_config, x1, y1, x2, y2)
+        else
+            log("scroller", "ERROR: scroller module not found in tile_loader.modules")
+            -- List available modules for debugging
+            for name, _ in pairs(tile_loader.modules) do
+                log("scroller", "Available module: %s", name)
+            end
+        end
     end
 end
 

@@ -65,7 +65,7 @@ local function draw_scroller(x, y, w, h)
         end
     end
 
-    while x < WIDTH do
+    while x < w do
         if idx > #items then
             local ok, item = pcall(feed)
             if ok and item then
