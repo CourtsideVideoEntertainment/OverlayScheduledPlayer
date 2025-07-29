@@ -2047,11 +2047,6 @@ local function Scheduler(page_source, job_queue)
             print("Clearing QR instance " .. id .. " due to setup switch")
         end
         
-        -- Completely reset coke overlay to clean state
-        coke_overlay.enabled = false
-        coke_overlay.image = nil
-        coke_overlay.current_asset = nil
-        print("Clearing coke overlay due to setup switch")
     end
 
     local last_setup_id, last_config_hash
@@ -2076,12 +2071,6 @@ local function Scheduler(page_source, job_queue)
         if force_reset then
             print("config updated: forcing scheduler reset")
             reset_scheduler()
-            
-            -- Clear all overlays when switching setups
-            if reset_mode == "setup" and setup_id ~= last_setup_id then
-                clear_all_overlays()
-                print("Cleared all overlays due to setup switch from " .. tostring(last_setup_id) .. " to " .. tostring(setup_id))
-            end
         end
 
         last_setup_id = setup_id
