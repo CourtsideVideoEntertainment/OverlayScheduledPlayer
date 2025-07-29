@@ -1,6 +1,9 @@
 gl.setup(NATIVE_WIDTH, NATIVE_HEIGHT)
 
 -- Debug: Print screen dimensions using simple print (log function not defined yet)
+print("[STARTUP] === SCREEN DIMENSIONS DEBUG ===")
+print("[STARTUP] GL Setup Dimensions (NATIVE): " .. NATIVE_WIDTH .. "x" .. NATIVE_HEIGHT)
+print("[STARTUP] ===============================")
 
 node.alias "*" -- catch all communication
 
@@ -550,6 +553,8 @@ local function Countdowns()
 end
 
 local Countdowns = Countdowns()
+
+
 -- clock object pointing to the configured schedule timezone
 local schedule_clock = setmetatable({
     tz = "UTC",
@@ -1962,13 +1967,16 @@ local function Scheduler(page_source, job_queue)
         print("Remote trigger received:", trigger_data)
         
         -- Debug: Show all existing QR instances
+        print("[QR_DEBUG] Total QR instances: " .. table.getn(qr_code_instances))
         for id, instance in pairs(qr_code_instances) do
+            print("[QR_DEBUG] Found QR instance: " .. id .. " with trigger_data: " .. instance.trigger_data)
         end
 
         local qr_instance_updated = false
 
         -- Check if this trigger_data corresponds to any predefined QR instance's trigger_data
         for id, instance in pairs(qr_code_instances) do
+            print("[QR_DEBUG] Checking QR instance: " .. id .. " with trigger_data: " .. instance.trigger_data .. " against received: " .. trigger_data)
             if instance.trigger_data == trigger_data then
                 print("Trigger " .. trigger_data .. " matches predefined QR instance: " .. id)
                 local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
@@ -2883,6 +2891,8 @@ util.data_mapper{
     end,
     -- Debug: Log all incoming data mapper calls
     ["(.*)"] = function(path, data)
+        print("[DATA_MAPPER_DEBUG] Received call to path: " .. path)
+        print("[DATA_MAPPER_DEBUG] Data: " .. tostring(data))
         -- Don't return anything so other handlers can still process
     end,
     -- Add handlers for updating QR code settings
@@ -2937,6 +2947,32 @@ util.data_mapper{
         end
     end,
     -- Handler to print screen dimensions for debugging
+    ["debug/dimensions"] = function(data)
+        log("DEBUG", "=== ON-DEMAND SCREEN DIMENSIONS ===")
+        log("DEBUG", "GL Setup (NATIVE): %dx%d", NATIVE_WIDTH, NATIVE_HEIGHT)
+        
+        -- Try to get current screen config if available
+        local screen_info = screen.get_rotation and {
+            rotation = screen.get_rotation()
+        } or {}
+        
+        if screen_info.rotation then
+            log("DEBUG", "Current Rotation: %d degrees", screen_info.rotation)
+        end
+        
+        -- Try to get display info if available
+        local success = pcall(function()
+            local fps, swap_interval = sys.get_ext("screen").get_display_info()
+            log("DEBUG", "Display FPS: %d, Swap Interval: %d", fps, swap_interval)
+            log("DEBUG", "Frame Time: %f seconds", (1/fps * swap_interval))
+        end)
+        
+        if not success then
+            log("DEBUG", "Could not get display info")
+        end
+        
+        log("DEBUG", "================================")
+    end,
     -- === COKE ZERO OVERLAY HANDLERS ===
     -- Handler to load/enable Coke Zero overlay
     ["coke/load"] = function(data)
@@ -3062,6 +3098,37 @@ util.data_mapper{
     end,
     
     -- Comprehensive debug endpoint to test data formats
+    ["logo/debug_data"] = function(data)
+        print("=== LOGO DEBUG DATA ANALYSIS ===")
+        print("Raw data type: " .. type(data))
+        print("Raw data value: '" .. tostring(data) .. "'")
+        print("Raw data length: " .. (data and string.len(tostring(data)) or "nil"))
+        
+        if data and data ~= "" then
+            -- Try JSON decode
+            local success, decoded = pcall(function()
+                return json.decode(data)
+            end)
+            
+            if success then
+                print("JSON decode: SUCCESS")
+                print("Decoded type: " .. type(decoded))
+                if type(decoded) == "table" then
+                    for k, v in pairs(decoded) do
+                        print("  Key: " .. tostring(k) .. " = " .. tostring(v))
+                    end
+                else
+                    print("Decoded value: " .. tostring(decoded))
+                end
+            else
+                print("JSON decode: FAILED - " .. tostring(decoded))
+                print("Treating as raw string")
+            end
+        else
+            print("Data is empty or nil")
+        end
+        print("=== END DEBUG ===")
+    end,
     
     -- API: Create or update QR code instance
     ["qr/instance"] = function(data)
@@ -3320,6 +3387,10 @@ util.data_mapper{
     
     -- Debug endpoint to test different data formats
     ["root/debug_data"] = function(data)
+        print("[DEBUG_DATA] === Data Format Debug ===")
+        print("[DEBUG_DATA] Raw data type: " .. type(data))
+        print("[DEBUG_DATA] Raw data content: '" .. tostring(data) .. "'")
+        print("[DEBUG_DATA] Raw data length: " .. string.len(tostring(data)))
         
         -- Try parsing as JSON
         local success, parsed = pcall(function()
@@ -3327,12 +3398,17 @@ util.data_mapper{
         end)
         
         if success then
+            print("[DEBUG_DATA] JSON parsing SUCCESS")
+            print("[DEBUG_DATA] Parsed type: " .. type(parsed))
             if type(parsed) == "table" then
                 for k, v in pairs(parsed) do
+                    print("[DEBUG_DATA] Key: " .. tostring(k) .. " = " .. tostring(v))
                 end
             end
         else
+            print("[DEBUG_DATA] JSON parsing FAILED: " .. tostring(parsed))
         end
+        print("[DEBUG_DATA] === End Debug ===")
     end,
     -- === STEPHEN A. SMITH GIF OVERLAY HANDLERS ===
     -- Handler to load/enable Stephen A. Smith GIF overlay
@@ -3596,6 +3672,19 @@ function node.render()
         print("[QR DEBUG] No QR instances visible.")
     end
 
+    -- Old Debugging for reference:
+    -- if drawn and qr_dimensions then
+    --     print("DEBUG RENDER: QR matrix size:", qr_dimensions.matrix_size.width, "×", qr_dimensions.matrix_size.height, "modules")
+    --     print("DEBUG RENDER: QR module size:", qr_dimensions.module_size, "pixels")
+    --     print("DEBUG RENDER: QR pixel size:", qr_dimensions.pixel_size.width, "×", qr_dimensions.pixel_size.height, "pixels")
+    --     print("DEBUG RENDER: QR total size:", qr_dimensions.total_size.width, "×", qr_dimensions.total_size.height, "pixels")
+    --     print("DEBUG RENDER: QR border size:", qr_dimensions.border_size, "pixels")
+    --     print("DEBUG RENDER: QR title height:", qr_dimensions.title_height, "pixels")
+    --     
+    --     -- Compare configured and actual sizes
+    --     print("DEBUG RENDER: Size comparison - Configured:", qr_width, "×", qr_height, 
+    --           "Actual:", qr_dimensions.pixel_size.width, "×", qr_dimensions.pixel_size.height)
+    -- end
 end
 
 -- Load QR instances from file on startup
