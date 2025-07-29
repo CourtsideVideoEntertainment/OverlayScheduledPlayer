@@ -2047,8 +2047,10 @@ local function Scheduler(page_source, job_queue)
             print("Clearing QR instance " .. id .. " due to setup switch")
         end
         
-        -- Disable coke overlay (reset to default state)
+        -- Completely reset coke overlay to clean state
         coke_overlay.enabled = false
+        coke_overlay.image = nil
+        coke_overlay.current_asset = nil
         print("Clearing coke overlay due to setup switch")
     end
 
@@ -2648,7 +2650,7 @@ end
 
 -- Coke Zero Overlay System
 local coke_overlay = {
-    enabled = true,  -- Enable by default
+    enabled = false,  -- Disabled by default, only enable when triggered
     image = nil,
     current_asset = "Courtside_logo.png",  -- Track current asset - default to Courtside
     position = "top-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
@@ -2972,6 +2974,13 @@ util.data_mapper{
             log("coke_overlay", "Appearance updated: scale=%.2f, alpha=%.2f", coke_overlay.scale, coke_overlay.alpha)
         end
     end,
+    -- Handler to manually clear all overlays (useful for testing)
+    ["overlay/clear"] = function(data)
+        clear_all_overlays()
+        log("overlay_clear", "Manual overlay clear requested")
+        return "All overlays cleared"
+    end,
+    
     -- Handler to get current overlay status
     ["coke/status"] = function(data)
         log("coke_overlay", "=== COKE ZERO OVERLAY STATUS ===")
