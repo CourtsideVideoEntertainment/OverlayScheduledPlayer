@@ -2639,7 +2639,7 @@ end
 
 -- Coke Zero Overlay System
 local coke_overlay = {
-    enabled = false,  -- Disabled by default, only enable when triggered
+    enabled = true,  -- Enable by default
     image = nil,
     current_asset = "Courtside_logo.png",  -- Track current asset - default to Courtside
     position = "top-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
@@ -2965,7 +2965,13 @@ util.data_mapper{
     end,
     -- Handler to manually clear all overlays (useful for testing)
     ["overlay/clear"] = function(data)
-        clear_all_overlays()
+        -- Hide QR codes
+        for id, instance in pairs(qr_code_instances) do
+            instance.is_visible = false
+        end
+        -- Disable coke overlay 
+        coke_overlay.enabled = false
+        coke_overlay.image = nil
         log("overlay_clear", "Manual overlay clear requested")
         return "All overlays cleared"
     end,
