@@ -2047,6 +2047,19 @@ local function Scheduler(page_source, job_queue)
         end
     end
 
+    -- Function to clear all overlay content (QR codes and coke overlay)
+    local function clear_all_overlays()
+        -- Hide all QR code instances
+        for id, instance in pairs(qr_code_instances) do
+            instance.is_visible = false
+            print("Clearing QR instance " .. id .. " due to setup switch")
+        end
+        
+        -- Disable coke overlay (reset to default state)
+        coke_overlay.enabled = false
+        print("Clearing coke overlay due to setup switch")
+    end
+
     local last_setup_id, last_config_hash
 
     node.event("config_updated", function(config)
@@ -2069,6 +2082,12 @@ local function Scheduler(page_source, job_queue)
         if force_reset then
             print("config updated: forcing scheduler reset")
             reset_scheduler()
+            
+            -- Clear all overlays when switching setups
+            if reset_mode == "setup" and setup_id ~= last_setup_id then
+                clear_all_overlays()
+                print("Cleared all overlays due to setup switch from " .. tostring(last_setup_id) .. " to " .. tostring(setup_id))
+            end
         end
 
         last_setup_id = setup_id
