@@ -1051,26 +1051,27 @@ local function Streams()
             local stream_config = {
                 file = url,
                 audio = audio,
-                raw = true,
             }
             
             -- Add UDP-specific settings for ultra-low latency
             if is_udp_stream or no_buffer then
-                stream_config.stream = true          -- Enable stream mode for live content
-                stream_config.buffering = false      -- Disable buffering for low latency
-                stream_config.paused = false         -- Start immediately
+                -- Use non-raw mode for UDP streams to allow more control
+                stream_config.raw = false            -- Use OpenGL rendering for better control
+                stream_config.paused = false         -- Start immediately  
                 stream_config.looped = false         -- Live streams don't loop
                 
-                -- Ultra-low latency settings for UDP streams
-                stream_config.buffer_duration = 0    -- Minimize buffer duration
-                stream_config.max_buffer_size = 0     -- Minimize buffer size
-                stream_config.preroll = false        -- Skip preroll buffering
-                stream_config.sync = false           -- Disable A/V sync for lower latency
-                stream_config.drop_threshold = 1     -- Drop frames aggressively if behind
-                stream_config.realtime = true        -- Enable real-time processing
+                -- Core low-latency settings that info-beamer definitely supports
+                stream_config.buffering = false      -- Disable buffering
+                stream_config.stream = true          -- Enable live stream mode
+                
+                -- Additional low-latency hints
+                stream_config.buffer_time = 0.01     -- Minimal buffer time (10ms)
+                stream_config.framedrop = true       -- Enable frame dropping
+                stream_config.faststart = true       -- Fast stream startup
                 
                 log("stream", "Creating UDP/no-buffer ULTRA-LOW LATENCY stream: %s", url)
             else
+                stream_config.raw = true             -- Use raw mode for regular streams
                 stream_config.looped = true          -- Regular streams can loop
                 log("stream", "Creating regular stream: %s", url)
             end
@@ -1082,8 +1083,15 @@ local function Streams()
                 is_udp = is_udp_stream,
             }
             
-            -- Keep stream running but hidden
-            streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
+            -- For UDP streams, start immediately with aggressive settings
+            if is_udp_stream then
+                -- Start UDP stream immediately at full visibility to minimize startup delay
+                streams[key].vid:start()
+                log("stream", "UDP stream started immediately: %s", url)
+            else
+                -- Keep regular streams running but hidden
+                streams[key].vid:layer(-10):place(0, 0, 0, 0):alpha(0):start()
+            end
         end
 
         streams[key].last_used = frame
@@ -1186,11 +1194,17 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
             end
         end
         
-        -- player
+        -- player  
         for now in helper.frame_between(starts, ends) do
             local vid = streams.get_stream(url, audio, no_buffer)
             if vid then
-                screen.place_video(vid, layer, 1, x1, y1, x2, y2)
+                if is_udp then
+                    -- For UDP streams using raw=false, draw directly for minimal latency
+                    vid:draw(x1, y1, x2, y2, 1.0):start()
+                else
+                    -- Use screen.place_video for raw streams
+                    screen.place_video(vid, layer, 1, x1, y1, x2, y2)
+                end
             end
         end
     end
@@ -3414,6 +3428,22 @@ util.data_mapper{
     ["logo/ping"] = function(data)
         print("LOGO PING RECEIVED: " .. tostring(data))
         log("logo_test", "PING received with data: %s", tostring(data))
+    end,
+    
+    -- Debug endpoint to check stream status and settings
+    ["stream/debug"] = function(data)
+        log("stream_debug", "=== STREAM DEBUG INFO ===")
+        local all_streams = streams._get_all_streams()
+        local stream_count = 0
+        for key, stream in pairs(all_streams) do
+            stream_count = stream_count + 1
+            log("stream_debug", "Stream %d: %s", stream_count, stream.url)
+            log("stream_debug", "  - UDP: %s", tostring(stream.is_udp))
+            log("stream_debug", "  - Last used: %d frames ago", frame - stream.last_used)
+        end
+        log("stream_debug", "Total active streams: %d", stream_count)
+        log("stream_debug", "Current frame: %d", frame)
+        log("stream_debug", "========================")
     end,
 }
 
