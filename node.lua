@@ -1054,15 +1054,24 @@ local function Streams()
                 raw = true,
             }
             
-            -- Add UDP-specific settings for low latency
+            -- Add UDP-specific settings for ultra-low latency
             if is_udp_stream or no_buffer then
-                stream_config.stream = true      -- Enable stream mode for live content
-                stream_config.buffering = false  -- Disable buffering for low latency
-                stream_config.paused = false     -- Start immediately
-                stream_config.looped = false     -- Live streams don't loop
-                log("stream", "Creating UDP/no-buffer stream: %s", url)
+                stream_config.stream = true          -- Enable stream mode for live content
+                stream_config.buffering = false      -- Disable buffering for low latency
+                stream_config.paused = false         -- Start immediately
+                stream_config.looped = false         -- Live streams don't loop
+                
+                -- Ultra-low latency settings for UDP streams
+                stream_config.buffer_duration = 0    -- Minimize buffer duration
+                stream_config.max_buffer_size = 0     -- Minimize buffer size
+                stream_config.preroll = false        -- Skip preroll buffering
+                stream_config.sync = false           -- Disable A/V sync for lower latency
+                stream_config.drop_threshold = 1     -- Drop frames aggressively if behind
+                stream_config.realtime = true        -- Enable real-time processing
+                
+                log("stream", "Creating UDP/no-buffer ULTRA-LOW LATENCY stream: %s", url)
             else
-                stream_config.looped = true      -- Regular streams can loop
+                stream_config.looped = true          -- Regular streams can loop
                 log("stream", "Creating regular stream: %s", url)
             end
             
@@ -1116,8 +1125,8 @@ local function Streams()
 
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
-            -- Reduce UDP keep-alive time to prevent long delays when switching assets
-            local max_idle = stream.is_udp and 180 or 300  -- 3 seconds for UDP, 5 seconds for others
+            -- Ultra-aggressive UDP keep-alive time for lowest latency
+            local max_idle = stream.is_udp and 60 or 300   -- 1 second for UDP, 5 seconds for others
             if frame_delta > max_idle then
                 print("[stream] disposing stream", stream.url)
                 if stream.vid then
@@ -1146,16 +1155,34 @@ local function StreamTile(asset, config, x1, y1, x2, y2)
     local no_buffer = config.no_buffer or false  -- New option for UDP streams
 
     return function(starts, ends)
-        -- Dispose other streams when this stream starts to prevent conflicts
-        helper.wait_t(starts - 0.1)  -- Wait just before starting
-        -- Only dispose streams if this is not the same URL
-        for key, stream in pairs(streams._get_all_streams()) do
-            if stream.url ~= url then
-                log("stream", "Disposing old stream %s to start new stream %s", stream.url, url)
-                if stream.vid then
-                    stream.vid:dispose()
+        -- For UDP streams, minimize delays and optimize for low latency
+        local is_udp = string.match(url, "^udp://") or no_buffer
+        local wait_time = is_udp and 0.01 or 0.1  -- Minimal wait for UDP streams
+        
+        helper.wait_t(starts - wait_time)
+        
+        -- For UDP streams, be more aggressive about disposing conflicting streams
+        if is_udp then
+            -- Immediately dispose ALL other streams for UDP to avoid conflicts
+            for key, stream in pairs(streams._get_all_streams()) do
+                if stream.url ~= url then
+                    log("stream", "PRIORITY DISPOSAL for UDP - disposing %s to start %s", stream.url, url)
+                    if stream.vid then
+                        stream.vid:dispose()
+                    end
+                    streams._remove_stream(key)
                 end
-                streams._remove_stream(key)
+            end
+        else
+            -- Normal disposal logic for non-UDP streams
+            for key, stream in pairs(streams._get_all_streams()) do
+                if stream.url ~= url then
+                    log("stream", "Disposing old stream %s to start new stream %s", stream.url, url)
+                    if stream.vid then
+                        stream.vid:dispose()
+                    end
+                    streams._remove_stream(key)
+                end
             end
         end
         
