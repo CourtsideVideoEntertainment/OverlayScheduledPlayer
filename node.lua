@@ -2812,7 +2812,8 @@ local function draw_coke_overlay()
     coke_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, coke_overlay.alpha)
 end
 
--- Stephen A. Smith GIF Overlay System
+-- Stephen A. Smith GIF Overlay System (COMMENTED OUT)
+--[[
 local gif_overlay = {
     enabled = false,
     image = nil,
@@ -2823,8 +2824,10 @@ local gif_overlay = {
     custom_x = 10,  -- 10% from the left
     custom_y = 10,  -- 10% from the top
 }
+--]]
 
--- Function to load Stephen A. Smith GIF overlay
+-- Function to load Stephen A. Smith GIF overlay (COMMENTED OUT)
+--[[
 local function load_gif_overlay(asset_name)
     if gif_overlay.image then
         gif_overlay.image:dispose()
@@ -2848,8 +2851,10 @@ local function load_gif_overlay(asset_name)
         gif_overlay.enabled = false
     end
 end
+--]]
 
--- Function to draw Stephen A. Smith GIF overlay
+-- Function to draw Stephen A. Smith GIF overlay (COMMENTED OUT)
+--[[
 local function draw_gif_overlay()
     if not gif_overlay.enabled or not gif_overlay.image then
         return
@@ -2883,6 +2888,7 @@ local function draw_gif_overlay()
     
     gif_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, gif_overlay.alpha):start()
 end
+--]]
 
 -- === END OVERLAY SYSTEM DEFINITIONS ===
 
@@ -3379,7 +3385,8 @@ util.data_mapper{
         else
         end
     end,
-    -- === STEPHEN A. SMITH GIF OVERLAY HANDLERS ===
+    -- === STEPHEN A. SMITH GIF OVERLAY HANDLERS === (COMMENTED OUT)
+    --[[
     -- Handler to load/enable Stephen A. Smith GIF overlay
     ["gif/load"] = function(data)
         local asset_name = data and data ~= "" and data or "stephen_a_smith_weed.mp4"
@@ -3424,6 +3431,7 @@ util.data_mapper{
         log("gif_overlay", "Image Loaded: %s", gif_overlay.image and "yes" or "no")
         log("gif_overlay", "===============================")
     end,
+    --]]
     -- Simple test to verify API is working
     ["logo/ping"] = function(data)
         print("LOGO PING RECEIVED: " .. tostring(data))
@@ -3612,8 +3620,8 @@ function node.render()
         end
     end
 
-    -- === Draw Stephen A. Smith GIF Overlay ===
-    draw_gif_overlay()
+    -- === Draw Stephen A. Smith GIF Overlay === (COMMENTED OUT)
+    -- draw_gif_overlay()
 
     -- === Draw Coke Zero Overlay ===
     draw_coke_overlay()
@@ -3662,8 +3670,8 @@ end
 -- Load QR instances from file on startup
 load_qr_instances()
 
--- Initialize Stephen A. Smith GIF overlay on startup
-load_gif_overlay("stephen_a_smith_weed.mp4")
+-- Initialize Stephen A. Smith GIF overlay on startup (COMMENTED OUT)
+-- load_gif_overlay("stephen_a_smith_weed.mp4")
 
 -- Preload all logo assets for instant switching
 preload_logo_assets()
