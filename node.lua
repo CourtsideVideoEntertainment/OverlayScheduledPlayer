@@ -3624,7 +3624,7 @@ function node.render()
     -- draw_gif_overlay()
 
     -- === Draw Coke Zero Overlay ===
-    -- draw_coke_overlay()
+    draw_coke_overlay()
 
     -- Draw debug marker last to ensure it's on top of all other content
     -- This ensures the marker doesn't get hidden by videos or other elements
