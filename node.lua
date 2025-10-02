@@ -2517,6 +2517,29 @@ local function PageSource()
             cycle_pages = get_fallback_cycle()
         end
 
+        -- Ensure we always have at least one page to display
+        if #cycle_pages == 0 then
+            log("generate_cycle", "no fallback pages either. creating emergency fallback")
+            cycle_pages = {{
+                is_fallback = true,
+                duration = 10,
+                auto_duration = 10,
+                layout_id = -1,
+                tiles = {{
+                    x1 = 0,
+                    y1 = 0,
+                    x2 = WIDTH,
+                    y2 = HEIGHT,
+                    asset = "no-content-info-beamer.jpg",
+                    type = 'image',
+                    config = {
+                        fit = true,
+                        fade_time = 0.5
+                    }
+                }}
+            }}
+        end
+
         log("generate_cycle", "generated cycle with %d pages", #cycle_pages)
     end
 
