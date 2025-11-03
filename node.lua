@@ -51,16 +51,11 @@ local function create_or_update_qr_instance(asset_id, position_config)
     -- Create or update the instance
     local existing = qr_code_instances[instance_id]
     if existing then
-        print("[QR_API] Updating existing QR instance: " .. instance_id)
-        -- Update existing instance
         existing.trigger_data = tostring(asset_id)
         existing.position_config = final_config
-        -- Clear existing draw details to force regeneration
         existing.draw_details = nil
-        existing.is_visible = false -- Will be made visible when triggered
+        existing.is_visible = false
     else
-        print("[QR_API] Creating new QR instance: " .. instance_id)
-        -- Create new instance
         qr_code_instances[instance_id] = {
             id = instance_id,
             trigger_data = tostring(asset_id),
@@ -76,13 +71,10 @@ local function create_or_update_qr_instance(asset_id, position_config)
     return instance_id
 end
 
--- Function to remove a QR code instance
 local function remove_qr_instance(asset_id)
     local instance_id = "qr_" .. tostring(asset_id)
     if qr_code_instances[instance_id] then
-        print("[QR_API] Removing QR instance: " .. instance_id)
         qr_code_instances[instance_id] = nil
-        -- Auto-save after removal
         save_qr_instances()
         return true
     end
@@ -126,18 +118,9 @@ local function save_qr_instances()
         if file then
             file:write(json.encode(data_to_save))
             file:close()
-            print("[QR_PERSIST] Saved " .. table.getn(data_to_save) .. " QR instances to qr_instances.json")
         end
     end)
     
-    if not success then
-        print("[QR_PERSIST] Failed to save QR instances to file")
-    end
-    
-    -- ALSO: Send to setup config for setup-wide synchronization
-    -- This would require calling back to the info-beamer API to update the setup config
-    -- For now, we'll use the local file system, but this could be enhanced
-    print("[QR_PERSIST] QR instances saved locally. Package-level configuration applies to all setups using this package.")
 end
 
 -- Function to load QR instances from file
@@ -153,7 +136,6 @@ local function load_qr_instances()
     end)
     
     if success and data then
-        local count = 0
         for id, instance_data in pairs(data) do
             qr_code_instances[id] = {
                 id = instance_data.id,
@@ -162,14 +144,10 @@ local function load_qr_instances()
                 draw_details = nil,
                 is_visible = false
             }
-            count = count + 1
         end
-        print("[QR_PERSIST] Loaded " .. count .. " QR instances from qr_instances.json")
         return true
-    else
-        print("[QR_PERSIST] No QR instances file found or failed to load - starting with empty instances")
-        return false
     end
+    return false
 end
 
 local min, max, abs, floor, ceil = math.min, math.max, math.abs, math.floor, math.ceil
@@ -990,12 +968,7 @@ local function VideoTile(asset, config, x1, y1, x2, y2)
 end
 
 local function RawVideoTile(asset, config, x1, y1, x2, y2)
-    -- config:
-    --   asset_name: 'foo.mp4'
-    --   fit: aspect fit or scale?
-    --   fade_time: 0-1
-    --   looped
-    --   layer: video layer for raw videos
+   
 
     local file = resource.open_file(asset.asset_name)
     local fade_time = config.fade_time or 0.5
@@ -1016,15 +989,7 @@ local function RawVideoTile(asset, config, x1, y1, x2, y2)
         vid:layer(-10) -- This layer will now be within OpenGL, may need adjustment
 
         for now in helper.frame_between(starts, ends) do
-            -- When raw = false, video is drawn as an OpenGL texture.
-            -- screen.place_video might not be the correct way if it assumes raw video planes.
-            -- We might need to draw it directly or adapt place_video.
-            -- For a simple test, let's try drawing it directly, fitting the tile dimensions.
-            -- screen.place_video(vid, layer, helper.ramp(
-            --     starts, ends, now, fade_time
-            -- ), x1, y1, x2, y2):start()
-
-            -- Simpler drawing for testing raw = false:
+        
             vid:draw(x1, y1, x2, y2, helper.ramp(starts, ends, now, fade_time))
             vid:start() -- Ensure video plays
         end
@@ -2916,84 +2881,6 @@ local function draw_device_info()
     end
 end
 
--- Stephen A. Smith GIF Overlay System (COMMENTED OUT)
---[[
-local gif_overlay = {
-    enabled = false,
-    image = nil,
-    position = "custom",  -- Changed to custom
-    margin = 20,
-    scale = 0.5,  -- Adjust as needed
-    alpha = 0.9,  -- 90% opacity
-    custom_x = 10,  -- 10% from the left
-    custom_y = 10,  -- 10% from the top
-}
---]]
-
--- Function to load Stephen A. Smith GIF overlay (COMMENTED OUT)
---[[
-local function load_gif_overlay(asset_name)
-    if gif_overlay.image then
-        gif_overlay.image:dispose()
-    end
-    
-    local success, image = pcall(function()
-        return resource.load_video{
-            file = asset_name or "stephen_a_smith_weed.mp4",
-            looped = true,
-            paused = false,
-            audio = false,
-        }
-    end)
-    
-    if success then
-        gif_overlay.image = image
-        gif_overlay.enabled = true
-        log("gif_overlay", "Loaded Stephen A. Smith MP4 overlay as video: %s", asset_name or "stephen_a_smith_weed.mp4")
-    else
-        log("gif_overlay", "Failed to load Stephen A. Smith MP4 overlay: %s", tostring(image))
-        gif_overlay.enabled = false
-    end
-end
---]]
-
--- Function to draw Stephen A. Smith GIF overlay (COMMENTED OUT)
---[[
-local function draw_gif_overlay()
-    if not gif_overlay.enabled or not gif_overlay.image then
-        return
-    end
-    
-    local img_width, img_height = gif_overlay.image:size()
-    
-    if img_width == 0 or img_height == 0 then
-        gif_overlay.image:start()
-        img_width, img_height = gif_overlay.image:size()
-        if img_width == 0 or img_height == 0 then
-            img_width, img_height = 100, 100
-        end
-    end
-    
-    local scaled_width = img_width * gif_overlay.scale
-    local scaled_height = img_height * gif_overlay.scale
-    
-    local draw_x, draw_y
-    
-    if gif_overlay.position == "custom" then
-        draw_x = NATIVE_WIDTH * gif_overlay.custom_x / 100
-        draw_y = NATIVE_HEIGHT * gif_overlay.custom_y / 100
-    else
-        draw_x = NATIVE_WIDTH - scaled_width - gif_overlay.margin
-        draw_y = gif_overlay.margin
-    end
-    
-    draw_x = math.max(0, math.min(draw_x, NATIVE_WIDTH - scaled_width))
-    draw_y = math.max(0, math.min(draw_y, NATIVE_HEIGHT - scaled_height))
-    
-    gif_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, gif_overlay.alpha):start()
-end
---]]
-
 -- === END OVERLAY SYSTEM DEFINITIONS ===
 
 util.data_mapper{
@@ -3029,30 +2916,21 @@ util.data_mapper{
     end,
     -- Add handlers for updating QR code settings
     ["qr/position"] = function(data)
-        print("[QR_PACKAGE] qr/position handler called with data: " .. tostring(data))
         local payload = json.decode(data)
         if type(payload) == "table" and payload.id and payload.settings then
             update_qr_position(payload.id, payload.settings)
-        else
-            print("ERROR: Invalid qr/position payload. Expected a table with id and settings fields")
         end
     end,
     ["device_info"] = function(data)
-        print("[DEVICE_INFO] Received device info: " .. tostring(data))
-        local info = json.decode(data)
-        -- Store device info for rendering
-        device_info = info
+        device_info = json.decode(data)
     end,
     ["device_info/toggle"] = function(data)
-        local settings = json.decode(data)
-        device_info_display.enabled = settings.enabled
-        print("[DEVICE_INFO] Display toggled: " .. tostring(settings.enabled))
+        device_info_display.enabled = json.decode(data).enabled
     end,
     ["device_info/position"] = function(data)
         local settings = json.decode(data)
         device_info_display.position = settings.position or "top-left"
         device_info_display.margin = settings.margin or 20
-        print("[DEVICE_INFO] Position updated: " .. device_info_display.position)
     end,
     ["device_info/appearance"] = function(data)
         local settings = json.decode(data)
@@ -3064,31 +2942,22 @@ util.data_mapper{
         if settings.bg_color then
             device_info_display.bg_color = settings.bg_color
         end
-        print("[DEVICE_INFO] Appearance updated")
     end,
     ["qr/appearance"] = function(data)
         local settings = json.decode(data)
         local needs_regen = qrcode_overlay.update_appearance(settings)
         if needs_regen then
-            print("QR appearance updated, triggering regeneration for visible instances.")
-            -- Regenerate all visible QR codes as appearance affects all
             for id, instance in pairs(qr_code_instances) do
                 if instance.is_visible and instance.trigger_data then
-                    print("Regenerating QR instance: " .. id)
-                    -- Use instance.trigger_data to regenerate the correct content
                     local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
                     if new_draw_details then
                         instance.draw_details = new_draw_details
-                        print("Successfully regenerated QR instance: " .. id)
                     else
-                        print("ERROR: Failed to regenerate QR instance: " .. id)
-                        instance.is_visible = false -- Hide if regeneration fails
+                        instance.is_visible = false
                         instance.draw_details = nil
                     end
                 end
             end
-        else
-            print("QR appearance updated, no regeneration needed.")
         end
     end,
     -- Handler to validate QR positioning for debugging
@@ -3753,63 +3622,9 @@ function node.render()
         end
     end
 
-    -- === Draw Stephen A. Smith GIF Overlay === (COMMENTED OUT)
-    -- draw_gif_overlay()
-
-    -- === Draw Coke Zero Overlay ===
     draw_coke_overlay()
-    
-    -- === Draw Device Info ===
     draw_device_info()
-
-    -- Draw debug marker last to ensure it's on top of all other content
-    -- This ensures the marker doesn't get hidden by videos or other elements
-    --[[
-    gl.pushMatrix()
-        -- Use explicit Z coordinate to ensure it's drawn on top
-        gl.translate(0, 0, 0.1)
-
-        -- Draw white border first (slightly larger than the marker)
-        colored:use{color = {1, 1, 1, 1}}  -- White color
-        white_pixel:draw(8, 8, 32, 32)     -- White border
-        colored:deactivate()
-
-        -- Create blinking effect by varying alpha based on time
-        local blink_alpha = math.abs(math.sin(now * 3)) * 0.5 + 0.5  -- Oscillates between 0.5 and 1.0
-        colored:use{color = {1, 0, 0, blink_alpha}}  -- Red with changing alpha
-        debug_marker:draw(10, 10, 30, 30)  -- Small red square in corner
-        colored:deactivate()
-
-        -- Removed: Green background rectangle drawing code
-    gl.popMatrix()
-    --]]
-
-    -- Print debugging info every few seconds
-    local print_debug = (math.floor(now_for_qr) % 5 == 0)
-    if print_debug and total_drawn_qr > 0 then
-        print("\n==== QR CODE INSTANCE DEBUG INFO (" .. total_drawn_qr .. " visible) ====")
-        for id, instance in pairs(qr_code_instances) do
-            if instance.is_visible and instance.draw_details then
-                local dims = instance.draw_details.dimensions
-                local pos_cfg = instance.position_config
-                print("  Instance ID:", id)
-                print("    Position Cfg:", pos_cfg.position, "(Margin:", pos_cfg.margin, ")", "Custom:", pos_cfg.custom_x, ",", pos_cfg.custom_y)
-                print("    Dimensions (Total):" .. dims.total_width .. "x" .. dims.total_height)
-                print("    Permanent:", tostring(instance.draw_details.permanent_display), "Expiry:", instance.draw_details.expiry_time > 0 and math.floor(instance.draw_details.expiry_time - now_for_qr) or "N/A")
-            end
-        end
-        print("============================================")
-    elseif print_debug then
-        print("[QR DEBUG] No QR instances visible.")
-    end
-
 end
 
--- Load QR instances from file on startup
 load_qr_instances()
-
--- Initialize Stephen A. Smith GIF overlay on startup (COMMENTED OUT)
--- load_gif_overlay("stephen_a_smith_weed.mp4")
-
--- Preload all logo assets for instant switching
 preload_logo_assets()
