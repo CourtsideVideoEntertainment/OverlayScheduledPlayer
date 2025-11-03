@@ -21,6 +21,9 @@ local qrcode_overlay = require "qrcode_overlay"
 -- NEW: Dynamic QR code instances - now managed via API
 local qr_code_instances = {}
 
+-- Device information from API
+local device_info = nil
+
 -- Function to create or update a QR code instance
 local function create_or_update_qr_instance(asset_id, position_config)
     -- Generate a unique instance ID based on asset_id
@@ -2835,6 +2838,84 @@ local function draw_coke_overlay()
     coke_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, coke_overlay.alpha)
 end
 
+-- Device Info Display System
+local device_info_display = {
+    enabled = true,
+    position = "top-left",
+    margin = 20,
+    font_size = 30,
+    text_color = {1, 1, 1, 1},  -- white
+    bg_color = {0, 0, 0, 0.7},  -- semi-transparent black
+    padding = 15
+}
+
+local function draw_device_info()
+    if not device_info_display.enabled or not device_info then
+        return
+    end
+    
+    -- Load font
+    local font = resource.load_font("default-font.ttf")
+    
+    -- Prepare text lines
+    local lines = {
+        "Device ID: " .. tostring(device_info.id or "N/A"),
+        "Serial: " .. tostring(device_info.serial or "N/A"),
+        "Description: " .. tostring(device_info.description or "N/A"),
+        "Location: " .. tostring(device_info.location or "N/A"),
+        "Run: " .. tostring(device_info.run or "N/A"),
+        "Status: " .. (device_info.is_online and "Online" or "Offline"),
+        "Timezone: " .. tostring(device_info.timezone or "UTC"),
+    }
+    
+    -- Calculate text dimensions
+    local line_height = device_info_display.font_size * 1.5
+    local max_width = 0
+    
+    for _, line in ipairs(lines) do
+        local w = font:width(line, device_info_display.font_size)
+        if w > max_width then
+            max_width = w
+        end
+    end
+    
+    -- Calculate box dimensions
+    local box_width = max_width + (device_info_display.padding * 2)
+    local box_height = (#lines * line_height) + (device_info_display.padding * 2)
+    
+    -- Calculate position
+    local box_x, box_y
+    if device_info_display.position == "top-left" then
+        box_x = device_info_display.margin
+        box_y = device_info_display.margin
+    elseif device_info_display.position == "top-right" then
+        box_x = NATIVE_WIDTH - box_width - device_info_display.margin
+        box_y = device_info_display.margin
+    elseif device_info_display.position == "bottom-left" then
+        box_x = device_info_display.margin
+        box_y = NATIVE_HEIGHT - box_height - device_info_display.margin
+    elseif device_info_display.position == "bottom-right" then
+        box_x = NATIVE_WIDTH - box_width - device_info_display.margin
+        box_y = NATIVE_HEIGHT - box_height - device_info_display.margin
+    else
+        box_x = device_info_display.margin
+        box_y = device_info_display.margin
+    end
+    
+    -- Draw background box
+    local white_pixel = resource.create_colored_texture(1, 1, 1, 1)
+    white_pixel:draw(box_x, box_y, box_x + box_width, box_y + box_height, device_info_display.bg_color)
+    
+    -- Draw text lines
+    local text_x = box_x + device_info_display.padding
+    local text_y = box_y + device_info_display.padding
+    
+    for i, line in ipairs(lines) do
+        local y = text_y + ((i - 1) * line_height)
+        font:write(text_x, y, line, device_info_display.font_size, unpack(device_info_display.text_color))
+    end
+end
+
 -- Stephen A. Smith GIF Overlay System (COMMENTED OUT)
 --[[
 local gif_overlay = {
@@ -2955,6 +3036,35 @@ util.data_mapper{
         else
             print("ERROR: Invalid qr/position payload. Expected a table with id and settings fields")
         end
+    end,
+    ["device_info"] = function(data)
+        print("[DEVICE_INFO] Received device info: " .. tostring(data))
+        local info = json.decode(data)
+        -- Store device info for rendering
+        device_info = info
+    end,
+    ["device_info/toggle"] = function(data)
+        local settings = json.decode(data)
+        device_info_display.enabled = settings.enabled
+        print("[DEVICE_INFO] Display toggled: " .. tostring(settings.enabled))
+    end,
+    ["device_info/position"] = function(data)
+        local settings = json.decode(data)
+        device_info_display.position = settings.position or "top-left"
+        device_info_display.margin = settings.margin or 20
+        print("[DEVICE_INFO] Position updated: " .. device_info_display.position)
+    end,
+    ["device_info/appearance"] = function(data)
+        local settings = json.decode(data)
+        device_info_display.font_size = settings.font_size or 30
+        device_info_display.padding = settings.padding or 15
+        if settings.text_color then
+            device_info_display.text_color = settings.text_color
+        end
+        if settings.bg_color then
+            device_info_display.bg_color = settings.bg_color
+        end
+        print("[DEVICE_INFO] Appearance updated")
     end,
     ["qr/appearance"] = function(data)
         local settings = json.decode(data)
@@ -3648,6 +3758,9 @@ function node.render()
 
     -- === Draw Coke Zero Overlay ===
     draw_coke_overlay()
+    
+    -- === Draw Device Info ===
+    draw_device_info()
 
     -- Draw debug marker last to ensure it's on top of all other content
     -- This ensures the marker doesn't get hidden by videos or other elements

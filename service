@@ -7,6 +7,7 @@ import time
 import json
 import sys
 import pytz
+import requests
 from calendar import timegm
 from datetime import datetime, timedelta
 from select import select
@@ -196,6 +197,90 @@ def screen_toggle():
         #     on = not config.poweroff or line == "1"
         # )
 
+def fetch_device_info():
+    """Fetch device information from info-beamer API for the current device"""
+    try:
+        # Get the device's own API endpoint from metadata
+        # The metadata 'api' field contains the base API URL for this device
+        device_api_base = config.metadata.get('api')
+        
+        if not device_api_base:
+            print >>sys.stderr, "No device API endpoint found in metadata"
+            return
+        
+        # The 'api' field typically looks like: "https://info-beamer.com/api/v1"
+        # We need to get the device-specific endpoint
+        # Try to get device ID from the metadata or use the device endpoint directly
+        
+        # Alternative: Use the device endpoint from OnDeviceAPIs
+        # The hosted API system provides access to device information
+        print >>sys.stderr, "Fetching device info from API: %s" % device_api_base
+        
+        # The metadata also contains device-specific info we can use directly
+        device_serial = device.serial
+        
+        # Construct device info from available metadata and API
+        # First, try to get full device data from the API
+        device_data = None
+        
+        # Try using the device API from metadata
+        try:
+            # The API provides a 'device' endpoint
+            response = requests.get(device_api_base + '/device', timeout=10)
+            response.raise_for_status()
+            api_response = response.json()
+            if api_response.get('ok'):
+                device_data = api_response.get('device', {})
+        except Exception as e:
+            print >>sys.stderr, "Could not fetch from device API: %s" % str(e)
+        
+        # Build device info from available data
+        if device_data:
+            device_info = {
+                'id': device_data.get('id', 'N/A'),
+                'serial': device_serial,
+                'description': device_data.get('description', 'N/A'),
+                'location': device_data.get('location', 'N/A'),
+                'run': device_data.get('run', {}).get('name', 'N/A') if device_data.get('run') else 'N/A',
+                'is_online': device_data.get('is_online', False),
+                'last_contact': device_data.get('last_contact', 0),
+                'uptime': device_data.get('uptime', 0),
+                'timezone': device_data.get('timezone', config.metadata.get('timezone', 'UTC')),
+            }
+        else:
+            # Fallback: use metadata only
+            device_info = {
+                'id': 'N/A',
+                'serial': device_serial,
+                'description': 'Device %s' % device_serial,
+                'location': 'N/A',
+                'run': 'N/A',
+                'is_online': True,  # We're running, so we're online
+                'last_contact': int(time.time()),
+                'uptime': 0,
+                'timezone': config.metadata.get('timezone', 'UTC'),
+            }
+        
+        print >>sys.stderr, "Device info prepared: %s (Serial: %s)" % (
+            device_info.get('description', 'Unknown'), device_serial
+        )
+        
+        # Send to Lua node
+        node.send('/device_info:%s' % json.dumps(device_info))
+        
+    except AttributeError as e:
+        print >>sys.stderr, "Error accessing device metadata: %s" % str(e)
+        print >>sys.stderr, "This might be running outside of info-beamer hosted environment"
+    except Exception as e:
+        print >>sys.stderr, "Unexpected error in fetch_device_info: %s" % str(e)
+        traceback.print_exc()
+
+def monitor_device_api():
+    """Periodically fetch device information"""
+    while True:
+        fetch_device_info()
+        time.sleep(60)  # Fetch every 60 seconds
+
 def run_in_thread(fn):
     def wrap():
         try:
@@ -213,5 +298,6 @@ if __name__ == "__main__":
     run_in_thread(screen_toggle)
     run_in_thread(monitor_input)
     run_in_thread(monitor_gpio)
+    run_in_thread(monitor_device_api)
 
     while 1: time.sleep(1000)
