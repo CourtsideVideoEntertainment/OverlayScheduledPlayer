@@ -23,6 +23,7 @@ local qr_code_instances = {}
 
 -- Device information from API
 local device_info = nil
+local device_info_page_mode = false
 
 -- Function to create or update a QR code instance
 local function create_or_update_qr_instance(asset_id, position_config)
@@ -2814,6 +2815,61 @@ local device_info_display = {
     padding = 15
 }
 
+local function draw_device_info_page()
+    if not device_info then
+        -- Show "No device info available" message
+        local font = resource.load_font("default-font.ttf")
+        local msg = "No device information available"
+        local text_width = font:width(msg, 40)
+        local x = (NATIVE_WIDTH - text_width) / 2
+        local y = NATIVE_HEIGHT / 2
+        font:write(x, y, msg, 40, 1, 1, 1, 1)
+        return
+    end
+    
+    -- Render device info as formatted JSON on full screen
+    local font = resource.load_font("default-font.ttf")
+    local font_size = 32
+    local line_height = font_size * 1.4
+    local margin = 40
+    
+    -- Create formatted JSON lines
+    local lines = {
+        "{",
+        '  "id": ' .. (device_info.id and ('"' .. tostring(device_info.id) .. '"') or "null") .. ",",
+        '  "serial": "' .. tostring(device_info.serial or "N/A") .. '",',
+        '  "description": "' .. tostring(device_info.description or "N/A") .. '",',
+        '  "location": "' .. tostring(device_info.location or "N/A") .. '",',
+        '  "run": "' .. tostring(device_info.run or "N/A") .. '",',
+        '  "is_online": ' .. tostring(device_info.is_online or false) .. ',',
+        '  "last_contact": ' .. tostring(device_info.last_contact or 0) .. ',',
+        '  "uptime": ' .. tostring(device_info.uptime or 0) .. ',',
+        '  "timezone": "' .. tostring(device_info.timezone or "UTC") .. '"',
+        "}"
+    }
+    
+    -- Draw black background
+    local white_pixel = resource.create_colored_texture(1, 1, 1, 1)
+    white_pixel:draw(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT, {0, 0, 0, 1})
+    
+    -- Draw title
+    local title = "Device Information (JSON)"
+    local title_size = 50
+    font:write(margin, margin, title, title_size, 0.2, 0.8, 1, 1)
+    
+    -- Draw JSON lines
+    local y = margin + title_size + 40
+    for i, line in ipairs(lines) do
+        font:write(margin, y, line, font_size, 0.8, 0.8, 0.8, 1)
+        y = y + line_height
+    end
+    
+    -- Draw instruction at bottom
+    local instruction = "Send 'root/device_info/page:off' to exit"
+    local inst_size = 28
+    font:write(margin, NATIVE_HEIGHT - margin - inst_size, instruction, inst_size, 0.5, 0.5, 0.5, 1)
+end
+
 local function draw_device_info()
     if not device_info_display.enabled or not device_info then
         return
@@ -2923,6 +2979,17 @@ util.data_mapper{
     end,
     ["device_info"] = function(data)
         device_info = json.decode(data)
+    end,
+    ["device_info/page"] = function(data)
+        -- Toggle full-page device info display
+        if data == "on" or data == "true" then
+            device_info_page_mode = true
+        elseif data == "off" or data == "false" then
+            device_info_page_mode = false
+        else
+            -- Toggle if no explicit value
+            device_info_page_mode = not device_info_page_mode
+        end
     end,
     ["device_info/toggle"] = function(data)
         device_info_display.enabled = json.decode(data).enabled
@@ -3540,9 +3607,13 @@ function node.render()
     ImageCache.tick()
     screen.setup()
 
-    -- Periodic dimension check
-
     gl.clear(background.r, background.g, background.b, background.a)
+
+    -- Check if we're in device info page mode
+    if device_info_page_mode then
+        draw_device_info_page()
+        return
+    end
 
     local now = sys.now()
     scheduler.tick(now)
