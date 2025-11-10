@@ -2816,7 +2816,10 @@ local device_info_display = {
 }
 
 local function draw_device_info_page()
+    print("[DEVICE_INFO_PAGE] draw_device_info_page() called")
+    
     if not device_info then
+        print("[DEVICE_INFO_PAGE] No device info available - showing error message")
         -- Show "No device info available" message
         local font = resource.load_font("default-font.ttf")
         local msg = "No device information available"
@@ -2826,6 +2829,11 @@ local function draw_device_info_page()
         font:write(x, y, msg, 40, 1, 1, 1, 1)
         return
     end
+    
+    print("[DEVICE_INFO_PAGE] Device info present - rendering JSON")
+    print("[DEVICE_INFO_PAGE] ID: " .. tostring(device_info.id))
+    print("[DEVICE_INFO_PAGE] Serial: " .. tostring(device_info.serial))
+    print("[DEVICE_INFO_PAGE] Description: " .. tostring(device_info.description))
     
     -- Render device info as formatted JSON on full screen
     local font = resource.load_font("default-font.ttf")
@@ -2978,17 +2986,27 @@ util.data_mapper{
         end
     end,
     ["device_info"] = function(data)
+        print("[DEVICE_INFO] Received device info data")
         device_info = json.decode(data)
+        if device_info then
+            print("[DEVICE_INFO] Parsed successfully - ID: " .. tostring(device_info.id) .. ", Serial: " .. tostring(device_info.serial))
+        else
+            print("[DEVICE_INFO] ERROR: Failed to parse device info")
+        end
     end,
     ["device_info/page"] = function(data)
         -- Toggle full-page device info display
+        print("[DEVICE_INFO_PAGE] Received trigger with data: " .. tostring(data))
         if data == "on" or data == "true" then
             device_info_page_mode = true
+            print("[DEVICE_INFO_PAGE] Page mode ENABLED")
         elseif data == "off" or data == "false" then
             device_info_page_mode = false
+            print("[DEVICE_INFO_PAGE] Page mode DISABLED")
         else
             -- Toggle if no explicit value
             device_info_page_mode = not device_info_page_mode
+            print("[DEVICE_INFO_PAGE] Page mode TOGGLED to: " .. tostring(device_info_page_mode))
         end
     end,
     ["device_info/toggle"] = function(data)
@@ -3611,6 +3629,7 @@ function node.render()
 
     -- Check if we're in device info page mode
     if device_info_page_mode then
+        print("[DEVICE_INFO_PAGE] Rendering device info page (mode active)")
         draw_device_info_page()
         return
     end
