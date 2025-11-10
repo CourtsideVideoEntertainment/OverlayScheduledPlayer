@@ -2831,6 +2831,7 @@ local function draw_device_info_page()
     end
     
     print("[DEVICE_INFO_PAGE] Device info present - rendering JSON")
+    print("[DEVICE_INFO_PAGE] Device info: " .. tostring(device_info))
     print("[DEVICE_INFO_PAGE] ID: " .. tostring(device_info.id))
     print("[DEVICE_INFO_PAGE] Serial: " .. tostring(device_info.serial))
     print("[DEVICE_INFO_PAGE] Description: " .. tostring(device_info.description))
