@@ -2990,6 +2990,7 @@ util.data_mapper{
         device_info = json.decode(data)
         if device_info then
             print("[DEVICE_INFO] Parsed successfully - ID: " .. tostring(device_info.id) .. ", Serial: " .. tostring(device_info.serial))
+            print("[DEVICE_INFO] Device info: " .. tostring(device_info))
         else
             print("[DEVICE_INFO] ERROR: Failed to parse device info")
         end
