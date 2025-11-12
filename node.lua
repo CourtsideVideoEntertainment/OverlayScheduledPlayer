@@ -2816,11 +2816,7 @@ local device_info_display = {
 }
 
 local function draw_device_info_page()
-    print("[DEVICE_INFO_PAGE] draw_device_info_page() called")
-    
     if not device_info then
-        print("[DEVICE_INFO_PAGE] No device info available - showing error message")
-        -- Show "No device info available" message
         local font = resource.load_font("default-font.ttf")
         local msg = "No device information available"
         local text_width = font:width(msg, 40)
@@ -2829,12 +2825,6 @@ local function draw_device_info_page()
         font:write(x, y, msg, 40, 1, 1, 1, 1)
         return
     end
-    
-    print("[DEVICE_INFO_PAGE] Device info present - rendering JSON")
-    print("[DEVICE_INFO_PAGE] Device info: " .. tostring(device_info))
-    print("[DEVICE_INFO_PAGE] ID: " .. tostring(device_info.id))
-    print("[DEVICE_INFO_PAGE] Serial: " .. tostring(device_info.serial))
-    print("[DEVICE_INFO_PAGE] Description: " .. tostring(device_info.description))
     
     -- Render device info as formatted JSON on full screen
     local font = resource.load_font("default-font.ttf")
@@ -2987,41 +2977,19 @@ util.data_mapper{
         end
     end,
     ["device_info"] = function(data)
-        print("[DEVICE_INFO] Received device info data (length: " .. string.len(data) .. ")")
-        
-        -- Skip empty data
-        if data == "" or data == nil then
-            print("[DEVICE_INFO] Ignoring empty data")
-            return
-        end
-        
+        if data == "" or data == nil then return end
         local success, parsed = pcall(json.decode, data)
         if success and parsed then
             device_info = parsed
-            print("[DEVICE_INFO] Parsed successfully - ID: " .. tostring(device_info.id) .. ", Serial: " .. tostring(device_info.serial))
-            print("[DEVICE_INFO] Device info: " .. tostring(device_info))
-        else
-            print("[DEVICE_INFO] ERROR: Failed to parse device info - " .. tostring(parsed))
         end
     end,
     ["device_info/page"] = function(data)
-        -- Toggle full-page device info display
-        print("[DEVICE_INFO_PAGE] Received trigger with data: '" .. tostring(data) .. "' (length: " .. string.len(data) .. ")")
-        
-        -- Handle empty string or whitespace as "on" (default behavior)
-        if data == "" or data == " " or data == nil then
+        if data == "" or data == " " or data == nil or data == "on" or data == "true" then
             device_info_page_mode = true
-            print("[DEVICE_INFO_PAGE] Page mode ENABLED (empty/default)")
-        elseif data == "on" or data == "true" then
-            device_info_page_mode = true
-            print("[DEVICE_INFO_PAGE] Page mode ENABLED")
         elseif data == "off" or data == "false" then
             device_info_page_mode = false
-            print("[DEVICE_INFO_PAGE] Page mode DISABLED")
         else
-            -- Toggle if no explicit value
             device_info_page_mode = not device_info_page_mode
-            print("[DEVICE_INFO_PAGE] Page mode TOGGLED to: " .. tostring(device_info_page_mode))
         end
     end,
     ["device_info/toggle"] = function(data)
@@ -3642,9 +3610,7 @@ function node.render()
 
     gl.clear(background.r, background.g, background.b, background.a)
 
-    -- Check if we're in device info page mode
     if device_info_page_mode then
-        print("[DEVICE_INFO_PAGE] Rendering device info page (mode active)")
         draw_device_info_page()
         return
     end
