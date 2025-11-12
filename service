@@ -231,22 +231,18 @@ def fetch_device_info():
             api_response = response.json()
             if api_response.get('ok'):
                 device_data = api_response.get('device', {})
+            else:
+                device_data = None
         except Exception as e:
             print >>sys.stderr, "Could not fetch from device API: %s" % str(e)
+            device_data = None
         
-        # Build device info from available data
+        # Send the COMPLETE API response (all fields) for display
         if device_data:
-            device_info = {
-                'id': device_data.get('id', 'N/A'),
-                'serial': device_serial,
-                'description': device_data.get('description', 'N/A'),
-                'location': device_data.get('location', 'N/A'),
-                'run': device_data.get('run', {}).get('name', 'N/A') if device_data.get('run') else 'N/A',
-                'is_online': device_data.get('is_online', False),
-                'last_contact': device_data.get('last_contact', 0),
-                'uptime': device_data.get('uptime', 0),
-                'timezone': device_data.get('timezone', config.metadata.get('timezone', 'UTC')),
-            }
+            # Use the full device data from API as-is
+            device_info = device_data
+            # Just add serial number from system
+            device_info['serial'] = device_serial
         else:
             # Fallback: use metadata only
             device_info = {
@@ -255,7 +251,7 @@ def fetch_device_info():
                 'description': 'Device %s' % device_serial,
                 'location': 'N/A',
                 'run': 'N/A',
-                'is_online': True,  # We're running, so we're online
+                'is_online': True,
                 'last_contact': int(time.time()),
                 'uptime': 0,
                 'timezone': config.metadata.get('timezone', 'UTC'),

@@ -2815,6 +2815,55 @@ local device_info_display = {
     padding = 15
 }
 
+local function pretty_print_json(tbl, indent)
+    indent = indent or ""
+    local lines = {}
+    local is_array = #tbl > 0
+    
+    if is_array then
+        table.insert(lines, indent .. "[")
+        for i, v in ipairs(tbl) do
+            local comma = i < #tbl and "," or ""
+            if type(v) == "table" then
+                local nested = pretty_print_json(v, indent .. "  ")
+                for _, line in ipairs(nested) do
+                    table.insert(lines, line)
+                end
+            elseif type(v) == "string" then
+                table.insert(lines, indent .. '  "' .. tostring(v) .. '"' .. comma)
+            else
+                table.insert(lines, indent .. "  " .. tostring(v) .. comma)
+            end
+        end
+        table.insert(lines, indent .. "]")
+    else
+        table.insert(lines, indent .. "{")
+        local count = 0
+        for _ in pairs(tbl) do count = count + 1 end
+        local i = 0
+        for k, v in pairs(tbl) do
+            i = i + 1
+            local comma = i < count and "," or ""
+            if type(v) == "table" then
+                table.insert(lines, indent .. '  "' .. tostring(k) .. '": {')
+                local nested = pretty_print_json(v, indent .. "    ")
+                for j = 2, #nested - 1 do
+                    table.insert(lines, nested[j])
+                end
+                table.insert(lines, indent .. "  }" .. comma)
+            elseif type(v) == "string" then
+                table.insert(lines, indent .. '  "' .. tostring(k) .. '": "' .. tostring(v) .. '"' .. comma)
+            elseif type(v) == "boolean" or type(v) == "number" then
+                table.insert(lines, indent .. '  "' .. tostring(k) .. '": ' .. tostring(v) .. comma)
+            else
+                table.insert(lines, indent .. '  "' .. tostring(k) .. '": null' .. comma)
+            end
+        end
+        table.insert(lines, indent .. "}")
+    end
+    return lines
+end
+
 local function draw_device_info_page()
     if not device_info then
         local font = resource.load_font("default-font.ttf")
@@ -2828,44 +2877,39 @@ local function draw_device_info_page()
     
     -- Render device info as formatted JSON on full screen
     local font = resource.load_font("default-font.ttf")
-    local font_size = 32
-    local line_height = font_size * 1.4
-    local margin = 40
+    local font_size = 28
+    local line_height = font_size * 1.2
+    local margin = 30
     
-    -- Create formatted JSON lines
-    local lines = {
-        "{",
-        '  "id": ' .. (device_info.id and ('"' .. tostring(device_info.id) .. '"') or "null") .. ",",
-        '  "serial": "' .. tostring(device_info.serial or "N/A") .. '",',
-        '  "description": "' .. tostring(device_info.description or "N/A") .. '",',
-        '  "location": "' .. tostring(device_info.location or "N/A") .. '",',
-        '  "run": "' .. tostring(device_info.run or "N/A") .. '",',
-        '  "is_online": ' .. tostring(device_info.is_online or false) .. ',',
-        '  "last_contact": ' .. tostring(device_info.last_contact or 0) .. ',',
-        '  "uptime": ' .. tostring(device_info.uptime or 0) .. ',',
-        '  "timezone": "' .. tostring(device_info.timezone or "UTC") .. '"',
-        "}"
-    }
+    -- Convert device_info table to formatted JSON lines
+    local lines = pretty_print_json(device_info, "")
     
     -- Draw black background
     local white_pixel = resource.create_colored_texture(1, 1, 1, 1)
     white_pixel:draw(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT, 0, 0, 0, 1)
     
     -- Draw title
-    local title = "Device Information (JSON)"
-    local title_size = 50
+    local title = "Device API Response: /api/v1/device/" .. tostring(device_info.id or "???")
+    local title_size = 40
     font:write(margin, margin, title, title_size, 0.2, 0.8, 1, 1)
     
     -- Draw JSON lines
-    local y = margin + title_size + 40
-    for i, line in ipairs(lines) do
-        font:write(margin, y, line, font_size, 0.8, 0.8, 0.8, 1)
+    local y = margin + title_size + 30
+    local max_lines = math.floor((NATIVE_HEIGHT - y - 100) / line_height)
+    
+    for i = 1, math.min(#lines, max_lines) do
+        font:write(margin, y, lines[i], font_size, 0.8, 0.8, 0.8, 1)
         y = y + line_height
     end
     
+    -- Show count if truncated
+    if #lines > max_lines then
+        font:write(margin, y, "... (" .. (#lines - max_lines) .. " more lines)", font_size, 0.5, 0.5, 0.5, 1)
+    end
+    
     -- Draw instruction at bottom
-    local instruction = "Send 'root/device_info/page:off' to exit"
-    local inst_size = 28
+    local instruction = "API: /device_info/page/off to exit"
+    local inst_size = 24
     font:write(margin, NATIVE_HEIGHT - margin - inst_size, instruction, inst_size, 0.5, 0.5, 0.5, 1)
 end
 
