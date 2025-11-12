@@ -2984,17 +2984,14 @@ util.data_mapper{
         end
     end,
     ["device_info/page"] = function(data)
-        print("[PAGE] Data: '" .. tostring(data) .. "' Len: " .. string.len(data))
-        if data == "" or data == " " or data == nil or data == "on" or data == "true" then
-            device_info_page_mode = true
-            print("[PAGE] Mode: ON")
-        elseif data == "off" or data == "false" then
-            device_info_page_mode = false
-            print("[PAGE] Mode: OFF")
-        else
-            device_info_page_mode = not device_info_page_mode
-            print("[PAGE] Mode: TOGGLE to " .. tostring(device_info_page_mode))
-        end
+        -- Default behavior: toggle or turn on
+        device_info_page_mode = not device_info_page_mode
+    end,
+    ["device_info/page/on"] = function(data)
+        device_info_page_mode = true
+    end,
+    ["device_info/page/off"] = function(data)
+        device_info_page_mode = false
     end,
     ["device_info/toggle"] = function(data)
         device_info_display.enabled = json.decode(data).enabled

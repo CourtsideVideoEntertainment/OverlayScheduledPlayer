@@ -11,9 +11,12 @@ Usage:
 import socket
 import sys
 
-def send_command(data):
+def send_command(action):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    message = "root/device_info/page:%s" % data
+    if action in ['on', 'off']:
+        message = "root/device_info/page/%s:" % action
+    else:
+        message = "root/device_info/page:"
     sock.sendto(message.encode('utf8'), ('127.0.0.1', 4444))
     return True
 
