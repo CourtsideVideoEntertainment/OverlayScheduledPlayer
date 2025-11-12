@@ -2815,14 +2815,6 @@ local device_info_display = {
     padding = 15
 }
 
-local function get_table_keys(tbl)
-    local keys = {}
-    for k, _ in pairs(tbl) do
-        table.insert(keys, tostring(k))
-    end
-    return keys
-end
-
 local function pretty_print_json(tbl, indent)
     indent = indent or ""
     local lines = {}
@@ -2873,11 +2865,7 @@ local function pretty_print_json(tbl, indent)
 end
 
 local function draw_device_info_page()
-    print("[DRAW] draw_device_info_page called")
-    print("[DRAW] device_info is nil: " .. tostring(device_info == nil))
-    
     if not device_info then
-        print("[DRAW] No device info - showing error message")
         local font = resource.load_font("default-font.ttf")
         local msg = "No device information available"
         local text_width = font:width(msg, 40)
@@ -2887,9 +2875,6 @@ local function draw_device_info_page()
         return
     end
     
-    print("[DRAW] Device info available! ID: " .. tostring(device_info.id))
-    print("[DRAW] Device info keys: " .. table.concat(get_table_keys(device_info), ", "))
-    
     -- Render device info as formatted JSON on full screen
     local font = resource.load_font("default-font.ttf")
     local font_size = 28
@@ -2898,7 +2883,6 @@ local function draw_device_info_page()
     
     -- Convert device_info table to formatted JSON lines
     local lines = pretty_print_json(device_info, "")
-    print("[DRAW] Generated " .. #lines .. " lines of JSON")
     
     -- Draw black background
     local white_pixel = resource.create_colored_texture(1, 1, 1, 1)
@@ -3037,20 +3021,11 @@ util.data_mapper{
         end
     end,
     ["device_info"] = function(data)
-        print("[DEVICE_INFO] Received data, length: " .. #data)
-        if data == "" or data == nil then 
-            print("[DEVICE_INFO] Empty data received")
-            return 
-        end
+        if data == "" or data == nil then return end
         local success, parsed = pcall(json.decode, data)
         if success and parsed then
             device_info = parsed
-            print("[DEVICE_INFO] Parsed successfully. Fields:")
-            for k, v in pairs(parsed) do
-                print("  - " .. tostring(k) .. ": " .. tostring(type(v)))
-            end
-        else
-            print("[DEVICE_INFO] Failed to parse JSON: " .. tostring(parsed))
+            print("[DEVICE_INFO] Loaded " .. #json.encode(parsed) .. " bytes")
         end
     end,
     ["device_info/page"] = function(data)
@@ -3058,12 +3033,11 @@ util.data_mapper{
         device_info_page_mode = not device_info_page_mode
     end,
     ["device_info/page/on"] = function(data)
-        print("[DEVICE_INFO_PAGE] Turning ON full-page display")
-        print("[DEVICE_INFO_PAGE] device_info exists: " .. tostring(device_info ~= nil))
+        print("[PAGE] ON - data=" .. tostring(device_info ~= nil))
         device_info_page_mode = true
     end,
     ["device_info/page/off"] = function(data)
-        print("[DEVICE_INFO_PAGE] Turning OFF full-page display")
+        print("[PAGE] OFF")
         device_info_page_mode = false
     end,
     ["device_info/toggle"] = function(data)
@@ -3685,7 +3659,6 @@ function node.render()
     gl.clear(background.r, background.g, background.b, background.a)
 
     if device_info_page_mode then
-        print("[RENDER] device_info_page_mode is TRUE - calling draw_device_info_page()")
         draw_device_info_page()
         return
     end
