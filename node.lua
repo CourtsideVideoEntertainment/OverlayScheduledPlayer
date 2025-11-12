@@ -2859,7 +2859,7 @@ local function draw_device_info_page()
     
     -- Draw black background
     local white_pixel = resource.create_colored_texture(1, 1, 1, 1)
-    white_pixel:draw(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT, {0, 0, 0, 1})
+    white_pixel:draw(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT, 0, 0, 0, 1)
     
     -- Draw title
     local title = "Device Information (JSON)"
@@ -2987,19 +2987,32 @@ util.data_mapper{
         end
     end,
     ["device_info"] = function(data)
-        print("[DEVICE_INFO] Received device info data")
-        device_info = json.decode(data)
-        if device_info then
+        print("[DEVICE_INFO] Received device info data (length: " .. string.len(data) .. ")")
+        
+        -- Skip empty data
+        if data == "" or data == nil then
+            print("[DEVICE_INFO] Ignoring empty data")
+            return
+        end
+        
+        local success, parsed = pcall(json.decode, data)
+        if success and parsed then
+            device_info = parsed
             print("[DEVICE_INFO] Parsed successfully - ID: " .. tostring(device_info.id) .. ", Serial: " .. tostring(device_info.serial))
             print("[DEVICE_INFO] Device info: " .. tostring(device_info))
         else
-            print("[DEVICE_INFO] ERROR: Failed to parse device info")
+            print("[DEVICE_INFO] ERROR: Failed to parse device info - " .. tostring(parsed))
         end
     end,
     ["device_info/page"] = function(data)
         -- Toggle full-page device info display
-        print("[DEVICE_INFO_PAGE] Received trigger with data: " .. tostring(data))
-        if data == "on" or data == "true" then
+        print("[DEVICE_INFO_PAGE] Received trigger with data: '" .. tostring(data) .. "' (length: " .. string.len(data) .. ")")
+        
+        -- Handle empty string or whitespace as "on" (default behavior)
+        if data == "" or data == " " or data == nil then
+            device_info_page_mode = true
+            print("[DEVICE_INFO_PAGE] Page mode ENABLED (empty/default)")
+        elseif data == "on" or data == "true" then
             device_info_page_mode = true
             print("[DEVICE_INFO_PAGE] Page mode ENABLED")
         elseif data == "off" or data == "false" then
