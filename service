@@ -241,8 +241,10 @@ def fetch_device_info():
         if device_data:
             # Use the full device data from API as-is
             device_info = device_data
-            # Just add serial number from system
-            device_info['serial'] = device_serial
+            # Just add serial number from system if not already present
+            if 'serial' not in device_info:
+                device_info['serial'] = device_serial
+            print >>sys.stderr, "Device info fetched from API - Fields: %d" % len(device_info.keys())
         else:
             # Fallback: use metadata only
             device_info = {
@@ -256,10 +258,9 @@ def fetch_device_info():
                 'uptime': 0,
                 'timezone': config.metadata.get('timezone', 'UTC'),
             }
+            print >>sys.stderr, "Device info using fallback data"
         
-        print >>sys.stderr, "Device info prepared: %s (Serial: %s)" % (
-            device_info.get('description', 'Unknown'), device_serial
-        )
+        print >>sys.stderr, "Sending device info to Lua - Size: %d bytes" % len(json.dumps(device_info))
         
         # Send to Lua node
         node.send('/device_info:%s' % json.dumps(device_info))
