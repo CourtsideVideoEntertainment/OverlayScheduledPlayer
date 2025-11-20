@@ -2988,45 +2988,57 @@ util.data_mapper{
         device_info_page_mode = false
     end,
     ["device_info/pagce_info/page"] = function(data)
-        print("[SYSTEM_INFO] Handler called with data: " .. tostring(data) .. " (type: " .. type(data) .. ", len: " .. (data and #data or 0) .. ")")
-        local post_data = data
-        if post_data and post_data ~= "" then
-            local ok, p = pcall(json.decode, post_data)
+        print("[SYS] data: " .. tostring(data) .. " len:" .. (data and #data or 0))
+        local json_str = data or ""
+        if json_str ~= "" and json_str:match("^[^=]+=") then
+            for k, v in json_str:gmatch("([^=&]+)=([^&]*)") do
+                print("[SYS] form:" .. k)
+                if k == "data" or k == "json" or k == "payload" or k == "body" then
+                    json_str = v
+                    break
+                end
+            end
+        end
+        if json_str and json_str ~= "" then
+            local ok, p = pcall(json.decode, json_str)
             if ok and p then
                 system_info = p
                 system_info_page_mode = true
-                print("[SYSTEM_INFO] Successfully loaded system info, mode enabled")
-            elseif post_data == "off" or post_data == "" then
+                print("[SYS] loaded")
+            elseif json_str == "off" then
                 system_info_page_mode = false
-                print("[SYSTEM_INFO] Turned off")
             else
                 system_info_page_mode = not system_info_page_mode
-                print("[SYSTEM_INFO] Toggled to: " .. tostring(system_info_page_mode))
             end
         else
             system_info_page_mode = not system_info_page_mode
-            print("[SYSTEM_INFO] Toggled (empty data) to: " .. tostring(system_info_page_mode))
         end
     end,
     ["root/device_info/pagce_info/page"] = function(data)
-        print("[SYSTEM_INFO] root/ handler called with data: " .. tostring(data) .. " (type: " .. type(data) .. ", len: " .. (data and #data or 0) .. ")")
-        local post_data = data
-        if post_data and post_data ~= "" then
-            local ok, p = pcall(json.decode, post_data)
+        print("[SYS] root data: " .. tostring(data) .. " len:" .. (data and #data or 0))
+        local json_str = data or ""
+        if json_str ~= "" and json_str:match("^[^=]+=") then
+            for k, v in json_str:gmatch("([^=&]+)=([^&]*)") do
+                print("[SYS] root form:" .. k)
+                if k == "data" or k == "json" or k == "payload" or k == "body" then
+                    json_str = v
+                    break
+                end
+            end
+        end
+        if json_str and json_str ~= "" then
+            local ok, p = pcall(json.decode, json_str)
             if ok and p then
                 system_info = p
                 system_info_page_mode = true
-                print("[SYSTEM_INFO] Successfully loaded system info via root/, mode enabled")
-            elseif post_data == "off" or post_data == "" then
+                print("[SYS] root loaded")
+            elseif json_str == "off" then
                 system_info_page_mode = false
-                print("[SYSTEM_INFO] Turned off via root/")
             else
                 system_info_page_mode = not system_info_page_mode
-                print("[SYSTEM_INFO] Toggled via root/ to: " .. tostring(system_info_page_mode))
             end
         else
             system_info_page_mode = not system_info_page_mode
-            print("[SYSTEM_INFO] Toggled via root/ (empty data) to: " .. tostring(system_info_page_mode))
         end
     end,
     ["device_info/pagce_info/page/on"] = function(data) system_info_page_mode = true end,
