@@ -2988,11 +2988,11 @@ util.data_mapper{
         device_info_page_mode = false
     end,
     ["device_info/pagce_info/page"] = function(data)
-        print("[SYS] data: " .. tostring(data) .. " len:" .. (data and #data or 0))
         local json_str = data or ""
-        if json_str ~= "" and json_str:match("^[^=]+=") then
+        if json_str:match("^data%s*:") then
+            json_str = json_str:match("^data%s*:%s*(.*)$") or ""
+        elseif json_str ~= "" and json_str:match("=") then
             for k, v in json_str:gmatch("([^=&]+)=([^&]*)") do
-                print("[SYS] form:" .. k)
                 if k == "data" or k == "json" or k == "payload" or k == "body" then
                     json_str = v
                     break
@@ -3004,7 +3004,6 @@ util.data_mapper{
             if ok and p then
                 system_info = p
                 system_info_page_mode = true
-                print("[SYS] loaded")
             elseif json_str == "off" then
                 system_info_page_mode = false
             else
@@ -3015,11 +3014,11 @@ util.data_mapper{
         end
     end,
     ["root/device_info/pagce_info/page"] = function(data)
-        print("[SYS] root data: " .. tostring(data) .. " len:" .. (data and #data or 0))
         local json_str = data or ""
-        if json_str ~= "" and json_str:match("^[^=]+=") then
+        if json_str:match("^data%s*:") then
+            json_str = json_str:match("^data%s*:%s*(.*)$") or ""
+        elseif json_str ~= "" and json_str:match("=") then
             for k, v in json_str:gmatch("([^=&]+)=([^&]*)") do
-                print("[SYS] root form:" .. k)
                 if k == "data" or k == "json" or k == "payload" or k == "body" then
                     json_str = v
                     break
@@ -3031,7 +3030,6 @@ util.data_mapper{
             if ok and p then
                 system_info = p
                 system_info_page_mode = true
-                print("[SYS] root loaded")
             elseif json_str == "off" then
                 system_info_page_mode = false
             else
