@@ -2978,6 +2978,7 @@ util.data_mapper{
     end,
     ["device_info/page"] = function(data)
         -- Default behavior: toggle or turn on
+        print("Testing device_info/page-----------------------------------------------------------------------------")
         device_info_page_mode = not device_info_page_mode
     end,
     ["device_info/page/on"] = function(data)
