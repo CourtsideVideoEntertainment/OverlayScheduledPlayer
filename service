@@ -360,17 +360,27 @@ def call_device_api(device_id, endpoint_path=""):
         print >>sys.stderr, "[API] Metadata API URL: %s" % device_api_base
         
         # Construct the endpoint path
-        # e.g., /device/43493/ or /device/43493/status
+        # Default to 'sensor' endpoint if no endpoint_path specified
         if endpoint_path:
             full_endpoint = "/device/%d/%s" % (device_id, endpoint_path.rstrip('/'))
         else:
-            full_endpoint = "/device/%d/" % device_id
+            full_endpoint = "/device/%d/sensor" % device_id
         
         print >>sys.stderr, "[API] Calling device API endpoint: %s" % full_endpoint
         
+        # Try to get on_device_token from metadata or extract from API URL
+        on_device_token = config.metadata.get('on_device_token')
+        if not on_device_token and device_api_base:
+            # Try to extract on_device_token from the API URL
+            # Format: https://info-beamer.com/api/v1/device/43493/on-device/{token}
+            import re
+            match = re.search(r'/on-device/([^/]+)', device_api_base)
+            if match:
+                on_device_token = match.group(1)
+                print >>sys.stderr, "[API] Extracted on_device_token from API URL"
+        
         # Try using HostedAPI first (more reliable authentication and URL handling)
         try:
-            on_device_token = config.metadata.get('on_device_token')
             if on_device_token:
                 from hosted import OnDeviceAPIs, HostedAPI
                 api = OnDeviceAPIs(config)
@@ -392,7 +402,7 @@ def call_device_api(device_id, endpoint_path=""):
                 
                 return response
             else:
-                print >>sys.stderr, "[API] No on_device_token found in metadata"
+                print >>sys.stderr, "[API] No on_device_token found in metadata or API URL"
         except Exception as e:
             print >>sys.stderr, "[API] Could not use HostedAPI: %s" % str(e)
             traceback.print_exc()
