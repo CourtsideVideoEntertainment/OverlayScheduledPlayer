@@ -267,6 +267,27 @@ def fetch_device_info():
             print >>sys.stderr, "Could not initialize OnDeviceAPIs: %s" % str(e)
             device_data = None
         
+        # If we still don't have device data but we have a device_id, try using call_device_api
+        if not device_data and device_id:
+            print >>sys.stderr, "Trying call_device_api with device_id: %s" % device_id
+            api_response = call_device_api(device_id)
+            if api_response:
+                # The response might be wrapped in {'ok': True, 'device': {...}} or just be the device data
+                if isinstance(api_response, dict):
+                    if 'ok' in api_response and 'device' in api_response:
+                        device_data = api_response['device']
+                    elif 'id' in api_response:  # Might be device data directly
+                        device_data = api_response
+        
+        # Always test the API call if we have a device_id (for logging/debugging)
+        if device_id:
+            print >>sys.stderr, "[TEST] Testing API call to device %s" % device_id
+            test_response = call_device_api(device_id)
+            if test_response:
+                print >>sys.stderr, "[TEST] API call successful! Response keys: %s" % str(test_response.keys() if isinstance(test_response, dict) else 'N/A')
+            else:
+                print >>sys.stderr, "[TEST] API call failed or returned None"
+        
         # Send the COMPLETE API response (all fields) for display
         if device_data:
             # Use the full device data from API as-is
@@ -307,6 +328,69 @@ def fetch_device_info():
     except Exception as e:
         print >>sys.stderr, "Unexpected error in fetch_device_info: %s" % str(e)
         traceback.print_exc()
+
+def call_device_api(device_id, endpoint_path=""):
+    """
+    Call the info-beamer device API endpoint.
+    
+    Args:
+        device_id: The device ID (e.g., 43493)
+        endpoint_path: Optional path to append after /device/{device_id}/ (e.g., "status", "config")
+    
+    Returns:
+        dict: The API response, or None on error
+    """
+    try:
+        device_api_base = config.metadata.get('api')
+        if not device_api_base:
+            print >>sys.stderr, "No device API endpoint found in metadata"
+            return None
+        
+        # Construct the full endpoint URL
+        # e.g., https://info-beamer.com/api/v1/device/43493/ or /device/43493/status
+        if endpoint_path:
+            full_endpoint = "/device/%d/%s" % (device_id, endpoint_path.rstrip('/'))
+        else:
+            full_endpoint = "/device/%d/" % device_id
+        
+        # Construct full URL for logging
+        full_url = device_api_base.rstrip('/') + full_endpoint
+        print >>sys.stderr, "[API] Calling device API: %s" % full_url
+        
+        # Try using HostedAPI first (more reliable authentication)
+        try:
+            on_device_token = config.metadata.get('on_device_token')
+            if on_device_token:
+                from hosted import OnDeviceAPIs, HostedAPI
+                api = OnDeviceAPIs(config)
+                hosted_api = HostedAPI(api, on_device_token)
+                print >>sys.stderr, "[API] Using HostedAPI with on_device_token"
+                response = hosted_api.get(full_endpoint)
+                print >>sys.stderr, "[API] Response received: %s" % json.dumps(response, indent=2)
+                return response
+        except Exception as e:
+            print >>sys.stderr, "[API] Could not use HostedAPI: %s" % str(e)
+            traceback.print_exc()
+        
+        # Fallback: Try using OnDeviceAPIs session directly
+        try:
+            from hosted import OnDeviceAPIs
+            api = OnDeviceAPIs(config)
+            print >>sys.stderr, "[API] Using OnDeviceAPIs session"
+            response = api.session.get(full_url, timeout=10)
+            response.raise_for_status()
+            response_data = response.json()
+            print >>sys.stderr, "[API] Response received: %s" % json.dumps(response_data, indent=2)
+            return response_data
+        except Exception as e:
+            print >>sys.stderr, "[API] Could not call device API: %s" % str(e)
+            traceback.print_exc()
+            return None
+            
+    except Exception as e:
+        print >>sys.stderr, "Error in call_device_api: %s" % str(e)
+        traceback.print_exc()
+        return None
 
 def monitor_device_api():
     """Periodically fetch device information"""
