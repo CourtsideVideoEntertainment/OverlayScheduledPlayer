@@ -410,7 +410,7 @@ def call_device_api(device_id, endpoint_path=""):
             response_data = response.json()
             print >>sys.stderr, "[API] Raw response type: %s" % type(response_data).__name__
             print >>sys.stderr, "[API] Raw response: %s" % json.dumps(response_data, indent=2, default=str)
-            print("----------------------------------------------------------------------------------------------------------------")
+            print("---------------------------------Response Data-------------------------------------------------------------------------------")
             # Check if response is wrapped in {'ok': True, 'device': {...}}
             if isinstance(response_data, dict):
                 if 'ok' in response_data and 'device' in response_data:
