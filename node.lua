@@ -2989,13 +2989,14 @@ util.data_mapper{
     end,
     ["device_info/pagce_info/page"] = function(data)
         print("[SYSTEM_INFO] Handler called with data: " .. tostring(data) .. " (type: " .. type(data) .. ", len: " .. (data and #data or 0) .. ")")
-        if data and data ~= "" then
-            local ok, p = pcall(json.decode, data)
+        local post_data = data
+        if post_data and post_data ~= "" then
+            local ok, p = pcall(json.decode, post_data)
             if ok and p then
                 system_info = p
                 system_info_page_mode = true
                 print("[SYSTEM_INFO] Successfully loaded system info, mode enabled")
-            elseif data == "off" or data == "" then
+            elseif post_data == "off" or post_data == "" then
                 system_info_page_mode = false
                 print("[SYSTEM_INFO] Turned off")
             else
@@ -3009,13 +3010,14 @@ util.data_mapper{
     end,
     ["root/device_info/pagce_info/page"] = function(data)
         print("[SYSTEM_INFO] root/ handler called with data: " .. tostring(data) .. " (type: " .. type(data) .. ", len: " .. (data and #data or 0) .. ")")
-        if data and data ~= "" then
-            local ok, p = pcall(json.decode, data)
+        local post_data = data
+        if post_data and post_data ~= "" then
+            local ok, p = pcall(json.decode, post_data)
             if ok and p then
                 system_info = p
                 system_info_page_mode = true
                 print("[SYSTEM_INFO] Successfully loaded system info via root/, mode enabled")
-            elseif data == "off" or data == "" then
+            elseif post_data == "off" or post_data == "" then
                 system_info_page_mode = false
                 print("[SYSTEM_INFO] Turned off via root/")
             else
