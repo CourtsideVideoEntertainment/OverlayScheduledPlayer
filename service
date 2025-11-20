@@ -270,6 +270,7 @@ def fetch_device_info():
         # If we still don't have device data but we have a device_id, try using call_device_api
         if not device_data and device_id:
             print >>sys.stderr, "Trying call_device_api with device_id: %s" % device_id
+            print("---------------------------------call_device_api-------------------------------------------------------------------------------")
             api_response = call_device_api(device_id)
             if api_response:
                 # The response might be wrapped in {'ok': True, 'device': {...}} or just be the device data
