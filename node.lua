@@ -2889,6 +2889,7 @@ local function draw_device_info_page()
     white_pixel:draw(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT, 0, 0, 0, 1)
     
     -- Draw title
+    print("Device ID: " .. tostring(device_info.id or "???"))
     local title = "Device API Response: /api/v1/device/" .. tostring(device_info.id or "???")
     local title_size = 40
     font:write(margin, margin, title, title_size, 0.2, 0.8, 1, 1)
