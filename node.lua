@@ -3034,11 +3034,9 @@ util.data_mapper{
         device_info_page_mode = not device_info_page_mode
     end,
     ["device_info/page/on"] = function(data)
-        print("[PAGE] ON - data=" .. tostring(device_info ~= nil))
         device_info_page_mode = true
     end,
     ["device_info/page/off"] = function(data)
-        print("[PAGE] OFF")
         device_info_page_mode = false
     end,
     ["device_info/toggle"] = function(data)
