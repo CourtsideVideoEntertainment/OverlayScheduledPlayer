@@ -2860,43 +2860,7 @@ local function draw_device_info_page()
 end
 
 local function draw_system_info_page()
-    if not system_info then
-        local f = resource.load_font("default-font.ttf")
-        local msg = "No system information available"
-        local w = f:width(msg, 40)
-        f:write((NATIVE_WIDTH - w) / 2, NATIVE_HEIGHT / 2, msg, 40, 1, 1, 1, 1)
-        return
-    end
-    local f = resource.load_font("default-font.ttf")
-    local fs, lh, m, ts = 32, 45, 40, 48
-    resource.create_colored_texture(0, 0, 0, 0.95):draw(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT)
-    f:write(m, m, "System Information", ts, 0.2, 0.8, 1, 1)
-    local y, x1, x2, lw = m + ts + 40, m, m + (NATIVE_WIDTH - m * 2) / 2 + 20, 350
-    local function fmt_val(k, v)
-        if type(v) ~= "number" then return tostring(v) end
-        if k:match("temperature") or k:match("cpu") then return string.format("%.1f", v) end
-        if k:match("disk") or k:match("network") or k:match("uptime") or k:match("boot") then
-            if v > 1073741824 then return string.format("%.2f GB", v / 1073741824) end
-            if v > 1048576 then return string.format("%.2f MB", v / 1048576) end
-            if v > 1024 then return string.format("%.2f KB", v / 1024) end
-        end
-        return tostring(v)
-    end
-    local function fmt_key(k)
-        return k:gsub("_", " "):gsub("(%a)([%w_']*)", function(a, b) return a:upper() .. b:lower() end)
-    end
-    local items = {}
-    for k, v in pairs(system_info) do table.insert(items, {k = fmt_key(k), v = fmt_val(k, v)}) end
-    table.sort(items, function(a, b) return a.k < b.k end)
-    for i, item in ipairs(items) do
-        if y + lh > NATIVE_HEIGHT - m - 60 then break end
-        local col = (i - 1) % 2
-        local x = col == 0 and x1 or x2
-        if col == 0 and i > 1 then y = y + lh end
-        f:write(x, y, item.k .. ":", fs, 0.7, 0.7, 0.7, 1)
-        f:write(x + lw, y, item.v, fs, 1, 1, 1, 1)
-    end
-    f:write(m, NATIVE_HEIGHT - m - 24, "API: /device_info/pagce_info/page/off to exit", 24, 0.5, 0.5, 0.5, 1)
+    helper.draw_system_info_page(system_info, NATIVE_WIDTH, NATIVE_HEIGHT)
 end
 
 local function draw_device_info()
@@ -3037,12 +3001,25 @@ util.data_mapper{
             system_info_page_mode = not system_info_page_mode
         end
     end,
-    ["device_info/pagce_info/page/on"] = function(data)
-        system_info_page_mode = true
+    ["root/device_info/pagce_info/page"] = function(data)
+        if data and data ~= "" then
+            local ok, p = pcall(json.decode, data)
+            if ok and p then
+                system_info = p
+                system_info_page_mode = true
+            elseif data == "off" or data == "" then
+                system_info_page_mode = false
+            else
+                system_info_page_mode = not system_info_page_mode
+            end
+        else
+            system_info_page_mode = not system_info_page_mode
+        end
     end,
-    ["device_info/pagce_info/page/off"] = function(data)
-        system_info_page_mode = false
-    end,
+    ["device_info/pagce_info/page/on"] = function(data) system_info_page_mode = true end,
+    ["root/device_info/pagce_info/page/on"] = function(data) system_info_page_mode = true end,
+    ["device_info/pagce_info/page/off"] = function(data) system_info_page_mode = false end,
+    ["root/device_info/pagce_info/page/off"] = function(data) system_info_page_mode = false end,
     ["device_info/toggle"] = function(data)
         device_info_display.enabled = json.decode(data).enabled
     end,
