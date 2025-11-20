@@ -98,6 +98,10 @@ function M.parse_rgb(hex)
 end
 
 function M.draw_system_info_page(system_info, NATIVE_WIDTH, NATIVE_HEIGHT)
+    print("Drawing system info page-----------------------------------------------------------------------------")
+    print("System info: " .. tostring(system_info))
+    print("NATIVE_WIDTH: " .. tostring(NATIVE_WIDTH))
+    print("NATIVE_HEIGHT: " .. tostring(NATIVE_HEIGHT))
     if not system_info then
         local f = resource.load_font("default-font.ttf")
         local msg = "No system information available"
