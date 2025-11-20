@@ -1,38 +1,23 @@
 gl.setup(NATIVE_WIDTH, NATIVE_HEIGHT)
 
--- Debug: Print screen dimensions using simple print (log function not defined yet)
-
-node.alias "*" -- catch all communication
-
+node.alias "*"
 util.no_globals()
-
 math.randomseed(os.time())
-
 local json = require "json"
 local loader = require "loader"
 local helper = require "helper"
 local placement = require "placement"
 local easing = require "easing"
 local qrcode_overlay = require "qrcode_overlay"
-
--- QR code positioning configuration - REMOVED Global config
--- local QR_POSITION_CONFIG = { ... }
-
--- NEW: Dynamic QR code instances - now managed via API
 local qr_code_instances = {}
-
--- Device information from API
 local device_info = nil
 local device_info_page_mode = false
 local system_info = nil
 local system_info_page_mode = false
 
--- Function to create or update a QR code instance
 local function create_or_update_qr_instance(asset_id, position_config)
-    -- Generate a unique instance ID based on asset_id
     local instance_id = "qr_" .. tostring(asset_id)
     
-    -- Default position config if not provided
     local default_config = {
         position = "bottom-right",
         margin = 20,
@@ -40,7 +25,6 @@ local function create_or_update_qr_instance(asset_id, position_config)
         custom_y = 0
     }
     
-    -- Merge provided config with defaults
     local final_config = {}
     for k, v in pairs(default_config) do
         final_config[k] = v
@@ -84,7 +68,6 @@ local function remove_qr_instance(asset_id)
     return false
 end
 
--- Function to list all QR instances
 local function list_qr_instances()
     local instances = {}
     for id, instance in pairs(qr_code_instances) do
@@ -98,13 +81,11 @@ local function list_qr_instances()
     return instances
 end
 
--- Function to get a specific QR instance
 local function get_qr_instance(asset_id)
     local instance_id = "qr_" .. tostring(asset_id)
     return qr_code_instances[instance_id]
 end
 
--- Function to save QR instances to file for persistence
 local function save_qr_instances()
     local data_to_save = {}
     for id, instance in pairs(qr_code_instances) do
@@ -126,7 +107,6 @@ local function save_qr_instances()
     
 end
 
--- Function to load QR instances from file
 local function load_qr_instances()
     local success, data = pcall(function()
         local file = io.open("qr_instances.json", "r")
@@ -159,8 +139,7 @@ local font_regl = resource.load_font "default-font.ttf"
 local font_bold = resource.load_font "default-font-bold.ttf"
 local font_7seg = resource.load_font "7segment.ttf"
 
--- Create persistent marker texture for debug visualization
-local debug_marker = resource.create_colored_texture(1, 0, 0, 1)  -- Red square
+local debug_marker = resource.create_colored_texture(1, 0, 0, 1)
 
 local colored = resource.create_shader[[
     uniform sampler2D Texture;
@@ -2566,7 +2545,6 @@ util.json_watch("config.json", function(config)
     node.gc()
 end)
 
--- Function to update a specific QR code instance's positioning settings
 local function update_qr_position(instance_id, settings)
     print("Attempting to update QR positioning for instance: " .. tostring(instance_id))
 
@@ -2692,7 +2670,6 @@ local coke_overlay = {
     }
 }
 
--- Function to preload all logo images for instant switching
 local function preload_logo_assets()
     log("coke_overlay", "Preloading logo assets for instant switching...")
     
@@ -2757,7 +2734,6 @@ local function load_coke_overlay(asset_name)
     end
 end
 
--- Function to cleanup preloaded images (call when package shuts down)
 local function cleanup_preloaded_logos()
     for asset_name, image in pairs(coke_overlay.preloaded_images) do
         if image then
@@ -2768,7 +2744,6 @@ local function cleanup_preloaded_logos()
     coke_overlay.preloaded_images = {}
 end
 
--- Function to draw Coke Zero overlay
 local function draw_coke_overlay()
     if not coke_overlay.enabled or not coke_overlay.image then
         return
@@ -2820,45 +2795,38 @@ local device_info_display = {
 local function pretty_print_json(tbl, indent)
     indent = indent or ""
     local lines = {}
-    local is_array = #tbl > 0
-    
-    if is_array then
+    local is_arr = #tbl > 0
+    if is_arr then
         table.insert(lines, indent .. "[")
         for i, v in ipairs(tbl) do
-            local comma = i < #tbl and "," or ""
+            local c = i < #tbl and "," or ""
             if type(v) == "table" then
-                local nested = pretty_print_json(v, indent .. "  ")
-                for _, line in ipairs(nested) do
-                    table.insert(lines, line)
-                end
+                for _, l in ipairs(pretty_print_json(v, indent .. "  ")) do table.insert(lines, l) end
             elseif type(v) == "string" then
-                table.insert(lines, indent .. '  "' .. tostring(v) .. '"' .. comma)
+                table.insert(lines, indent .. '  "' .. tostring(v) .. '"' .. c)
             else
-                table.insert(lines, indent .. "  " .. tostring(v) .. comma)
+                table.insert(lines, indent .. "  " .. tostring(v) .. c)
             end
         end
         table.insert(lines, indent .. "]")
     else
         table.insert(lines, indent .. "{")
-        local count = 0
-        for _ in pairs(tbl) do count = count + 1 end
-        local i = 0
+        local cnt, i = 0, 0
+        for _ in pairs(tbl) do cnt = cnt + 1 end
         for k, v in pairs(tbl) do
             i = i + 1
-            local comma = i < count and "," or ""
+            local c = i < cnt and "," or ""
             if type(v) == "table" then
                 table.insert(lines, indent .. '  "' .. tostring(k) .. '": {')
-                local nested = pretty_print_json(v, indent .. "    ")
-                for j = 2, #nested - 1 do
-                    table.insert(lines, nested[j])
-                end
-                table.insert(lines, indent .. "  }" .. comma)
+                local n = pretty_print_json(v, indent .. "    ")
+                for j = 2, #n - 1 do table.insert(lines, n[j]) end
+                table.insert(lines, indent .. "  }" .. c)
             elseif type(v) == "string" then
-                table.insert(lines, indent .. '  "' .. tostring(k) .. '": "' .. tostring(v) .. '"' .. comma)
+                table.insert(lines, indent .. '  "' .. tostring(k) .. '": "' .. tostring(v) .. '"' .. c)
             elseif type(v) == "boolean" or type(v) == "number" then
-                table.insert(lines, indent .. '  "' .. tostring(k) .. '": ' .. tostring(v) .. comma)
+                table.insert(lines, indent .. '  "' .. tostring(k) .. '": ' .. tostring(v) .. c)
             else
-                table.insert(lines, indent .. '  "' .. tostring(k) .. '": null' .. comma)
+                table.insert(lines, indent .. '  "' .. tostring(k) .. '": null' .. c)
             end
         end
         table.insert(lines, indent .. "}")
@@ -2868,162 +2836,67 @@ end
 
 local function draw_device_info_page()
     if not device_info then
-        local font = resource.load_font("default-font.ttf")
+        local f = resource.load_font("default-font.ttf")
         local msg = "No device information available"
-        local text_width = font:width(msg, 40)
-        local x = (NATIVE_WIDTH - text_width) / 2
-        local y = NATIVE_HEIGHT / 2
-        font:write(x, y, msg, 40, 1, 1, 1, 1)
+        local w = f:width(msg, 40)
+        f:write((NATIVE_WIDTH - w) / 2, NATIVE_HEIGHT / 2, msg, 40, 1, 1, 1, 1)
         return
     end
-    
-    -- Render device info as formatted JSON on full screen
-    local font = resource.load_font("default-font.ttf")
-    local font_size = 28
-    local line_height = font_size * 1.2
-    local margin = 30
-    
-    -- Convert device_info table to formatted JSON lines
+    local f = resource.load_font("default-font.ttf")
+    local fs, lh, m, ts = 28, 34, 30, 40
     local lines = pretty_print_json(device_info, "")
-    
-    -- Draw black background
-    local white_pixel = resource.create_colored_texture(1, 1, 1, 1)
-    white_pixel:draw(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT, 0, 0, 0, 1)
-    
-    -- Draw title
-    print("Device ID: " .. tostring(device_info.id or "???"))
+    resource.create_colored_texture(0, 0, 0, 1):draw(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT)
     local title = "Device API Response: /api/v1/device/" .. tostring(device_info.id or "???")
-    local title_size = 40
-    font:write(margin, margin, title, title_size, 0.2, 0.8, 1, 1)
-    
-    -- Draw JSON lines
-    local y = margin + title_size + 30
-    local max_lines = math.floor((NATIVE_HEIGHT - y - 100) / line_height)
-    
+    f:write(m, m, title, ts, 0.2, 0.8, 1, 1)
+    local y, max_lines = m + ts + 30, math.floor((NATIVE_HEIGHT - m - ts - 130) / lh)
     for i = 1, math.min(#lines, max_lines) do
-        font:write(margin, y, lines[i], font_size, 0.8, 0.8, 0.8, 1)
-        y = y + line_height
+        f:write(m, y, lines[i], fs, 0.8, 0.8, 0.8, 1)
+        y = y + lh
     end
-    
-    -- Show count if truncated
     if #lines > max_lines then
-        font:write(margin, y, "... (" .. (#lines - max_lines) .. " more lines)", font_size, 0.5, 0.5, 0.5, 1)
+        f:write(m, y, "... (" .. (#lines - max_lines) .. " more lines)", fs, 0.5, 0.5, 0.5, 1)
     end
-    
-    -- Draw instruction at bottom
-    local instruction = "API: /device_info/page/off to exit"
-    local inst_size = 24
-    font:write(margin, NATIVE_HEIGHT - margin - inst_size, instruction, inst_size, 0.5, 0.5, 0.5, 1)
+    f:write(m, NATIVE_HEIGHT - m - 24, "API: /device_info/page/off to exit", 24, 0.5, 0.5, 0.5, 1)
 end
 
 local function draw_system_info_page()
     if not system_info then
-        local font = resource.load_font("default-font.ttf")
+        local f = resource.load_font("default-font.ttf")
         local msg = "No system information available"
-        local text_width = font:width(msg, 40)
-        local x = (NATIVE_WIDTH - text_width) / 2
-        local y = NATIVE_HEIGHT / 2
-        font:write(x, y, msg, 40, 1, 1, 1, 1)
+        local w = f:width(msg, 40)
+        f:write((NATIVE_WIDTH - w) / 2, NATIVE_HEIGHT / 2, msg, 40, 1, 1, 1, 1)
         return
     end
-    
-    -- Render system info in a nicely formatted way
-    local font = resource.load_font("default-font.ttf")
-    local font_size = 32
-    local line_height = font_size * 1.4
-    local margin = 40
-    local title_size = 48
-    
-    -- Draw black background
-    local bg = resource.create_colored_texture(0, 0, 0, 0.95)
-    bg:draw(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT)
-    
-    -- Draw title
-    local title = "System Information"
-    font:write(margin, margin, title, title_size, 0.2, 0.8, 1, 1)
-    
-    -- Format and display system info
-    local y = margin + title_size + 40
-    local max_width = NATIVE_WIDTH - (margin * 2)
-    local column_width = max_width / 2
-    
-    -- Helper function to format values
-    local function format_value(key, value)
-        if type(value) == "number" then
-            if key:match("temperature") or key:match("cpu") then
-                return string.format("%.1f", value)
-            elseif key:match("disk") or key:match("network") or key:match("uptime") or key:match("boot") then
-                -- Format bytes
-                if value > 1024 * 1024 * 1024 then
-                    return string.format("%.2f GB", value / (1024 * 1024 * 1024))
-                elseif value > 1024 * 1024 then
-                    return string.format("%.2f MB", value / (1024 * 1024))
-                elseif value > 1024 then
-                    return string.format("%.2f KB", value / 1024)
-                else
-                    return tostring(value)
-                end
-            else
-                return tostring(value)
-            end
-        else
-            return tostring(value)
+    local f = resource.load_font("default-font.ttf")
+    local fs, lh, m, ts = 32, 45, 40, 48
+    resource.create_colored_texture(0, 0, 0, 0.95):draw(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT)
+    f:write(m, m, "System Information", ts, 0.2, 0.8, 1, 1)
+    local y, x1, x2, lw = m + ts + 40, m, m + (NATIVE_WIDTH - m * 2) / 2 + 20, 350
+    local function fmt_val(k, v)
+        if type(v) ~= "number" then return tostring(v) end
+        if k:match("temperature") or k:match("cpu") then return string.format("%.1f", v) end
+        if k:match("disk") or k:match("network") or k:match("uptime") or k:match("boot") then
+            if v > 1073741824 then return string.format("%.2f GB", v / 1073741824) end
+            if v > 1048576 then return string.format("%.2f MB", v / 1048576) end
+            if v > 1024 then return string.format("%.2f KB", v / 1024) end
         end
+        return tostring(v)
     end
-    
-    -- Helper function to format key names
-    local function format_key(key)
-        -- Convert snake_case or camelCase to Title Case
-        key = key:gsub("_", " ")
-        key = key:gsub("(%a)([%w_']*)", function(first, rest)
-            return first:upper() .. rest:lower()
-        end)
-        return key
+    local function fmt_key(k)
+        return k:gsub("_", " "):gsub("(%a)([%w_']*)", function(a, b) return a:upper() .. b:lower() end)
     end
-    
-    -- Display system info in two columns
     local items = {}
-    for key, value in pairs(system_info) do
-        table.insert(items, {key = format_key(key), value = format_value(key, value), orig_key = key})
-    end
-    
-    -- Sort items by key name
-    table.sort(items, function(a, b) return a.key < b.key end)
-    
-    local x1 = margin
-    local x2 = margin + column_width + 20
-    local current_y = y
-    local max_y = NATIVE_HEIGHT - margin - 60
-    local label_width = 350
-    
+    for k, v in pairs(system_info) do table.insert(items, {k = fmt_key(k), v = fmt_val(k, v)}) end
+    table.sort(items, function(a, b) return a.k < b.k end)
     for i, item in ipairs(items) do
-        if current_y + line_height > max_y then
-            break
-        end
-        
-        -- Determine which column (left or right)
-        local column = ((i - 1) % 2)
-        local x = (column == 0) and x1 or x2
-        
-        -- Move to next row if we're starting a new left column item
-        if column == 0 and i > 1 then
-            current_y = current_y + line_height
-        end
-        
-        -- Draw key label
-        local label = item.key .. ":"
-        font:write(x, current_y, label, font_size, 0.7, 0.7, 0.7, 1)
-        
-        -- Draw value
-        local value_x = x + label_width
-        local value_str = item.value
-        font:write(value_x, current_y, value_str, font_size, 1, 1, 1, 1)
+        if y + lh > NATIVE_HEIGHT - m - 60 then break end
+        local col = (i - 1) % 2
+        local x = col == 0 and x1 or x2
+        if col == 0 and i > 1 then y = y + lh end
+        f:write(x, y, item.k .. ":", fs, 0.7, 0.7, 0.7, 1)
+        f:write(x + lw, y, item.v, fs, 1, 1, 1, 1)
     end
-    
-    -- Draw instruction at bottom
-    local instruction = "API: /device_info/pagce_info/page/off to exit"
-    local inst_size = 24
-    font:write(margin, NATIVE_HEIGHT - margin - inst_size, instruction, inst_size, 0.5, 0.5, 0.5, 1)
+    f:write(m, NATIVE_HEIGHT - m - 24, "API: /device_info/pagce_info/page/off to exit", 24, 0.5, 0.5, 0.5, 1)
 end
 
 local function draw_device_info()
@@ -3126,7 +2999,6 @@ util.data_mapper{
     ["(.*)"] = function(path, data)
         -- Don't return anything so other handlers can still process
     end,
-    -- Add handlers for updating QR code settings
     ["qr/position"] = function(data)
         local payload = json.decode(data)
         if type(payload) == "table" and payload.id and payload.settings then
@@ -3138,7 +3010,6 @@ util.data_mapper{
         local success, parsed = pcall(json.decode, data)
         if success and parsed then
             device_info = parsed
-            print("[DEVICE_INFO] Loaded " .. #json.encode(parsed) .. " bytes")
         end
     end,
     ["device_info/page"] = function(data)
@@ -3152,24 +3023,17 @@ util.data_mapper{
         device_info_page_mode = false
     end,
     ["device_info/pagce_info/page"] = function(data)
-        -- Handle POST data - data should be JSON string
         if data and data ~= "" then
-            local success, parsed = pcall(json.decode, data)
-            if success and parsed then
-                system_info = parsed
+            local ok, p = pcall(json.decode, data)
+            if ok and p then
+                system_info = p
                 system_info_page_mode = true
-                print("[SYSTEM_INFO] Loaded system info with " .. #json.encode(parsed) .. " bytes")
+            elseif data == "off" or data == "" then
+                system_info_page_mode = false
             else
-                -- If data is "off" or empty, turn off display
-                if data == "off" or data == "" then
-                    system_info_page_mode = false
-                else
-                    -- Try to toggle
-                    system_info_page_mode = not system_info_page_mode
-                end
+                system_info_page_mode = not system_info_page_mode
             end
         else
-            -- Toggle if no data
             system_info_page_mode = not system_info_page_mode
         end
     end,
@@ -3215,7 +3079,6 @@ util.data_mapper{
             end
         end
     end,
-    -- Handler to validate QR positioning for debugging
     ["qr/validate"] = function(data)
         local payload = json.decode(data)
         if type(payload) == "table" and payload.id then
@@ -3231,20 +3094,18 @@ util.data_mapper{
             end
         end
     end,
-    -- Handler to print screen dimensions for debugging
     -- === COKE ZERO OVERLAY HANDLERS ===
-    -- Handler to load/enable Coke Zero overlay
     ["coke/load"] = function(data)
         local asset_name = data and data ~= "" and data or "Coke_Zero_Revised_1_lowres.png"
         load_coke_overlay(asset_name)
         log("coke_overlay", "Load command received for asset: %s", asset_name)
     end,
-    -- Handler to enable/disable overlay
+
     ["coke/toggle"] = function(data)
         coke_overlay.enabled = not coke_overlay.enabled
         log("coke_overlay", "Overlay toggled: %s", coke_overlay.enabled and "enabled" or "disabled")
     end,
-    -- Handler to set overlay position
+
     ["coke/position"] = function(data)
         local payload = json.decode(data)
         if type(payload) == "table" then
@@ -3258,7 +3119,7 @@ util.data_mapper{
             log("coke_overlay", "Position set to: %s", payload)
         end
     end,
-    -- Handler to set overlay appearance
+
     ["coke/appearance"] = function(data)
         local payload = json.decode(data)
         if type(payload) == "table" then
@@ -3267,7 +3128,6 @@ util.data_mapper{
             log("coke_overlay", "Appearance updated: scale=%.2f, alpha=%.2f", coke_overlay.scale, coke_overlay.alpha)
         end
     end,
-    -- Handler to manually clear all overlays (useful for testing)
     ["overlay/clear"] = function(data)
         -- Hide QR codes
         for id, instance in pairs(qr_code_instances) do
@@ -3280,7 +3140,7 @@ util.data_mapper{
         return "All overlays cleared"
     end,
     
-    -- Handler to get current overlay status
+
     ["coke/status"] = function(data)
         log("coke_overlay", "=== COKE ZERO OVERLAY STATUS ===")
         log("coke_overlay", "Enabled: %s", tostring(coke_overlay.enabled))
@@ -3292,7 +3152,7 @@ util.data_mapper{
     end,
     
     -- === LOGO OVERLAY SWITCHING API ===
-    -- Handler to switch between logos (similar to remote/trigger)
+
     ["logo/switch"] = function(data)
         local start_time = sys.now()
         print("LOGO SWITCH CALLED! Raw data: " .. tostring(data))
@@ -3316,7 +3176,7 @@ util.data_mapper{
         end
     end,
     
-    -- Handler to directly set logo by name
+
     ["logo/set"] = function(data)
         local logo_name = data and data ~= "" and data or "Courtside_logo.png"
         
@@ -3328,7 +3188,7 @@ util.data_mapper{
         end
     end,
     
-    -- Handler to toggle between the two logos
+
     ["logo/toggle"] = function(data)
         local current_asset = coke_overlay.current_asset or "Courtside_logo.png"
         
@@ -3341,7 +3201,7 @@ util.data_mapper{
         end
     end,
     
-    -- Handler to get current logo status
+
     ["logo/status"] = function(data)
         log("logo_switch", "=== LOGO SYSTEM STATUS ===")
         log("logo_switch", "Current: %s, Enabled: %s", 
@@ -3644,18 +3504,18 @@ util.data_mapper{
     end,
     -- === STEPHEN A. SMITH GIF OVERLAY HANDLERS === (COMMENTED OUT)
     --[[
-    -- Handler to load/enable Stephen A. Smith GIF overlay
+
     ["gif/load"] = function(data)
         local asset_name = data and data ~= "" and data or "stephen_a_smith_weed.mp4"
         load_gif_overlay(asset_name)
         log("gif_overlay", "Load command received for asset: %s", asset_name)
     end,
-    -- Handler to enable/disable overlay
+
     ["gif/toggle"] = function(data)
         gif_overlay.enabled = not gif_overlay.enabled
         log("gif_overlay", "Overlay toggled: %s", gif_overlay.enabled and "enabled" or "disabled")
     end,
-    -- Handler to set overlay position
+
     ["gif/position"] = function(data)
         local payload = json.decode(data)
         if type(payload) == "table" then
@@ -3669,7 +3529,7 @@ util.data_mapper{
             log("gif_overlay", "Position set to: %s", payload)
         end
     end,
-    -- Handler to set overlay appearance
+
     ["gif/appearance"] = function(data)
         local payload = json.decode(data)
         if type(payload) == "table" then
@@ -3678,7 +3538,7 @@ util.data_mapper{
             log("gif_overlay", "Appearance updated: scale=%.2f, alpha=%.2f", gif_overlay.scale, gif_overlay.alpha)
         end
     end,
-    -- Handler to get current overlay status
+
     ["gif/status"] = function(data)
         log("gif_overlay", "=== STEPHEN A. SMITH GIF OVERLAY STATUS ===")
         log("gif_overlay", "Enabled: %s", tostring(gif_overlay.enabled))
@@ -3712,7 +3572,6 @@ util.data_mapper{
     end,
 }
 
--- Optional: Function to pre-generate QR codes for initially visible instances
 local function initialize_qr_codes()
     print("Initializing predefined QR codes...")
     for id, instance in pairs(qr_code_instances) do
