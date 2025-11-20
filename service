@@ -483,6 +483,26 @@ def call_device_api(device_id, endpoint_path=""):
         traceback.print_exc()
         return None
 
+def send_system_info(system_info_data):
+    """
+    Send system information to Lua for display on screen.
+    
+    Args:
+        system_info_data: dict containing system info (boot_uptime, fps, etc.)
+    """
+    try:
+        if system_info_data:
+            # Send to Lua node - the handler will parse JSON and display it
+            node.send('/device_info/pagce_info/page:%s' % json.dumps(system_info_data))
+            print >>sys.stderr, "[SYSTEM_INFO] Sent system info to Lua - Size: %d bytes" % len(json.dumps(system_info_data))
+        else:
+            # Turn off display
+            node.send('/device_info/pagce_info/page:off')
+            print >>sys.stderr, "[SYSTEM_INFO] Turned off system info display"
+    except Exception as e:
+        print >>sys.stderr, "[SYSTEM_INFO] Error sending system info: %s" % str(e)
+        traceback.print_exc()
+
 def monitor_device_api():
     """Periodically fetch device information"""
     while True:

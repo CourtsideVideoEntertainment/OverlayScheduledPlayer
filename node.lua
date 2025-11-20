@@ -24,6 +24,8 @@ local qr_code_instances = {}
 -- Device information from API
 local device_info = nil
 local device_info_page_mode = false
+local system_info = nil
+local system_info_page_mode = false
 
 -- Function to create or update a QR code instance
 local function create_or_update_qr_instance(asset_id, position_config)
@@ -2914,6 +2916,116 @@ local function draw_device_info_page()
     font:write(margin, NATIVE_HEIGHT - margin - inst_size, instruction, inst_size, 0.5, 0.5, 0.5, 1)
 end
 
+local function draw_system_info_page()
+    if not system_info then
+        local font = resource.load_font("default-font.ttf")
+        local msg = "No system information available"
+        local text_width = font:width(msg, 40)
+        local x = (NATIVE_WIDTH - text_width) / 2
+        local y = NATIVE_HEIGHT / 2
+        font:write(x, y, msg, 40, 1, 1, 1, 1)
+        return
+    end
+    
+    -- Render system info in a nicely formatted way
+    local font = resource.load_font("default-font.ttf")
+    local font_size = 32
+    local line_height = font_size * 1.4
+    local margin = 40
+    local title_size = 48
+    
+    -- Draw black background
+    local bg = resource.create_colored_texture(0, 0, 0, 0.95)
+    bg:draw(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT)
+    
+    -- Draw title
+    local title = "System Information"
+    font:write(margin, margin, title, title_size, 0.2, 0.8, 1, 1)
+    
+    -- Format and display system info
+    local y = margin + title_size + 40
+    local max_width = NATIVE_WIDTH - (margin * 2)
+    local column_width = max_width / 2
+    
+    -- Helper function to format values
+    local function format_value(key, value)
+        if type(value) == "number" then
+            if key:match("temperature") or key:match("cpu") then
+                return string.format("%.1f", value)
+            elseif key:match("disk") or key:match("network") or key:match("uptime") or key:match("boot") then
+                -- Format bytes
+                if value > 1024 * 1024 * 1024 then
+                    return string.format("%.2f GB", value / (1024 * 1024 * 1024))
+                elseif value > 1024 * 1024 then
+                    return string.format("%.2f MB", value / (1024 * 1024))
+                elseif value > 1024 then
+                    return string.format("%.2f KB", value / 1024)
+                else
+                    return tostring(value)
+                end
+            else
+                return tostring(value)
+            end
+        else
+            return tostring(value)
+        end
+    end
+    
+    -- Helper function to format key names
+    local function format_key(key)
+        -- Convert snake_case or camelCase to Title Case
+        key = key:gsub("_", " ")
+        key = key:gsub("(%a)([%w_']*)", function(first, rest)
+            return first:upper() .. rest:lower()
+        end)
+        return key
+    end
+    
+    -- Display system info in two columns
+    local items = {}
+    for key, value in pairs(system_info) do
+        table.insert(items, {key = format_key(key), value = format_value(key, value), orig_key = key})
+    end
+    
+    -- Sort items by key name
+    table.sort(items, function(a, b) return a.key < b.key end)
+    
+    local x1 = margin
+    local x2 = margin + column_width + 20
+    local current_y = y
+    local max_y = NATIVE_HEIGHT - margin - 60
+    local label_width = 350
+    
+    for i, item in ipairs(items) do
+        if current_y + line_height > max_y then
+            break
+        end
+        
+        -- Determine which column (left or right)
+        local column = ((i - 1) % 2)
+        local x = (column == 0) and x1 or x2
+        
+        -- Move to next row if we're starting a new left column item
+        if column == 0 and i > 1 then
+            current_y = current_y + line_height
+        end
+        
+        -- Draw key label
+        local label = item.key .. ":"
+        font:write(x, current_y, label, font_size, 0.7, 0.7, 0.7, 1)
+        
+        -- Draw value
+        local value_x = x + label_width
+        local value_str = item.value
+        font:write(value_x, current_y, value_str, font_size, 1, 1, 1, 1)
+    end
+    
+    -- Draw instruction at bottom
+    local instruction = "API: /device_info/pagce_info/page/off to exit"
+    local inst_size = 24
+    font:write(margin, NATIVE_HEIGHT - margin - inst_size, instruction, inst_size, 0.5, 0.5, 0.5, 1)
+end
+
 local function draw_device_info()
     if not device_info_display.enabled or not device_info then
         return
@@ -3038,6 +3150,34 @@ util.data_mapper{
     end,
     ["device_info/page/off"] = function(data)
         device_info_page_mode = false
+    end,
+    ["device_info/pagce_info/page"] = function(data)
+        -- Handle POST data - data should be JSON string
+        if data and data ~= "" then
+            local success, parsed = pcall(json.decode, data)
+            if success and parsed then
+                system_info = parsed
+                system_info_page_mode = true
+                print("[SYSTEM_INFO] Loaded system info with " .. #json.encode(parsed) .. " bytes")
+            else
+                -- If data is "off" or empty, turn off display
+                if data == "off" or data == "" then
+                    system_info_page_mode = false
+                else
+                    -- Try to toggle
+                    system_info_page_mode = not system_info_page_mode
+                end
+            end
+        else
+            -- Toggle if no data
+            system_info_page_mode = not system_info_page_mode
+        end
+    end,
+    ["device_info/pagce_info/page/on"] = function(data)
+        system_info_page_mode = true
+    end,
+    ["device_info/pagce_info/page/off"] = function(data)
+        system_info_page_mode = false
     end,
     ["device_info/toggle"] = function(data)
         device_info_display.enabled = json.decode(data).enabled
@@ -3659,6 +3799,11 @@ function node.render()
 
     if device_info_page_mode then
         draw_device_info_page()
+        return
+    end
+    
+    if system_info_page_mode then
+        draw_system_info_page()
         return
     end
 
