@@ -355,23 +355,20 @@ def call_device_api(device_id, endpoint_path=""):
         dict: The API response, or None on error
     """
     try:
+        # Log metadata API URL for debugging
         device_api_base = config.metadata.get('api')
-        if not device_api_base:
-            print >>sys.stderr, "No device API endpoint found in metadata"
-            return None
+        print >>sys.stderr, "[API] Metadata API URL: %s" % device_api_base
         
-        # Construct the full endpoint URL
-        # e.g., https://info-beamer.com/api/v1/device/43493/ or /device/43493/status
+        # Construct the endpoint path
+        # e.g., /device/43493/ or /device/43493/status
         if endpoint_path:
             full_endpoint = "/device/%d/%s" % (device_id, endpoint_path.rstrip('/'))
         else:
             full_endpoint = "/device/%d/" % device_id
         
-        # Construct full URL for logging
-        full_url = device_api_base.rstrip('/') + full_endpoint
-        print >>sys.stderr, "[API] Calling device API: %s" % full_url
+        print >>sys.stderr, "[API] Calling device API endpoint: %s" % full_endpoint
         
-        # Try using HostedAPI first (more reliable authentication)
+        # Try using HostedAPI first (more reliable authentication and URL handling)
         try:
             on_device_token = config.metadata.get('on_device_token')
             if on_device_token:
@@ -400,11 +397,54 @@ def call_device_api(device_id, endpoint_path=""):
             print >>sys.stderr, "[API] Could not use HostedAPI: %s" % str(e)
             traceback.print_exc()
         
-        # Fallback: Try using OnDeviceAPIs session directly
+        # Fallback: Use OnDeviceAPIs to get API index and construct URL properly
         try:
             from hosted import OnDeviceAPIs
             api = OnDeviceAPIs(config)
+            
+            # Get the API index to find the correct base URL
+            # The API index response contains URLs for different endpoints
+            api_index = api.get_api_index()
             print >>sys.stderr, "[API] Using OnDeviceAPIs session (fallback)"
+            print >>sys.stderr, "[API] Available API endpoints: %s" % str(api.list() if hasattr(api, 'list') else 'N/A')
+            
+            # Try to get base URL from a known endpoint in the index
+            # The 'device' endpoint should give us the pattern
+            base_api_url = None
+            if 'device' in api_index:
+                device_endpoint_url = api_index['device']['url']
+                # Extract base URL by removing the endpoint-specific part
+                # e.g., if URL is https://info-beamer.com/api/v1/device/123, base is https://info-beamer.com/api/v1
+                import re
+                match = re.match(r'(https?://[^/]+/api/v1)', device_endpoint_url)
+                if match:
+                    base_api_url = match.group(1)
+                else:
+                    # Try to extract by removing /device/... part
+                    if '/device/' in device_endpoint_url:
+                        base_api_url = device_endpoint_url.split('/device/')[0]
+            
+            # If we couldn't extract from index, try from metadata
+            if not base_api_url:
+                device_api_base = config.metadata.get('api')
+                if device_api_base:
+                    # Extract base URL (remove on-device and device-specific paths)
+                    import re
+                    match = re.search(r'(https?://[^/]+/api/v1)', device_api_base)
+                    if match:
+                        base_api_url = match.group(1)
+                    elif '/on-device' in device_api_base:
+                        base_api_url = device_api_base.split('/on-device')[0]
+            
+            if not base_api_url:
+                print >>sys.stderr, "[API] Could not determine base API URL"
+                return None
+            
+            # Construct full URL
+            full_url = base_api_url.rstrip('/') + full_endpoint
+            print >>sys.stderr, "[API] Base API URL: %s" % base_api_url
+            print >>sys.stderr, "[API] Full URL: %s" % full_url
+            
             response = api.session.get(full_url, timeout=10)
             print >>sys.stderr, "[API] HTTP Status: %d" % response.status_code
             response.raise_for_status()
