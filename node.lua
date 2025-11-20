@@ -2987,33 +2987,43 @@ util.data_mapper{
         device_info_page_mode = false
     end,
     ["device_info/pagce_info/page"] = function(data)
+        print("[SYSTEM_INFO] Handler called with data: " .. tostring(data) .. " (type: " .. type(data) .. ", len: " .. (data and #data or 0) .. ")")
         if data and data ~= "" then
             local ok, p = pcall(json.decode, data)
             if ok and p then
                 system_info = p
                 system_info_page_mode = true
+                print("[SYSTEM_INFO] Successfully loaded system info, mode enabled")
             elseif data == "off" or data == "" then
                 system_info_page_mode = false
+                print("[SYSTEM_INFO] Turned off")
             else
                 system_info_page_mode = not system_info_page_mode
+                print("[SYSTEM_INFO] Toggled to: " .. tostring(system_info_page_mode))
             end
         else
             system_info_page_mode = not system_info_page_mode
+            print("[SYSTEM_INFO] Toggled (empty data) to: " .. tostring(system_info_page_mode))
         end
     end,
     ["root/device_info/pagce_info/page"] = function(data)
+        print("[SYSTEM_INFO] root/ handler called with data: " .. tostring(data) .. " (type: " .. type(data) .. ", len: " .. (data and #data or 0) .. ")")
         if data and data ~= "" then
             local ok, p = pcall(json.decode, data)
             if ok and p then
                 system_info = p
                 system_info_page_mode = true
+                print("[SYSTEM_INFO] Successfully loaded system info via root/, mode enabled")
             elseif data == "off" or data == "" then
                 system_info_page_mode = false
+                print("[SYSTEM_INFO] Turned off via root/")
             else
                 system_info_page_mode = not system_info_page_mode
+                print("[SYSTEM_INFO] Toggled via root/ to: " .. tostring(system_info_page_mode))
             end
         else
             system_info_page_mode = not system_info_page_mode
+            print("[SYSTEM_INFO] Toggled via root/ (empty data) to: " .. tostring(system_info_page_mode))
         end
     end,
     ["device_info/pagce_info/page/on"] = function(data) system_info_page_mode = true end,
