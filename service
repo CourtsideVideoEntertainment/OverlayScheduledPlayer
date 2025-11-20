@@ -208,33 +208,63 @@ def fetch_device_info():
             print >>sys.stderr, "No device API endpoint found in metadata"
             return
         
-        # The 'api' field typically looks like: "https://info-beamer.com/api/v1"
-        # We need to get the device-specific endpoint
-        # Try to get device ID from the metadata or use the device endpoint directly
-        
-        # Alternative: Use the device endpoint from OnDeviceAPIs
-        # The hosted API system provides access to device information
-        print >>sys.stderr, "Fetching device info from API: %s" % device_api_base
-        
         # The metadata also contains device-specific info we can use directly
         device_serial = device.serial
         
+        # Try to get device ID from metadata first
+        # Check various possible metadata keys for device ID
+        device_id = None
+        metadata_keys_to_check = ['device_id', 'id', 'setup_id', 'device']
+        for key in metadata_keys_to_check:
+            if key in config.metadata:
+                value = config.metadata[key]
+                # If it's a dict, try to get 'id' from it
+                if isinstance(value, dict) and 'id' in value:
+                    device_id = value['id']
+                    break
+                # Otherwise use the value directly if it looks like an ID
+                elif value:
+                    # Check if it's a number or numeric string
+                    try:
+                        if isinstance(value, (int, long)):
+                            device_id = value
+                            break
+                        elif isinstance(value, str) and value.isdigit():
+                            device_id = int(value)
+                            break
+                    except:
+                        pass
+        
+        print >>sys.stderr, "Device ID from metadata: %s" % device_id
+        
         # Construct device info from available metadata and API
-        # First, try to get full device data from the API
+        # First, try to get full device data from the API using OnDeviceAPIs
         device_data = None
         
-        # Try using the device API from metadata
         try:
-            # The API provides a 'device' endpoint
-            response = requests.get(device_api_base + '/device', timeout=10)
-            response.raise_for_status()
-            api_response = response.json()
-            if api_response.get('ok'):
-                device_data = api_response.get('device', {})
-            else:
+            # Use OnDeviceAPIs which handles authentication automatically
+            from hosted import OnDeviceAPIs
+            api = OnDeviceAPIs(config)
+            # Try to get device info - the API endpoint might be 'device' or we need to construct the URL
+            try:
+                # Try using the device API endpoint if available
+                if 'device' in api.list():
+                    device_api = api.device
+                    device_data = device_api.get()
+                else:
+                    # Try constructing the device endpoint URL directly
+                    # The device endpoint is typically at /api/v1/device/{device_id}
+                    # But we can try /device which should return current device info
+                    response = api.session.get(device_api_base + '/device', timeout=10)
+                    response.raise_for_status()
+                    api_response = response.json()
+                    if api_response.get('ok'):
+                        device_data = api_response.get('device', {})
+            except Exception as e:
+                print >>sys.stderr, "Could not fetch from device API using OnDeviceAPIs: %s" % str(e)
                 device_data = None
         except Exception as e:
-            print >>sys.stderr, "Could not fetch from device API: %s" % str(e)
+            print >>sys.stderr, "Could not initialize OnDeviceAPIs: %s" % str(e)
             device_data = None
         
         # Send the COMPLETE API response (all fields) for display
@@ -244,11 +274,15 @@ def fetch_device_info():
             # Just add serial number from system if not already present
             if 'serial' not in device_info:
                 device_info['serial'] = device_serial
+            # Ensure device ID is set
+            if 'id' not in device_info or not device_info['id']:
+                if device_id:
+                    device_info['id'] = device_id
             print >>sys.stderr, "Device info fetched from API - Fields: %d" % len(device_info.keys())
         else:
             # Fallback: use metadata only
             device_info = {
-                'id': 'N/A',
+                'id': device_id if device_id else 'N/A',
                 'serial': device_serial,
                 'description': 'Device %s' % device_serial,
                 'location': 'N/A',
@@ -258,9 +292,11 @@ def fetch_device_info():
                 'uptime': 0,
                 'timezone': config.metadata.get('timezone', 'UTC'),
             }
-            print >>sys.stderr, "Device info using fallback data"
+            print >>sys.stderr, "Device info using fallback data (device_id: %s)" % device_id
         
-        print >>sys.stderr, "Sending device info to Lua - Size: %d bytes" % len(json.dumps(device_info))
+        print >>sys.stderr, "Sending device info to Lua - Size: %d bytes, Device ID: %s" % (
+            len(json.dumps(device_info)), device_info.get('id', 'N/A')
+        )
         
         # Send to Lua node
         node.send('/device_info:%s' % json.dumps(device_info))
