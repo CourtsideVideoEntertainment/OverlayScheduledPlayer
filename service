@@ -281,12 +281,25 @@ def fetch_device_info():
         
         # Always test the API call if we have a device_id (for logging/debugging)
         if device_id:
+            print >>sys.stderr, "[TEST] ========================================"
             print >>sys.stderr, "[TEST] Testing API call to device %s" % device_id
+            print >>sys.stderr, "[TEST] ========================================"
             test_response = call_device_api(device_id)
             if test_response:
-                print >>sys.stderr, "[TEST] API call successful! Response keys: %s" % str(test_response.keys() if isinstance(test_response, dict) else 'N/A')
+                print >>sys.stderr, "[TEST] API call successful!"
+                print >>sys.stderr, "[TEST] Response type: %s" % type(test_response).__name__
+                if isinstance(test_response, dict):
+                    print >>sys.stderr, "[TEST] Response keys: %s" % str(test_response.keys())
+                    # If response is wrapped in {'ok': True, 'device': {...}}, show the device data
+                    if 'ok' in test_response and 'device' in test_response:
+                        print >>sys.stderr, "[TEST] Unwrapped device data: %s" % json.dumps(test_response['device'], indent=2, default=str)
+                    else:
+                        print >>sys.stderr, "[TEST] Full response: %s" % json.dumps(test_response, indent=2, default=str)
+                else:
+                    print >>sys.stderr, "[TEST] Response: %s" % str(test_response)
             else:
                 print >>sys.stderr, "[TEST] API call failed or returned None"
+            print >>sys.stderr, "[TEST] ========================================"
         
         # Send the COMPLETE API response (all fields) for display
         if device_data:
@@ -366,8 +379,22 @@ def call_device_api(device_id, endpoint_path=""):
                 hosted_api = HostedAPI(api, on_device_token)
                 print >>sys.stderr, "[API] Using HostedAPI with on_device_token"
                 response = hosted_api.get(full_endpoint)
-                print >>sys.stderr, "[API] Response received: %s" % json.dumps(response, indent=2)
+                print >>sys.stderr, "[API] Raw response type: %s" % type(response).__name__
+                print >>sys.stderr, "[API] Raw response: %s" % json.dumps(response, indent=2, default=str)
+                
+                # Check if response is wrapped in {'ok': True, 'device': {...}}
+                if isinstance(response, dict):
+                    if 'ok' in response and 'device' in response:
+                        device_data = response['device']
+                        print >>sys.stderr, "[API] Unwrapped device data: %s" % json.dumps(device_data, indent=2, default=str)
+                        return device_data
+                    elif 'id' in response:  # Already the device object
+                        print >>sys.stderr, "[API] Response is device object directly"
+                        return response
+                
                 return response
+            else:
+                print >>sys.stderr, "[API] No on_device_token found in metadata"
         except Exception as e:
             print >>sys.stderr, "[API] Could not use HostedAPI: %s" % str(e)
             traceback.print_exc()
@@ -376,11 +403,24 @@ def call_device_api(device_id, endpoint_path=""):
         try:
             from hosted import OnDeviceAPIs
             api = OnDeviceAPIs(config)
-            print >>sys.stderr, "[API] Using OnDeviceAPIs session"
+            print >>sys.stderr, "[API] Using OnDeviceAPIs session (fallback)"
             response = api.session.get(full_url, timeout=10)
+            print >>sys.stderr, "[API] HTTP Status: %d" % response.status_code
             response.raise_for_status()
             response_data = response.json()
-            print >>sys.stderr, "[API] Response received: %s" % json.dumps(response_data, indent=2)
+            print >>sys.stderr, "[API] Raw response type: %s" % type(response_data).__name__
+            print >>sys.stderr, "[API] Raw response: %s" % json.dumps(response_data, indent=2, default=str)
+            
+            # Check if response is wrapped in {'ok': True, 'device': {...}}
+            if isinstance(response_data, dict):
+                if 'ok' in response_data and 'device' in response_data:
+                    device_data = response_data['device']
+                    print >>sys.stderr, "[API] Unwrapped device data: %s" % json.dumps(device_data, indent=2, default=str)
+                    return device_data
+                elif 'id' in response_data:  # Already the device object
+                    print >>sys.stderr, "[API] Response is device object directly"
+                    return response_data
+            
             return response_data
         except Exception as e:
             print >>sys.stderr, "[API] Could not call device API: %s" % str(e)
