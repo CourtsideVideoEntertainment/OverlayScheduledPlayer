@@ -2781,6 +2781,114 @@ local function draw_coke_overlay()
     coke_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, coke_overlay.alpha)
 end
 
+-- Scheduled Asset Overlay System
+local scheduled_overlay = {
+    enabled = false,
+    image = nil,
+    current_asset = nil,
+    source_trigger = nil,
+    position = "bottom-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
+    margin = 20,
+    scale = 0.3,
+    alpha = 0.95,
+    custom_x = 70,
+    custom_y = 70,
+}
+
+local function resolve_page_asset_name(page)
+    if not page or type(page.tiles) ~= "table" then
+        return nil
+    end
+
+    for _, tile in ipairs(page.tiles) do
+        local asset = tile and tile.asset
+        if type(asset) == "table" then
+            if asset.type == "image" and asset.asset_name then
+                return asset.asset_name
+            end
+        elseif type(asset) == "string" then
+            return asset
+        end
+    end
+    return nil
+end
+
+local function load_scheduled_overlay_from_trigger(trigger_data)
+    local trigger = trigger_data and tostring(trigger_data) or ""
+    if trigger == "" then
+        log("scheduled_overlay", "Missing trigger data")
+        return false
+    end
+
+    local pages = page_source.find_by_remote(trigger)
+    if not pages or #pages == 0 then
+        log("scheduled_overlay", "No scheduled pages found for trigger: %s", trigger)
+        return false
+    end
+
+    local asset_name = resolve_page_asset_name(pages[1])
+    if not asset_name then
+        log("scheduled_overlay", "No image asset found in first matching page for trigger: %s", trigger)
+        return false
+    end
+
+    local success, image = pcall(function()
+        return resource.load_image{
+            file = asset_name,
+            mipmap = true,
+        }
+    end)
+
+    if not success then
+        log("scheduled_overlay", "Failed to load scheduled overlay '%s': %s", asset_name, tostring(image))
+        return false
+    end
+
+    scheduled_overlay.image = image
+    scheduled_overlay.current_asset = asset_name
+    scheduled_overlay.source_trigger = trigger
+    scheduled_overlay.enabled = true
+    log("scheduled_overlay", "Loaded scheduled overlay from trigger '%s': %s", trigger, asset_name)
+    return true
+end
+
+local function draw_scheduled_overlay()
+    if not scheduled_overlay.enabled or not scheduled_overlay.image then
+        return
+    end
+
+    local img_width, img_height = scheduled_overlay.image:size()
+    local scaled_width = img_width * scheduled_overlay.scale
+    local scaled_height = img_height * scheduled_overlay.scale
+
+    local draw_x, draw_y
+
+    if scheduled_overlay.position == "top-left" then
+        draw_x = scheduled_overlay.margin
+        draw_y = scheduled_overlay.margin
+    elseif scheduled_overlay.position == "top-right" then
+        draw_x = NATIVE_WIDTH - scaled_width - scheduled_overlay.margin
+        draw_y = scheduled_overlay.margin
+    elseif scheduled_overlay.position == "bottom-left" then
+        draw_x = scheduled_overlay.margin
+        draw_y = NATIVE_HEIGHT - scaled_height - scheduled_overlay.margin
+    elseif scheduled_overlay.position == "bottom-right" then
+        draw_x = NATIVE_WIDTH - scaled_width - scheduled_overlay.margin
+        draw_y = NATIVE_HEIGHT - scaled_height - scheduled_overlay.margin
+    elseif scheduled_overlay.position == "center" then
+        draw_x = NATIVE_WIDTH / 2 - scaled_width / 2
+        draw_y = NATIVE_HEIGHT / 2 - scaled_height / 2
+    elseif scheduled_overlay.position == "custom" then
+        draw_x = NATIVE_WIDTH * scheduled_overlay.custom_x / 100
+        draw_y = NATIVE_HEIGHT * scheduled_overlay.custom_y / 100
+    else
+        draw_x = NATIVE_WIDTH - scaled_width - scheduled_overlay.margin
+        draw_y = NATIVE_HEIGHT - scaled_height - scheduled_overlay.margin
+    end
+
+    scheduled_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, scheduled_overlay.alpha)
+end
+
 -- Device Info Display System
 local device_info_display = {
     enabled = true,
@@ -3128,6 +3236,61 @@ util.data_mapper{
             log("coke_overlay", "Appearance updated: scale=%.2f, alpha=%.2f", coke_overlay.scale, coke_overlay.alpha)
         end
     end,
+    -- === SCHEDULED ASSET OVERLAY HANDLERS ===
+    ["schedule_overlay/trigger"] = function(data)
+        local trigger = data and tostring(data) or ""
+        if trigger == "" then
+            log("scheduled_overlay", "schedule_overlay/trigger requires trigger value in data")
+            return
+        end
+        load_scheduled_overlay_from_trigger(trigger)
+    end,
+
+    ["schedule_overlay/toggle"] = function(data)
+        scheduled_overlay.enabled = not scheduled_overlay.enabled
+        log("scheduled_overlay", "Overlay toggled: %s", scheduled_overlay.enabled and "enabled" or "disabled")
+    end,
+
+    ["schedule_overlay/off"] = function(data)
+        scheduled_overlay.enabled = false
+        log("scheduled_overlay", "Overlay disabled")
+    end,
+
+    ["schedule_overlay/position"] = function(data)
+        local payload = json.decode(data)
+        if type(payload) == "table" then
+            if payload.position then scheduled_overlay.position = payload.position end
+            if payload.margin then scheduled_overlay.margin = payload.margin end
+            if payload.custom_x then scheduled_overlay.custom_x = payload.custom_x end
+            if payload.custom_y then scheduled_overlay.custom_y = payload.custom_y end
+            log("scheduled_overlay", "Position updated: %s (margin: %d)", scheduled_overlay.position, scheduled_overlay.margin)
+        elseif type(payload) == "string" then
+            scheduled_overlay.position = payload
+            log("scheduled_overlay", "Position set to: %s", payload)
+        end
+    end,
+
+    ["schedule_overlay/appearance"] = function(data)
+        local payload = json.decode(data)
+        if type(payload) == "table" then
+            if payload.scale then scheduled_overlay.scale = payload.scale end
+            if payload.alpha then scheduled_overlay.alpha = payload.alpha end
+            log("scheduled_overlay", "Appearance updated: scale=%.2f, alpha=%.2f", scheduled_overlay.scale, scheduled_overlay.alpha)
+        end
+    end,
+
+    ["schedule_overlay/status"] = function(data)
+        log("scheduled_overlay", "=== SCHEDULED OVERLAY STATUS ===")
+        log("scheduled_overlay", "Enabled: %s", tostring(scheduled_overlay.enabled))
+        log("scheduled_overlay", "Source trigger: %s", tostring(scheduled_overlay.source_trigger))
+        log("scheduled_overlay", "Current asset: %s", tostring(scheduled_overlay.current_asset))
+        log("scheduled_overlay", "Position: %s (margin: %d)", scheduled_overlay.position, scheduled_overlay.margin)
+        log("scheduled_overlay", "Scale: %.2f, Alpha: %.2f", scheduled_overlay.scale, scheduled_overlay.alpha)
+        log("scheduled_overlay", "Custom Position: %.1f%%, %.1f%%", scheduled_overlay.custom_x, scheduled_overlay.custom_y)
+        log("scheduled_overlay", "Image Loaded: %s", scheduled_overlay.image and "yes" or "no")
+        log("scheduled_overlay", "==============================")
+    end,
+
     ["overlay/clear"] = function(data)
         -- Hide QR codes
         for id, instance in pairs(qr_code_instances) do
@@ -3136,6 +3299,11 @@ util.data_mapper{
         -- Disable coke overlay 
         coke_overlay.enabled = false
         coke_overlay.image = nil
+        -- Disable scheduled overlay
+        scheduled_overlay.enabled = false
+        scheduled_overlay.image = nil
+        scheduled_overlay.current_asset = nil
+        scheduled_overlay.source_trigger = nil
         log("overlay_clear", "Manual overlay clear requested")
         return "All overlays cleared"
     end,
@@ -3745,6 +3913,7 @@ function node.render()
     end
 
     draw_coke_overlay()
+    draw_scheduled_overlay()
     draw_device_info()
 end
 
