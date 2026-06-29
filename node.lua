@@ -2430,11 +2430,11 @@ end)
 
 -- === OVERLAY SYSTEM DEFINITIONS (moved here to be available for data_mapper handlers) ===
 
--- Coke Zero Overlay System
-local coke_overlay = {
+-- Overlay System
+local overlay_system = {
     enabled = true,  -- Enable by default
     image = nil,
-    current_asset = "Courtside_logo.png",  -- Track current asset - default to Courtside
+    current_asset = "transparent_2160x.png",  -- Track current asset - default to Courtside
     position = "top-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
     margin = 20,
     scale = 0.2,  -- Make it bigger so it's more visible
@@ -2445,16 +2445,20 @@ local coke_overlay = {
     -- NEW: Preloaded images for instant switching
     preloaded_images = {},
     logos = {
-        ["1"] = "Courtside_logo.png",
-        ["2"] = "Coke_Zero_Revised_1_lowres.png"
+        ["1"] = "transparent_2160x.png",
+		["2"] = "transparent_red.png",
+        ["3"] = "Courtside_Logo_2160x.png",
+        ["4"] = "Philadelphia_76ers_logo_PhillyVerses_2160x_shadow.png"
+        ["5"] = "Converse_Logo.wine_2160x.png"
+        ["6"] = "CURE_Auto_Insurance_logo_2160x.png"
     }
 }
 
 local function preload_logo_assets()
-    log("coke_overlay", "Preloading logo assets for instant switching...")
+    log("overlay_system", "Preloading logo assets for instant switching...")
     
-    for key, asset_name in pairs(coke_overlay.logos) do
-        if not coke_overlay.preloaded_images[asset_name] then
+    for key, asset_name in pairs(overlay_system.logos) do
+        if not overlay_system.preloaded_images[asset_name] then
             local success, image = pcall(function()
                 return resource.load_image{
                     file = asset_name,
@@ -2463,35 +2467,35 @@ local function preload_logo_assets()
             end)
             
             if success then
-                coke_overlay.preloaded_images[asset_name] = image
-                log("coke_overlay", "Preloaded: %s", asset_name)
+                overlay_system.preloaded_images[asset_name] = image
+                log("overlay_system", "Preloaded: %s", asset_name)
             else
-                log("coke_overlay", "Failed to preload: %s - Error: %s", asset_name, tostring(image))
+                log("overlay_system", "Failed to preload: %s - Error: %s", asset_name, tostring(image))
             end
         end
     end
     
     -- Set the default active image
-    coke_overlay.image = coke_overlay.preloaded_images[coke_overlay.current_asset]
-    log("coke_overlay", "Logo preloading complete. Ready for instant switching.")
+    overlay_system.image = overlay_system.preloaded_images[overlay_system.current_asset]
+    log("overlay_system", "Logo preloading complete. Ready for instant switching.")
 end
 
 -- Optimized function for instant logo switching
-local function load_coke_overlay(asset_name)
-    local actual_asset = asset_name or "Courtside_logo.png"
+local function load_overlay_system(asset_name)
+    local actual_asset = asset_name or "transparent_2160x.png"
     
     -- Check if we have this asset preloaded
-    if coke_overlay.preloaded_images[actual_asset] then
+    if overlay_system.preloaded_images[actual_asset] then
         -- INSTANT SWITCH - no loading delay!
-        coke_overlay.image = coke_overlay.preloaded_images[actual_asset]
-        coke_overlay.current_asset = actual_asset
-        coke_overlay.enabled = true
-        log("coke_overlay", "INSTANT SWITCH to: %s", actual_asset)
+        overlay_system.image = overlay_system.preloaded_images[actual_asset]
+        overlay_system.current_asset = actual_asset
+        overlay_system.enabled = true
+        log("overlay_system", "INSTANT SWITCH to: %s", actual_asset)
         return
     end
     
     -- Fallback: load on demand if not preloaded (shouldn't happen for our main logos)
-    log("coke_overlay", "Asset not preloaded, loading on demand: %s", actual_asset)
+    log("overlay_system", "Asset not preloaded, loading on demand: %s", actual_asset)
     
     local success, image = pcall(function()
         return resource.load_image{
@@ -2502,63 +2506,63 @@ local function load_coke_overlay(asset_name)
     
     if success then
         -- Cache it for next time
-        coke_overlay.preloaded_images[actual_asset] = image
-        coke_overlay.image = image
-        coke_overlay.current_asset = actual_asset
-        coke_overlay.enabled = true
-        log("coke_overlay", "Loaded and cached: %s", actual_asset)
+        overlay_system.preloaded_images[actual_asset] = image
+        overlay_system.image = image
+        overlay_system.current_asset = actual_asset
+        overlay_system.enabled = true
+        log("overlay_system", "Loaded and cached: %s", actual_asset)
     else
-        log("coke_overlay", "Failed to load overlay: %s - Error: %s", actual_asset, tostring(image))
-        coke_overlay.enabled = false
-        coke_overlay.current_asset = nil
+        log("overlay_system", "Failed to load overlay: %s - Error: %s", actual_asset, tostring(image))
+        overlay_system.enabled = false
+        overlay_system.current_asset = nil
     end
 end
 
 local function cleanup_preloaded_logos()
-    for asset_name, image in pairs(coke_overlay.preloaded_images) do
+    for asset_name, image in pairs(overlay_system.preloaded_images) do
         if image then
             image:dispose()
-            log("coke_overlay", "Disposed preloaded image: %s", asset_name)
+            log("overlay_system", "Disposed preloaded image: %s", asset_name)
         end
     end
-    coke_overlay.preloaded_images = {}
+    overlay_system.preloaded_images = {}
 end
 
-local function draw_coke_overlay()
-    if not coke_overlay.enabled or not coke_overlay.image then
+local function draw_overlay_system()
+    if not overlay_system.enabled or not overlay_system.image then
         return
     end
     
-    local img_width, img_height = coke_overlay.image:size()
-    local scaled_width = img_width * coke_overlay.scale
-    local scaled_height = img_height * coke_overlay.scale
+    local img_width, img_height = overlay_system.image:size()
+    local scaled_width = img_width * overlay_system.scale
+    local scaled_height = img_height * overlay_system.scale
     
     local draw_x, draw_y
     
-    if coke_overlay.position == "top-left" then
-        draw_x = coke_overlay.margin
-        draw_y = coke_overlay.margin
-    elseif coke_overlay.position == "top-right" then
-        draw_x = NATIVE_WIDTH - scaled_width - coke_overlay.margin
-        draw_y = coke_overlay.margin
-    elseif coke_overlay.position == "bottom-left" then
-        draw_x = coke_overlay.margin
-        draw_y = NATIVE_HEIGHT - scaled_height - coke_overlay.margin
-    elseif coke_overlay.position == "bottom-right" then
-        draw_x = NATIVE_WIDTH - scaled_width - coke_overlay.margin
-        draw_y = NATIVE_HEIGHT - scaled_height - coke_overlay.margin
-    elseif coke_overlay.position == "center" then
+    if overlay_system.position == "top-left" then
+        draw_x = overlay_system.margin
+        draw_y = overlay_system.margin
+    elseif overlay_system.position == "top-right" then
+        draw_x = NATIVE_WIDTH - scaled_width - overlay_system.margin
+        draw_y = overlay_system.margin
+    elseif overlay_system.position == "bottom-left" then
+        draw_x = overlay_system.margin
+        draw_y = NATIVE_HEIGHT - scaled_height - overlay_system.margin
+    elseif overlay_system.position == "bottom-right" then
+        draw_x = NATIVE_WIDTH - scaled_width - overlay_system.margin
+        draw_y = NATIVE_HEIGHT - scaled_height - overlay_system.margin
+    elseif overlay_system.position == "center" then
         draw_x = NATIVE_WIDTH / 2 - scaled_width / 2
         draw_y = NATIVE_HEIGHT / 2 - scaled_height / 2
-    elseif coke_overlay.position == "custom" then
-        draw_x = NATIVE_WIDTH * coke_overlay.custom_x / 100
-        draw_y = NATIVE_HEIGHT * coke_overlay.custom_y / 100
+    elseif overlay_system.position == "custom" then
+        draw_x = NATIVE_WIDTH * overlay_system.custom_x / 100
+        draw_y = NATIVE_HEIGHT * overlay_system.custom_y / 100
     else
-        draw_x = NATIVE_WIDTH - scaled_width - coke_overlay.margin
-        draw_y = coke_overlay.margin
+        draw_x = NATIVE_WIDTH - scaled_width - overlay_system.margin
+        draw_y = overlay_system.margin
     end
     
-    coke_overlay.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, coke_overlay.alpha)
+    overlay_system.image:draw(draw_x, draw_y, draw_x + scaled_width, draw_y + scaled_height, overlay_system.alpha)
 end
 
 -- Scheduled Asset Overlay System
@@ -3006,8 +3010,8 @@ util.data_mapper{
             instance.is_visible = false
         end
         -- Disable coke overlay 
-        coke_overlay.enabled = false
-        coke_overlay.image = nil
+        overlay_system.enabled = false
+        overlay_system.image = nil
         -- Disable scheduled overlay
         scheduled_overlay.enabled = false
         scheduled_overlay.image = nil
@@ -3019,13 +3023,13 @@ util.data_mapper{
     
 
     ["coke/status"] = function(data)
-        log("coke_overlay", "=== COKE ZERO OVERLAY STATUS ===")
-        log("coke_overlay", "Enabled: %s", tostring(coke_overlay.enabled))
-        log("coke_overlay", "Position: %s (margin: %d)", coke_overlay.position, coke_overlay.margin)
-        log("coke_overlay", "Scale: %.2f, Alpha: %.2f", coke_overlay.scale, coke_overlay.alpha)
-        log("coke_overlay", "Custom Position: %.1f%%, %.1f%%", coke_overlay.custom_x, coke_overlay.custom_y)
-        log("coke_overlay", "Image Loaded: %s", coke_overlay.image and "yes" or "no")
-        log("coke_overlay", "===============================")
+        log("overlay_system", "=== COKE ZERO OVERLAY STATUS ===")
+        log("overlay_system", "Enabled: %s", tostring(overlay_system.enabled))
+        log("overlay_system", "Position: %s (margin: %d)", overlay_system.position, overlay_system.margin)
+        log("overlay_system", "Scale: %.2f, Alpha: %.2f", overlay_system.scale, overlay_system.alpha)
+        log("overlay_system", "Custom Position: %.1f%%, %.1f%%", overlay_system.custom_x, overlay_system.custom_y)
+        log("overlay_system", "Image Loaded: %s", overlay_system.image and "yes" or "no")
+        log("overlay_system", "===============================")
     end,
     
     -- === LOGO OVERLAY SWITCHING API ===
@@ -3040,25 +3044,30 @@ util.data_mapper{
         print("FINAL TRIGGER VALUE: " .. trigger)
         
         -- Use the optimized preloaded system for instant switching
-        if coke_overlay.logos[trigger] then
-            local asset_name = coke_overlay.logos[trigger]
-            load_coke_overlay(asset_name)
+        if overlay_system.logos[trigger] then
+            local asset_name = overlay_system.logos[trigger]
+            load_overlay_system(asset_name)
             local end_time = sys.now()
             local switch_time_ms = (end_time - start_time) * 1000
             print("INSTANT SWITCHED TO: " .. asset_name .. " in " .. string.format("%.2f", switch_time_ms) .. "ms")
             log("logo_switch", "Instant switch to: %s (%.2fms)", asset_name, switch_time_ms)
         else
-            print("INVALID TRIGGER: " .. tostring(trigger) .. " (valid: 1, 2)")
-            log("logo_switch", "Invalid trigger: %s. Use '1' for Courtside or '2' for Coke Zero", trigger)
+            print("INVALID TRIGGER: " .. tostring(trigger) .. " (valid: 1-6)")
+            log("logo_switch", "Invalid trigger: %s. Use numbers 1-6", trigger)
         end
     end,
     
 
     ["logo/set"] = function(data)
-        local logo_name = data and data ~= "" and data or "Courtside_logo.png"
+        local logo_name = data and data ~= "" and data or "transparent_2160x.png"
         
-        if logo_name == "Courtside_logo.png" or logo_name == "Coke_Zero_Revised_1_lowres.png" then
-            load_coke_overlay(logo_name)
+        if 	logo_name == "transparent_2160x.png" or
+			logo_name == "transparent_red.png" or
+			logo_name == "Courtside_Logo_2160x.png" or
+			logo_name == "Philadelphia_76ers_logo_PhillyVerses_2160x_shadow.png" or
+			logo_name == "Converse_Logo.wine_2160x.png" or
+			logo_name == "CURE_Auto_Insurance_logo_2160x.png" then
+            load_overlay_system(logo_name)
             log("logo_switch", "Logo set to: %s", logo_name)
         else
             log("logo_switch", "Invalid logo: %s", logo_name)
@@ -3067,13 +3076,13 @@ util.data_mapper{
     
 
     ["logo/toggle"] = function(data)
-        local current_asset = coke_overlay.current_asset or "Courtside_logo.png"
+        local current_asset = overlay_system.current_asset or "transparent_2160x.png"
         
-        if current_asset == "Courtside_logo.png" then
-            load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
-            log("logo_switch", "Toggled to Coke Zero logo")
+        if current_asset == "Courtside_Logo_2160x.png" then
+            load_overlay_system("transparent_2160x.png")
+            log("logo_switch", "Toggled to transparent_red")
         else
-            load_coke_overlay("Courtside_logo.png")
+            load_overlay_system("Courtside_Logo_2160x.png")
             log("logo_switch", "Toggled to Courtside logo")
         end
     end,
@@ -3082,12 +3091,12 @@ util.data_mapper{
     ["logo/status"] = function(data)
         log("logo_switch", "=== LOGO SYSTEM STATUS ===")
         log("logo_switch", "Current: %s, Enabled: %s", 
-            coke_overlay.current_asset or "unknown", 
-            tostring(coke_overlay.enabled))
+            overlay_system.current_asset or "unknown", 
+            tostring(overlay_system.enabled))
         
         -- Show preloading status
         local preloaded_count = 0
-        for asset_name, image in pairs(coke_overlay.preloaded_images) do
+        for asset_name, image in pairs(overlay_system.preloaded_images) do
             preloaded_count = preloaded_count + 1
             log("logo_switch", "Preloaded: %s (%s)", asset_name, image and "ready" or "failed")
         end
@@ -3096,6 +3105,13 @@ util.data_mapper{
         log("logo_switch", "Ready for instant switching: %s", preloaded_count > 0 and "YES" or "NO")
         log("logo_switch", "========================")
     end,
+	["logo/off"] = function(data)
+		load_overlay_system("transparent_2160x.png")
+		log("logo_off", "Toggled to transparent_2160x")
+    end,
+  
+
+
     
     -- Test endpoint to verify API calls are working
     ["logo/test"] = function(data)
