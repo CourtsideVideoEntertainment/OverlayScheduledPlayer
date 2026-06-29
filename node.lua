@@ -8,6 +8,7 @@ local loader = require "loader"
 local helper = require "helper"
 local placement = require "placement"
 local easing = require "easing"
+local external_events= require "external_events"
 local qrcode_helpers = require "qrcode_helpers"
 local qrcode_overlay = require "qrcode_overlay"
 local qr_code_instances = {}
@@ -849,13 +850,14 @@ local function RawVideoTile(asset, config, x1, y1, x2, y2)
             paused = true,
             looped = looped,
             audio = audio,
-            raw = false, -- CHANGED: Set raw to false to render video in OpenGL context
+			-- GWS Difference here
+            -- raw = false, -- CHANGED: Set raw to false to render video in OpenGL context
         }
         vid:layer(-10) -- This layer will now be within OpenGL, may need adjustment
 
         for now in helper.frame_between(starts, ends) do
-        
-            vid:draw(x1, y1, x2, y2, helper.ramp(starts, ends, now, fade_time))
+		-- GWS Difference here
+			vid:draw(x1, y1, x2, y2, helper.ramp(starts, ends, now, fade_time))
             vid:start() -- Ensure video plays
         end
 
@@ -873,7 +875,7 @@ local function Streams()
     local function stream_key(url, audio)
         return string.format("%s|%s", url, audio)
     end
-
+-- GWS 062926 Difference here
     local function get_stream(url, audio, no_buffer)
         local key = stream_key(url, audio)
         if not streams[key] then
@@ -959,6 +961,7 @@ local function Streams()
         frame = frame + 1
         if frame % 300 == 0 then
             print "[stream] active streams"
+			-- GWS 062926 Difference here
             for key, stream in pairs(streams) do
                 print(string.format("[stream] %s (UDP: %s)", stream.url, tostring(stream.is_udp)))
             end
@@ -966,6 +969,7 @@ local function Streams()
 
         for key, stream in pairs(streams) do
             local frame_delta = frame - stream.last_used
+			-- GWS 062926 Difference here
             -- Ultra-aggressive UDP keep-alive time for lowest latency
             local max_idle = stream.is_udp and 60 or 300   -- 1 second for UDP, 5 seconds for others
             if frame_delta > max_idle then
@@ -981,6 +985,7 @@ local function Streams()
     return {
         get_stream = get_stream;
         tick = tick;
+		-- GWS 062926 Difference here
         dispose_all_streams = dispose_all_streams;
         dispose_streams_matching = dispose_streams_matching;
         _get_all_streams = function() return streams end;
@@ -989,6 +994,7 @@ local function Streams()
 end
 local streams = Streams()
 
+-- GWS 062926 Difference here
 local function StreamTile(asset, config, x1, y1, x2, y2)
     local layer = config.layer or 5
     local url = config.url or ""
@@ -1554,6 +1560,7 @@ local function JobQueue()
     end
 
     local function flush()
+-- GWS 062926 Difference here
         log("jobqueue", "Flushing job queue and disposing all streams")
         jobs = {}
         -- Immediately dispose all streams when flushing jobs to prevent delays
@@ -1570,6 +1577,7 @@ end
 
 local layouts = {}
 local background = {r = 0, g = 0, b = 0, a = 0}
+-- GWS 062926 Difference here
 local current_setup_id = "UNKNOWN_SETUP" 
 
 node.event("config_updated", function(config)
@@ -1585,6 +1593,7 @@ node.event("config_updated", function(config)
     end
     background = config.background
     
+-- GWS 062926 Difference here
     -- Store the setup_id when config is updated
     if config.__metadata and config.__metadata.setup_id then
         current_setup_id = config.__metadata.setup_id
@@ -1711,6 +1720,7 @@ local function Scheduler(page_source, job_queue)
                 rawvideo = RawVideoTile,
                 stream = StreamTile,
                 child = ChildTile,
+-- GWS 062926 Difference here
                 scroller = ScrollerTile,
                 flat = FlatTile,
                 time = TimeTile,
@@ -1758,6 +1768,7 @@ local function Scheduler(page_source, job_queue)
     end
 
     local function reset_scheduler()
+-- GWS 062926 Difference here
         log("scheduler", "Resetting scheduler and disposing streams for fast transition")
         -- Dispose all streams immediately for faster asset transitions
         streams.dispose_all_streams()
@@ -1781,6 +1792,7 @@ local function Scheduler(page_source, job_queue)
 
         if event.key == "esc" then
             reset_scheduler()
+-- GWS 062926 Difference here
             -- Hide all QR codes on ESC
             for id, instance in pairs(qr_code_instances) do
                 instance.is_visible = false
@@ -1789,6 +1801,7 @@ local function Scheduler(page_source, job_queue)
             return
         end
 
+-- GWS 062926 Difference here
         -- Hide QR codes on arrow key navigation
         if event.key == "left" or event.key == "right" then
             for id, instance in pairs(qr_code_instances) do
@@ -1832,6 +1845,7 @@ local function Scheduler(page_source, job_queue)
         enqueue_interactive(pages)
     end
 
+-- GWS 062926 Difference here
     local function handle_remote_trigger(trigger_data)
         print("Remote trigger received:", trigger_data)
         
@@ -1892,6 +1906,7 @@ local function Scheduler(page_source, job_queue)
     end
 
     local function handle_cec(cec_key)
+-- GWS 062926 Difference here
         -- Hide QR codes on CEC navigation
         if cec_key == "left" or cec_key == "right" then
             for id, instance in pairs(qr_code_instances) do
@@ -1913,6 +1928,7 @@ local function Scheduler(page_source, job_queue)
         end
     end
 
+-- GWS 062926 Difference here
     -- Function to clear all overlay content (QR codes and coke overlay)
     local function clear_all_overlays()
         -- Hide all QR code instances
@@ -1977,6 +1993,7 @@ local function PageSource()
         schedules = config.schedules
 
         for _, schedule in ipairs(schedules) do
+-- GWS 062926 Difference here
             for _, page in ipairs(schedule.pages) do
                 page.is_fallback = false
                 if page.duration == -1 then
@@ -2350,6 +2367,7 @@ local function PageSource()
             cycle_pages = get_fallback_cycle()
         end
 
+-- GWS 062926 Difference here
         -- Ensure we always have at least one page to display
         if #cycle_pages == 0 then
             log("generate_cycle", "no fallback pages either. creating emergency fallback")
@@ -2407,6 +2425,7 @@ local page_source = PageSource()
 local job_queue = JobQueue()
 local scheduler = Scheduler(page_source, job_queue)
 
+-- GWS 062926 Difference here
 local function init_streams(config)
     -- Initialize all configured streams
     for _, schedule in ipairs(config.schedules) do
@@ -2428,6 +2447,7 @@ util.json_watch("config.json", function(config)
     node.gc()
 end)
 
+-- GWS 062926 Difference here
 -- === OVERLAY SYSTEM DEFINITIONS (moved here to be available for data_mapper handlers) ===
 
 -- Overlay System
