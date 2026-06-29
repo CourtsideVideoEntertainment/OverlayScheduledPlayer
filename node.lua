@@ -3312,7 +3312,7 @@ function node.render()
         end
     end
 
- //   draw_coke_overlay()
+ --   draw_coke_overlay()
     draw_scheduled_overlay()
     draw_device_info()
 end
