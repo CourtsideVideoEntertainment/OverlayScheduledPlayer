@@ -41,7 +41,13 @@
             ["in_forever", "On config change when in 'forever trigger'"]
         ],
         "default": "none"
-    }, {
+    },  { -- GWS 062926
+        "title": "Forward keyboard events",
+        "ui_width": 4,
+        "name": "forward_keyboard",
+        "type": "boolean",
+        "default": true
+    },{
         "title": "Default UDP Stream URL",
         "ui_width": 8,
         "name": "default_udp_url",
