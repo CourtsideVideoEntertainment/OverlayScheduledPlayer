@@ -2447,12 +2447,12 @@ local overlay_system = {
     logos = {
         ["1"] = "Courtside_logo.png",
         ["2"] = "Coke_Zero_Revised_1_lowres.png"		
---        ["1"] = "transparent_2160x.png",
---		["2"] = "transparent_red.png",
---        ["3"] = "Courtside_Logo_2160x.png",
---        ["4"] = "Philadelphia_76ers_logo_PhillyVerses_2160x_shadow.png",
---        ["5"] = "Converse_Logo.wine_2160x.png",
---        ["6"] = "CURE_Auto_Insurance_logo_2160x.png"
+        ["3"] = "transparent_2160x.png",
+		["4"] = "transparent_red.png",
+        ["5"] = "Courtside_Logo_2160x.png",
+        ["6"] = "Philadelphia_76ers_logo_PhillyVerses_2160x_shadow.png",
+        ["7"] = "Converse_Logo.wine_2160x.png",
+        ["8"] = "CURE_Auto_Insurance_logo_2160x.png"
     }
 }
 
