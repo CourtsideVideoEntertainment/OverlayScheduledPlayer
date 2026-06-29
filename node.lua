@@ -2448,8 +2448,8 @@ local overlay_system = {
         ["1"] = "transparent_2160x.png",
 		["2"] = "transparent_red.png",
         ["3"] = "Courtside_Logo_2160x.png",
-        ["4"] = "Philadelphia_76ers_logo_PhillyVerses_2160x_shadow.png"
-        ["5"] = "Converse_Logo.wine_2160x.png"
+        ["4"] = "Philadelphia_76ers_logo_PhillyVerses_2160x_shadow.png",
+        ["5"] = "Converse_Logo.wine_2160x.png",
         ["6"] = "CURE_Auto_Insurance_logo_2160x.png"
     }
 }
