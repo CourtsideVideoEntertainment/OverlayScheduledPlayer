@@ -3312,15 +3312,7 @@ util.data_mapper{
     ["logo/set"] = function(data)
         local logo_name = data and data ~= "" and data or "Courtside_logo.png"
         
-        if 	logo_name == "Courtside_logo.png" or 
-			logo_name == "Coke_Zero_Revised_1_lowres.png" or
-			logo_name == "transparent_2160x.png" or
-			logo_name == "transparent_red.png" or
-			logo_name == "Courtside_Logo_2160x.png" or
-			logo_name == "Philadelphia_76ers_logo_PhillyVerses_2160x_shadow.png" or
-			logo_name == "Converse_Logo.wine_2160x.png" or
-			logo_name == "CURE_Auto_Insurance_logo_2160x.png" then
-
+        if logo_name == "Courtside_logo.png" or logo_name == "Coke_Zero_Revised_1_lowres.png" then
             load_coke_overlay(logo_name)
             log("logo_switch", "Logo set to: %s", logo_name)
         else
@@ -3358,10 +3350,10 @@ util.data_mapper{
         log("logo_switch", "Ready for instant switching: %s", preloaded_count > 0 and "YES" or "NO")
         log("logo_switch", "========================")
     end,
---    ["logo/off"] = function(data)
---		load_overlay_system("transparent_2160x.png")
---		log("logo_off", "Toggled to transparent_2160x")
---    end,
+    ["logo/off"] = function(data)
+		load_overlay_system("transparent_2160x.png")
+		log("logo_off", "Toggled to transparent_2160x")
+    end,
 
     ["logo/test"] = function(data)
         log("logo_switch", "=== LOGO TEST ENDPOINT ===")
