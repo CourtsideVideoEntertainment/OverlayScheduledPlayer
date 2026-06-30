@@ -2632,13 +2632,14 @@ local coke_overlay = {
     preloaded_images = {},
     logos = {
         ["1"] = "Courtside_logo.png",
-        ["2"] = "Coke_Zero_Revised_1_lowres.png",
-		["3"] = "transparent_2160x.png",
-		["4"] = "transparent_red.png",
-        ["5"] = "Courtside_Logo_2160x.png",
-        ["6"] = "Philadelphia_76ers_logo_PhillyVerses_2160x_shadow.png",
-        ["7"] = "Converse_Logo.wine_2160x.png",
-        ["8"] = "CURE_Auto_Insurance_logo_2160x.png"
+        ["2"] = "Coke_Zero_Revised_1_lowres.png"
+--        ["2"] = "Coke_Zero_Revised_1_lowres.png",
+--		["3"] = "transparent_2160x.png",
+--		["4"] = "transparent_red.png",
+--       ["5"] = "Courtside_Logo_2160x.png",
+--        ["6"] = "Philadelphia_76ers_logo_PhillyVerses_2160x_shadow.png",
+--        ["7"] = "Converse_Logo.wine_2160x.png",
+--        ["8"] = "CURE_Auto_Insurance_logo_2160x.png"
 
     }
 }
@@ -3313,7 +3314,7 @@ util.data_mapper{
         local logo_name = data and data ~= "" and data or "Courtside_logo.png"
         
         if logo_name == "Courtside_logo.png" or logo_name == "Coke_Zero_Revised_1_lowres.png" then
-            load_coke_overlay(logo_name)
+		load_coke_overlay(logo_name)
             log("logo_switch", "Logo set to: %s", logo_name)
         else
             log("logo_switch", "Invalid logo: %s", logo_name)
