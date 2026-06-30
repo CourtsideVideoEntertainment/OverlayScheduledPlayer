@@ -3358,10 +3358,10 @@ util.data_mapper{
         log("logo_switch", "Ready for instant switching: %s", preloaded_count > 0 and "YES" or "NO")
         log("logo_switch", "========================")
     end,
-    ["logo/off"] = function(data)
-		load_overlay_system("transparent_2160x.png")
-		log("logo_off", "Toggled to transparent_2160x")
-    end,
+--    ["logo/off"] = function(data)
+--		load_overlay_system("transparent_2160x.png")
+--		log("logo_off", "Toggled to transparent_2160x")
+--    end,
 
     ["logo/test"] = function(data)
         log("logo_switch", "=== LOGO TEST ENDPOINT ===")
