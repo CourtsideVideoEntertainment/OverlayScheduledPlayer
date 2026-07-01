@@ -8,8 +8,6 @@ local loader = require "loader"
 local helper = require "helper"
 local placement = require "placement"
 local easing = require "easing"
---local external_events= require "external_events"
-
 local qrcode_overlay = require "qrcode_overlay"
 local qr_code_instances = {}
 local device_info = nil
@@ -3013,629 +3011,640 @@ local function draw_device_info()
 end
 
 -- === END OVERLAY SYSTEM DEFINITIONS ===
+local function ExternalEvents()
+    local forward_keyboard = true
 
-util.data_mapper{
-    ["event/keyboard"] = function(raw_event)
-        local event = json.decode(raw_event)
-        dispatch_to_all_tiles("on_keyboard", event)
-        return scheduler.handle_keyboard(event)
-    end,
-    ["event/pad"] = function(raw_event)
-        local event = json.decode(raw_event)
-        dispatch_to_all_tiles("on_pad", event)
-        return scheduler.handle_gamepad(event)
-    end,
-    ["event/gpio"] = function(raw_event)
-        local event = json.decode(raw_event)
-        dispatch_to_all_tiles("on_gpio", event)
-        return scheduler.handle_gpio(event)
-    end,
-    ["remote/trigger"] = function(data)
-        -- The unified handle_remote_trigger now handles both QR and scheduler
-        return scheduler.handle_remote_trigger(data)
-    end,
-    ["sys/cec/key"] = scheduler.handle_cec,
-    ["plugin/(.*)/(.*)"] = function(tile_name, path, data)
-        local impl = tile_loader.modules[tile_name]
-        if impl and impl.data_trigger then
-            impl.data_trigger(path, data)
-        end
-    end,
-    -- Debug: Log all incoming data mapper calls
-    ["(.*)"] = function(path, data)
-        -- Don't return anything so other handlers can still process
-    end,
-    ["qr/position"] = function(data)
-        local payload = json.decode(data)
-        if type(payload) == "table" and payload.id and payload.settings then
-            update_qr_position(payload.id, payload.settings)
-        end
-    end,
-    ["device_info"] = function(data)
-        if data == "" or data == nil then return end
-        local success, parsed = pcall(json.decode, data)
-        if success and parsed then
-            device_info = parsed
-        end
-    end,
-    ["device_info/page"] = function(data)
-        print("Testing device_info/page-----------------------------------------------------------------------------")
-        device_info_page_mode = not device_info_page_mode
-    end,
-    ["device_info/page/on"] = function(data)
-        device_info_page_mode = true
-    end,
-    ["device_info/page/off"] = function(data)
-        device_info_page_mode = false
-    end,
-    ["device_info/pagce_info/page"] = function(data)
-        local json_str = data or ""
-        if json_str:match("^data%s*:") then
-            json_str = json_str:match("^data%s*:%s*(.*)$") or ""
-        elseif json_str ~= "" and json_str:match("=") then
-            for k, v in json_str:gmatch("([^=&]+)=([^&]*)") do
-                if k == "data" or k == "json" or k == "payload" or k == "body" then
-                    json_str = v
-                    break
-                end
-            end
-        end
-        if json_str and json_str ~= "" then
-            local ok, p = pcall(json.decode, json_str)
-            if ok and p then
-                system_info = p
-                system_info_page_mode = true
-            elseif json_str == "off" then
-                system_info_page_mode = false
-            else
-                system_info_page_mode = not system_info_page_mode
-            end
-        else
-            system_info_page_mode = not system_info_page_mode
-        end
-    end,
-    ["root/device_info/pagce_info/page"] = function(data)
-        local json_str = data or ""
-        if json_str:match("^data%s*:") then
-            json_str = json_str:match("^data%s*:%s*(.*)$") or ""
-        elseif json_str ~= "" and json_str:match("=") then
-            for k, v in json_str:gmatch("([^=&]+)=([^&]*)") do
-                if k == "data" or k == "json" or k == "payload" or k == "body" then
-                    json_str = v
-                    break
-                end
-            end
-        end
-        if json_str and json_str ~= "" then
-            local ok, p = pcall(json.decode, json_str)
-            if ok and p then
-                system_info = p
-                system_info_page_mode = true
-            elseif json_str == "off" then
-                system_info_page_mode = false
-            else
-                system_info_page_mode = not system_info_page_mode
-            end
-        else
-            system_info_page_mode = not system_info_page_mode
-        end
-    end,
-    ["device_info/pagce_info/page/on"] = function(data) system_info_page_mode = true end,
-    ["root/device_info/pagce_info/page/on"] = function(data) system_info_page_mode = true end,
-    ["device_info/pagce_info/page/off"] = function(data) system_info_page_mode = false end,
-    ["root/device_info/pagce_info/page/off"] = function(data) system_info_page_mode = false end,
-    ["device_info/toggle"] = function(data)
-        device_info_display.enabled = json.decode(data).enabled
-    end,
-    ["device_info/position"] = function(data)
-        local settings = json.decode(data)
-        device_info_display.position = settings.position or "top-left"
-        device_info_display.margin = settings.margin or 20
-    end,
-    ["device_info/appearance"] = function(data)
-        local settings = json.decode(data)
-        device_info_display.font_size = settings.font_size or 30
-        device_info_display.padding = settings.padding or 15
-        if settings.text_color then
-            device_info_display.text_color = settings.text_color
-        end
-        if settings.bg_color then
-            device_info_display.bg_color = settings.bg_color
-        end
-    end,
-    ["qr/appearance"] = function(data)
-        local settings = json.decode(data)
-        local needs_regen = qrcode_overlay.update_appearance(settings)
-        if needs_regen then
-            for id, instance in pairs(qr_code_instances) do
-                if instance.is_visible and instance.trigger_data then
-                    local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
-                    if new_draw_details then
-                        instance.draw_details = new_draw_details
-                    else
-                        instance.is_visible = false
-                        instance.draw_details = nil
-                    end
-                end
-            end
-        end
-    end,
-    ["qr/validate"] = function(data)
-        local payload = json.decode(data)
-        if type(payload) == "table" and payload.id then
-            validate_qr_positioning(payload.id)
-        elseif type(payload) == "string" then
-            -- Allow direct string ID
-            validate_qr_positioning(payload)
-        else
-            -- Validate all instances if no specific ID provided
-            print("Validating all QR instances...")
-            for id, _ in pairs(qr_code_instances) do
-                validate_qr_positioning(id)
-            end
-        end
-    end,
-    ["coke/load"] = function(data)
-        local asset_name = data and data ~= "" and data or "Coke_Zero_Revised_1_lowres.png"
-        load_coke_overlay(asset_name)
-        log("coke_overlay", "Load command received for asset: %s", asset_name)
-    end,
+    node.event("config_updated", function(config)
+        forward_keyboard = config.forward_keyboard
+    end)
 
-    ["coke/toggle"] = function(data)
-        coke_overlay.enabled = not coke_overlay.enabled
-        log("coke_overlay", "Overlay toggled: %s", coke_overlay.enabled and "enabled" or "disabled")
-    end,
+	util.data_mapper{
+		["event/keyboard"] = function(raw_event)
+			if forward_keyboard then
+				local event = json.decode(raw_event)
+				dispatch_to_all_tiles("on_keyboard", event)
+				return scheduler.handle_keyboard(event)
+			end
+		end,
+		["event/pad"] = function(raw_event)
+			local event = json.decode(raw_event)
+			dispatch_to_all_tiles("on_pad", event)
+			return scheduler.handle_gamepad(event)
+		end,
+		["event/gpio"] = function(raw_event)
+			local event = json.decode(raw_event)
+			dispatch_to_all_tiles("on_gpio", event)
+			return scheduler.handle_gpio(event)
+		end,
+		["remote/trigger"] = function(data)
+			-- The unified handle_remote_trigger now handles both QR and scheduler
+			return scheduler.handle_remote_trigger(data)
+		end,
+		["sys/cec/key"] = scheduler.handle_cec,
+		["plugin/(.*)/(.*)"] = function(tile_name, path, data)
+			local impl = tile_loader.modules[tile_name]
+			if impl and impl.data_trigger then
+				impl.data_trigger(path, data)
+			end
+		end,
+		-- Debug: Log all incoming data mapper calls
+		["(.*)"] = function(path, data)
+			-- Don't return anything so other handlers can still process
+		end,
+		["qr/position"] = function(data)
+			local payload = json.decode(data)
+			if type(payload) == "table" and payload.id and payload.settings then
+				update_qr_position(payload.id, payload.settings)
+			end
+		end,
+		["device_info"] = function(data)
+			if data == "" or data == nil then return end
+			local success, parsed = pcall(json.decode, data)
+			if success and parsed then
+				device_info = parsed
+			end
+		end,
+		["device_info/page"] = function(data)
+			print("Testing device_info/page-----------------------------------------------------------------------------")
+			device_info_page_mode = not device_info_page_mode
+		end,
+		["device_info/page/on"] = function(data)
+			device_info_page_mode = true
+		end,
+		["device_info/page/off"] = function(data)
+			device_info_page_mode = false
+		end,
+		["device_info/pagce_info/page"] = function(data)
+			local json_str = data or ""
+			if json_str:match("^data%s*:") then
+				json_str = json_str:match("^data%s*:%s*(.*)$") or ""
+			elseif json_str ~= "" and json_str:match("=") then
+				for k, v in json_str:gmatch("([^=&]+)=([^&]*)") do
+					if k == "data" or k == "json" or k == "payload" or k == "body" then
+						json_str = v
+						break
+					end
+				end
+			end
+			if json_str and json_str ~= "" then
+				local ok, p = pcall(json.decode, json_str)
+				if ok and p then
+					system_info = p
+					system_info_page_mode = true
+				elseif json_str == "off" then
+					system_info_page_mode = false
+				else
+					system_info_page_mode = not system_info_page_mode
+				end
+			else
+				system_info_page_mode = not system_info_page_mode
+			end
+		end,
+		["root/device_info/pagce_info/page"] = function(data)
+			local json_str = data or ""
+			if json_str:match("^data%s*:") then
+				json_str = json_str:match("^data%s*:%s*(.*)$") or ""
+			elseif json_str ~= "" and json_str:match("=") then
+				for k, v in json_str:gmatch("([^=&]+)=([^&]*)") do
+					if k == "data" or k == "json" or k == "payload" or k == "body" then
+						json_str = v
+						break
+					end
+				end
+			end
+			if json_str and json_str ~= "" then
+				local ok, p = pcall(json.decode, json_str)
+				if ok and p then
+					system_info = p
+					system_info_page_mode = true
+				elseif json_str == "off" then
+					system_info_page_mode = false
+				else
+					system_info_page_mode = not system_info_page_mode
+				end
+			else
+				system_info_page_mode = not system_info_page_mode
+			end
+		end,
+		["device_info/pagce_info/page/on"] = function(data) system_info_page_mode = true end,
+		["root/device_info/pagce_info/page/on"] = function(data) system_info_page_mode = true end,
+		["device_info/pagce_info/page/off"] = function(data) system_info_page_mode = false end,
+		["root/device_info/pagce_info/page/off"] = function(data) system_info_page_mode = false end,
+		["device_info/toggle"] = function(data)
+			device_info_display.enabled = json.decode(data).enabled
+		end,
+		["device_info/position"] = function(data)
+			local settings = json.decode(data)
+			device_info_display.position = settings.position or "top-left"
+			device_info_display.margin = settings.margin or 20
+		end,
+		["device_info/appearance"] = function(data)
+			local settings = json.decode(data)
+			device_info_display.font_size = settings.font_size or 30
+			device_info_display.padding = settings.padding or 15
+			if settings.text_color then
+				device_info_display.text_color = settings.text_color
+			end
+			if settings.bg_color then
+				device_info_display.bg_color = settings.bg_color
+			end
+		end,
+		["qr/appearance"] = function(data)
+			local settings = json.decode(data)
+			local needs_regen = qrcode_overlay.update_appearance(settings)
+			if needs_regen then
+				for id, instance in pairs(qr_code_instances) do
+					if instance.is_visible and instance.trigger_data then
+						local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
+						if new_draw_details then
+							instance.draw_details = new_draw_details
+						else
+							instance.is_visible = false
+							instance.draw_details = nil
+						end
+					end
+				end
+			end
+		end,
+		["qr/validate"] = function(data)
+			local payload = json.decode(data)
+			if type(payload) == "table" and payload.id then
+				validate_qr_positioning(payload.id)
+			elseif type(payload) == "string" then
+				-- Allow direct string ID
+				validate_qr_positioning(payload)
+			else
+				-- Validate all instances if no specific ID provided
+				print("Validating all QR instances...")
+				for id, _ in pairs(qr_code_instances) do
+					validate_qr_positioning(id)
+				end
+			end
+		end,
+		["coke/load"] = function(data)
+			local asset_name = data and data ~= "" and data or "Coke_Zero_Revised_1_lowres.png"
+			load_coke_overlay(asset_name)
+			log("coke_overlay", "Load command received for asset: %s", asset_name)
+		end,
 
-    ["coke/position"] = function(data)
-        local payload = json.decode(data)
-        if type(payload) == "table" then
-            if payload.position then coke_overlay.position = payload.position end
-            if payload.margin then coke_overlay.margin = payload.margin end
-            if payload.custom_x then coke_overlay.custom_x = payload.custom_x end
-            if payload.custom_y then coke_overlay.custom_y = payload.custom_y end
-            log("coke_overlay", "Position updated: %s (margin: %d)", coke_overlay.position, coke_overlay.margin)
-        elseif type(payload) == "string" then
-            coke_overlay.position = payload
-            log("coke_overlay", "Position set to: %s", payload)
-        end
-    end,
+		["coke/toggle"] = function(data)
+			coke_overlay.enabled = not coke_overlay.enabled
+			log("coke_overlay", "Overlay toggled: %s", coke_overlay.enabled and "enabled" or "disabled")
+		end,
 
-    ["coke/appearance"] = function(data)
-        local payload = json.decode(data)
-        if type(payload) == "table" then
-            if payload.scale then coke_overlay.scale = payload.scale end
-            if payload.alpha then coke_overlay.alpha = payload.alpha end
-            log("coke_overlay", "Appearance updated: scale=%.2f, alpha=%.2f", coke_overlay.scale, coke_overlay.alpha)
-        end
-    end,
-    ["schedule_overlay/trigger"] = function(data)
-        local trigger = data and tostring(data) or ""
-        if trigger == "" then
-            log("scheduled_overlay", "schedule_overlay/trigger requires trigger value in data")
-            return
-        end
-        load_scheduled_overlay_from_trigger(trigger)
-    end,
+		["coke/position"] = function(data)
+			local payload = json.decode(data)
+			if type(payload) == "table" then
+				if payload.position then coke_overlay.position = payload.position end
+				if payload.margin then coke_overlay.margin = payload.margin end
+				if payload.custom_x then coke_overlay.custom_x = payload.custom_x end
+				if payload.custom_y then coke_overlay.custom_y = payload.custom_y end
+				log("coke_overlay", "Position updated: %s (margin: %d)", coke_overlay.position, coke_overlay.margin)
+			elseif type(payload) == "string" then
+				coke_overlay.position = payload
+				log("coke_overlay", "Position set to: %s", payload)
+			end
+		end,
 
-    ["schedule_overlay/toggle"] = function(data)
-        scheduled_overlay.enabled = not scheduled_overlay.enabled
-        log("scheduled_overlay", "Overlay toggled: %s", scheduled_overlay.enabled and "enabled" or "disabled")
-    end,
+		["coke/appearance"] = function(data)
+			local payload = json.decode(data)
+			if type(payload) == "table" then
+				if payload.scale then coke_overlay.scale = payload.scale end
+				if payload.alpha then coke_overlay.alpha = payload.alpha end
+				log("coke_overlay", "Appearance updated: scale=%.2f, alpha=%.2f", coke_overlay.scale, coke_overlay.alpha)
+			end
+		end,
+		["schedule_overlay/trigger"] = function(data)
+			local trigger = data and tostring(data) or ""
+			if trigger == "" then
+				log("scheduled_overlay", "schedule_overlay/trigger requires trigger value in data")
+				return
+			end
+			load_scheduled_overlay_from_trigger(trigger)
+		end,
 
-    ["schedule_overlay/off"] = function(data)
-        scheduled_overlay.enabled = false
-        log("scheduled_overlay", "Overlay disabled")
-    end,
+		["schedule_overlay/toggle"] = function(data)
+			scheduled_overlay.enabled = not scheduled_overlay.enabled
+			log("scheduled_overlay", "Overlay toggled: %s", scheduled_overlay.enabled and "enabled" or "disabled")
+		end,
 
-    ["schedule_overlay/position"] = function(data)
-        local payload = json.decode(data)
-        if type(payload) == "table" then
-            if payload.position then scheduled_overlay.position = payload.position end
-            if payload.margin then scheduled_overlay.margin = payload.margin end
-            if payload.custom_x then scheduled_overlay.custom_x = payload.custom_x end
-            if payload.custom_y then scheduled_overlay.custom_y = payload.custom_y end
-            log("scheduled_overlay", "Position updated: %s (margin: %d)", scheduled_overlay.position, scheduled_overlay.margin)
-        elseif type(payload) == "string" then
-            scheduled_overlay.position = payload
-            log("scheduled_overlay", "Position set to: %s", payload)
-        end
-    end,
+		["schedule_overlay/off"] = function(data)
+			scheduled_overlay.enabled = false
+			log("scheduled_overlay", "Overlay disabled")
+		end,
 
-    ["schedule_overlay/appearance"] = function(data)
-        local payload = json.decode(data)
-        if type(payload) == "table" then
-            if payload.scale then scheduled_overlay.scale = payload.scale end
-            if payload.alpha then scheduled_overlay.alpha = payload.alpha end
-            log("scheduled_overlay", "Appearance updated: scale=%.2f, alpha=%.2f", scheduled_overlay.scale, scheduled_overlay.alpha)
-        end
-    end,
+		["schedule_overlay/position"] = function(data)
+			local payload = json.decode(data)
+			if type(payload) == "table" then
+				if payload.position then scheduled_overlay.position = payload.position end
+				if payload.margin then scheduled_overlay.margin = payload.margin end
+				if payload.custom_x then scheduled_overlay.custom_x = payload.custom_x end
+				if payload.custom_y then scheduled_overlay.custom_y = payload.custom_y end
+				log("scheduled_overlay", "Position updated: %s (margin: %d)", scheduled_overlay.position, scheduled_overlay.margin)
+			elseif type(payload) == "string" then
+				scheduled_overlay.position = payload
+				log("scheduled_overlay", "Position set to: %s", payload)
+			end
+		end,
 
-    ["schedule_overlay/status"] = function(data)
-        log("scheduled_overlay", "=== SCHEDULED OVERLAY STATUS ===")
-        log("scheduled_overlay", "Enabled: %s", tostring(scheduled_overlay.enabled))
-        log("scheduled_overlay", "Source trigger: %s", tostring(scheduled_overlay.source_trigger))
-        log("scheduled_overlay", "Current asset: %s", tostring(scheduled_overlay.current_asset))
-        log("scheduled_overlay", "Position: %s (margin: %d)", scheduled_overlay.position, scheduled_overlay.margin)
-        log("scheduled_overlay", "Scale: %.2f, Alpha: %.2f", scheduled_overlay.scale, scheduled_overlay.alpha)
-        log("scheduled_overlay", "Custom Position: %.1f%%, %.1f%%", scheduled_overlay.custom_x, scheduled_overlay.custom_y)
-        log("scheduled_overlay", "Image Loaded: %s", scheduled_overlay.image and "yes" or "no")
-        log("scheduled_overlay", "==============================")
-    end,
+		["schedule_overlay/appearance"] = function(data)
+			local payload = json.decode(data)
+			if type(payload) == "table" then
+				if payload.scale then scheduled_overlay.scale = payload.scale end
+				if payload.alpha then scheduled_overlay.alpha = payload.alpha end
+				log("scheduled_overlay", "Appearance updated: scale=%.2f, alpha=%.2f", scheduled_overlay.scale, scheduled_overlay.alpha)
+			end
+		end,
 
-    ["overlay/clear"] = function(data)
-        for id, instance in pairs(qr_code_instances) do
-            instance.is_visible = false
-        end
-        coke_overlay.enabled = false
-        coke_overlay.image = nil
-        scheduled_overlay.enabled = false
-        scheduled_overlay.image = nil
-        scheduled_overlay.current_asset = nil
-        scheduled_overlay.source_trigger = nil
-        log("overlay_clear", "Manual overlay clear requested")
-        return "All overlays cleared"
-    end,
-    
+		["schedule_overlay/status"] = function(data)
+			log("scheduled_overlay", "=== SCHEDULED OVERLAY STATUS ===")
+			log("scheduled_overlay", "Enabled: %s", tostring(scheduled_overlay.enabled))
+			log("scheduled_overlay", "Source trigger: %s", tostring(scheduled_overlay.source_trigger))
+			log("scheduled_overlay", "Current asset: %s", tostring(scheduled_overlay.current_asset))
+			log("scheduled_overlay", "Position: %s (margin: %d)", scheduled_overlay.position, scheduled_overlay.margin)
+			log("scheduled_overlay", "Scale: %.2f, Alpha: %.2f", scheduled_overlay.scale, scheduled_overlay.alpha)
+			log("scheduled_overlay", "Custom Position: %.1f%%, %.1f%%", scheduled_overlay.custom_x, scheduled_overlay.custom_y)
+			log("scheduled_overlay", "Image Loaded: %s", scheduled_overlay.image and "yes" or "no")
+			log("scheduled_overlay", "==============================")
+		end,
 
-    ["coke/status"] = function(data)
-        log("coke_overlay", "=== COKE ZERO OVERLAY STATUS ===")
-        log("coke_overlay", "Enabled: %s", tostring(coke_overlay.enabled))
-        log("coke_overlay", "Position: %s (margin: %d)", coke_overlay.position, coke_overlay.margin)
-        log("coke_overlay", "Scale: %.2f, Alpha: %.2f", coke_overlay.scale, coke_overlay.alpha)
-        log("coke_overlay", "Custom Position: %.1f%%, %.1f%%", coke_overlay.custom_x, coke_overlay.custom_y)
-        log("coke_overlay", "Image Loaded: %s", coke_overlay.image and "yes" or "no")
-        log("coke_overlay", "===============================")
-    end,
-    
+		["overlay/clear"] = function(data)
+			for id, instance in pairs(qr_code_instances) do
+				instance.is_visible = false
+			end
+			coke_overlay.enabled = false
+			coke_overlay.image = nil
+			scheduled_overlay.enabled = false
+			scheduled_overlay.image = nil
+			scheduled_overlay.current_asset = nil
+			scheduled_overlay.source_trigger = nil
+			log("overlay_clear", "Manual overlay clear requested")
+			return "All overlays cleared"
+		end,
+		
 
-    ["logo/switch"] = function(data)
-        local start_time = sys.now()
-        print("LOGO SWITCH CALLED! Raw data: " .. tostring(data))
-        
-        local trigger = data and tostring(data) or "1"
-        
-        print("FINAL TRIGGER VALUE: " .. trigger)
-        
-        if coke_overlay.logos[trigger] then
-            local asset_name = coke_overlay.logos[trigger]
-            load_coke_overlay(asset_name)
-            local end_time = sys.now()
-            local switch_time_ms = (end_time - start_time) * 1000
-            print("INSTANT SWITCHED TO: " .. asset_name .. " in " .. string.format("%.2f", switch_time_ms) .. "ms")
-            log("logo_switch", "Instant switch to: %s (%.2fms)", asset_name, switch_time_ms)
-        else
-            print("INVALID TRIGGER: " .. tostring(trigger) .. " (valid: 1, 2)")
-            log("logo_switch", "Invalid trigger: %s. Use '1' for Courtside or '2' for Coke Zero", trigger)
-        end
-    end,
-    
+		["coke/status"] = function(data)
+			log("coke_overlay", "=== COKE ZERO OVERLAY STATUS ===")
+			log("coke_overlay", "Enabled: %s", tostring(coke_overlay.enabled))
+			log("coke_overlay", "Position: %s (margin: %d)", coke_overlay.position, coke_overlay.margin)
+			log("coke_overlay", "Scale: %.2f, Alpha: %.2f", coke_overlay.scale, coke_overlay.alpha)
+			log("coke_overlay", "Custom Position: %.1f%%, %.1f%%", coke_overlay.custom_x, coke_overlay.custom_y)
+			log("coke_overlay", "Image Loaded: %s", coke_overlay.image and "yes" or "no")
+			log("coke_overlay", "===============================")
+		end,
+		
 
-    ["logo/set"] = function(data)
-        local logo_name = data and data ~= "" and data or "Courtside_logo.png"
-        
-        if logo_name == "Courtside_logo.png" or logo_name == "Coke_Zero_Revised_1_lowres.png" then
-		load_coke_overlay(logo_name)
-            log("logo_switch", "Logo set to: %s", logo_name)
-        else
-            log("logo_switch", "Invalid logo: %s", logo_name)
-        end
-    end,
-    
+		["logo/switch"] = function(data)
+			local start_time = sys.now()
+			print("LOGO SWITCH CALLED! Raw data: " .. tostring(data))
+			
+			local trigger = data and tostring(data) or "1"
+			
+			print("FINAL TRIGGER VALUE: " .. trigger)
+			
+			if coke_overlay.logos[trigger] then
+				local asset_name = coke_overlay.logos[trigger]
+				load_coke_overlay(asset_name)
+				local end_time = sys.now()
+				local switch_time_ms = (end_time - start_time) * 1000
+				print("INSTANT SWITCHED TO: " .. asset_name .. " in " .. string.format("%.2f", switch_time_ms) .. "ms")
+				log("logo_switch", "Instant switch to: %s (%.2fms)", asset_name, switch_time_ms)
+			else
+				print("INVALID TRIGGER: " .. tostring(trigger) .. " (valid: 1, 2)")
+				log("logo_switch", "Invalid trigger: %s. Use '1' for Courtside or '2' for Coke Zero", trigger)
+			end
+		end,
+		
 
-    ["logo/toggle"] = function(data)
-        local current_asset = coke_overlay.current_asset or "Courtside_logo.png"
-        
-        if current_asset == "Courtside_logo.png" then
-            load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
-            log("logo_switch", "Toggled to Coke Zero logo")
-        else
-            load_coke_overlay("Courtside_logo.png")
-            log("logo_switch", "Toggled to Courtside logo")
-        end
-    end,
-    
+		["logo/set"] = function(data)
+			local logo_name = data and data ~= "" and data or "Courtside_logo.png"
+			
+			if logo_name == "Courtside_logo.png" or logo_name == "Coke_Zero_Revised_1_lowres.png" then
+			load_coke_overlay(logo_name)
+				log("logo_switch", "Logo set to: %s", logo_name)
+			else
+				log("logo_switch", "Invalid logo: %s", logo_name)
+			end
+		end,
+		
 
-    ["logo/status"] = function(data)
-        log("logo_switch", "=== LOGO SYSTEM STATUS ===")
-        log("logo_switch", "Current: %s, Enabled: %s", 
-            coke_overlay.current_asset or "unknown", 
-            tostring(coke_overlay.enabled))
-        
-        local preloaded_count = 0
-        for asset_name, image in pairs(coke_overlay.preloaded_images) do
-            preloaded_count = preloaded_count + 1
-            log("logo_switch", "Preloaded: %s (%s)", asset_name, image and "ready" or "failed")
-        end
-        
-        log("logo_switch", "Total preloaded assets: %d", preloaded_count)
-        log("logo_switch", "Ready for instant switching: %s", preloaded_count > 0 and "YES" or "NO")
-        log("logo_switch", "========================")
-    end,
-    ["logo/off"] = function(data)
-		load_overlay_system("transparent_2160x.png")
-		log("logo_off", "Toggled to transparent_2160x")
-    end,
+		["logo/toggle"] = function(data)
+			local current_asset = coke_overlay.current_asset or "Courtside_logo.png"
+			
+			if current_asset == "Courtside_logo.png" then
+				load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
+				log("logo_switch", "Toggled to Coke Zero logo")
+			else
+				load_coke_overlay("Courtside_logo.png")
+				log("logo_switch", "Toggled to Courtside logo")
+			end
+		end,
+		
 
-    ["logo/test"] = function(data)
-        log("logo_switch", "=== LOGO TEST ENDPOINT ===")
-        log("logo_switch", "API call received successfully!")
-        log("logo_switch", "Data: '%s'", tostring(data))
-        log("logo_switch", "Time: %s", tostring(sys.now()))
-        log("logo_switch", "=========================")
-    end,
-    
-     ["qr/instance"] = function(data)
-        local payload = json.decode(data or "{}")
-        
-        if not payload.asset_id then
-            log("qr", "ERROR: asset_id required")
-            return
-        end
-        
-        local position_config = {}
-        if payload.position then position_config.position = payload.position end
-        if payload.margin then position_config.margin = payload.margin end
-        if payload.custom_x then position_config.custom_x = payload.custom_x end
-        if payload.custom_y then position_config.custom_y = payload.custom_y end
-        
-        local instance_id = create_or_update_qr_instance(payload.asset_id, position_config)
-        log("qr", "Created/updated QR instance: %s", instance_id)
-        
-        if payload.auto_show then
-            local instance = qr_code_instances[instance_id]
-            if instance then
-                local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
-                if new_draw_details then
-                    instance.draw_details = new_draw_details
-                    instance.is_visible = true
-                    log("qr", "Auto-showing QR instance: %s", instance_id)
-                else
-                    log("qr", "ERROR: Failed to generate QR for instance: %s", instance_id)
-                end
-            end
-        end
-    end,
-    
-    ["qr/instance/remove"] = function(data)
-        local payload = json.decode(data)
-        if payload.asset_id and remove_qr_instance(payload.asset_id) then
-            log("qr", "Removed QR instance: %s", payload.asset_id)
-        end
-    end,
-    
-    ["qr/instance/list"] = function(data)
-        local instances = list_qr_instances()
-        log("qr", "QR instances: %d", table.getn(instances))
-        for id, info in pairs(instances) do
-            log("qr", "  %s: %s (%s)", id, info.asset_id, info.position_config.position or "default")
-        end
-    end,
-    
-    ["qr/instance/get"] = function(data)
-        local payload = json.decode(data)
-        
-        if not payload.asset_id then
-            print("[QR_PACKAGE] ERROR: asset_id is required")
-            return
-        end
-        
-        local instance = get_qr_instance(payload.asset_id)
-        if instance then
-            print("[QR_PACKAGE] QR instance for asset_id " .. payload.asset_id .. ":")
-            print("[QR_PACKAGE]   ID: " .. instance.id)
-            print("[QR_PACKAGE]   Visible: " .. tostring(instance.is_visible))
-            print("[QR_PACKAGE]   Position: " .. (instance.position_config.position or "unknown"))
-            print("[QR_PACKAGE]   Custom X/Y: " .. (instance.position_config.custom_x or 0) .. "%, " .. (instance.position_config.custom_y or 0) .. "%")
-            print("[QR_PACKAGE]   Margin: " .. (instance.position_config.margin or 20))
-        else
-            print("[QR_PACKAGE] No QR instance found for asset_id: " .. payload.asset_id)
-        end
-    end,
-    ["setup/qr/instance"] = function(data)
-        local payload = json.decode(data)
-        
-        if not payload.asset_id then
-            log("QR_SETUP", "ERROR: asset_id is required")
-            return
-        end
-        
-        local position_config = {}
-        
-        if payload.position then position_config.position = payload.position end
-        if payload.margin then position_config.margin = payload.margin end
-        if payload.custom_x then position_config.custom_x = payload.custom_x end
-        if payload.custom_y then position_config.custom_y = payload.custom_y end
-        
-        local instance_id = create_or_update_qr_instance(payload.asset_id, position_config)
-        
-        log("QR_SETUP", "Setup-wide QR instance created/updated for asset_id: %s (instance: %s)", 
-            payload.asset_id, instance_id)
-        
-        if payload.auto_show then
-            local instance = qr_code_instances[instance_id]
-            if instance then
-                local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
-                if new_draw_details then
-                    instance.draw_details = new_draw_details
-                    instance.is_visible = true
-                    log("QR_SETUP", "Auto-showing setup-wide QR instance: %s", instance_id)
-                else
-                    log("QR_SETUP", "ERROR: Failed to generate QR for auto_show instance: %s", instance_id)
-                end
-            end
-        end
-    end,
-    
-    ["setup/qr/instance/remove"] = function(data)
-        local payload = json.decode(data)
-        
-        if not payload.asset_id then
-            log("QR_SETUP", "ERROR: asset_id is required for removal")
-            return
-        end
-        
-        local success = remove_qr_instance(payload.asset_id)
-        if success then
-            log("QR_SETUP", "Successfully removed setup-wide QR instance for asset_id: %s", payload.asset_id)
-        else
-            log("QR_SETUP", "No QR instance found for asset_id: %s", payload.asset_id)
-        end
-    end,
-    
-    -- SETUP-WIDE: List all QR instances (same as device-level)
-    ["setup/qr/instance/list"] = function(data)
-        local instances = list_qr_instances()
-        log("QR_SETUP", "Setup-wide QR instances:")
-        for id, info in pairs(instances) do
-            log("QR_SETUP", "  %s: asset_id=%s, visible=%s, position=%s (%.1f%%, %.1f%%)", 
-                id, info.asset_id, tostring(info.is_visible), 
-                info.position_config.position or "unknown",
-                info.position_config.custom_x or 0,
-                info.position_config.custom_y or 0)
-        end
-        if not next(instances) then
-            log("QR_SETUP", "  No QR instances found")
-        end
-    end,
-    ["root/qr/instance"] = function(data)
-        print("[QR_PACKAGE] root/qr/instance handler called")
-        print("[QR_PACKAGE] Raw data type: " .. type(data))
-        print("[QR_PACKAGE] Raw data content: '" .. tostring(data) .. "'")
-        print("[QR_PACKAGE] Raw data length: " .. string.len(tostring(data)))
-        
-        local payload
-        local success, err = pcall(function()
-            if data == "" or data == nil then
-                -- If data is empty, maybe info-beamer doesn't pass the inner JSON
-                -- In this case, we'll assume the API call structure is different
-                print("[QR_PACKAGE] Data is empty - this might be normal for info-beamer API")
-                payload = {
-                    asset_id = "3",  -- Default for testing
-                    custom_x = 20,
-                    custom_y = 30,
-                    position = "custom",
-                    auto_show = true
-                }
-            else
-                payload = json.decode(data)
-            end
-        end)
-        
-        if not success then
-            print("[QR_PACKAGE] JSON decode failed: " .. tostring(err))
-            return
-        end
-        
-        print("[QR_PACKAGE] Decoded payload type: " .. type(payload))
-        print("[QR_PACKAGE] Payload asset_id: " .. tostring(payload.asset_id))
-        
-        if not payload.asset_id then
-            print("[QR_PACKAGE] ERROR: asset_id is required")
-            return
-        end
-        
-        local position_config = {}
-        
-        if payload.position then position_config.position = payload.position end
-        if payload.margin then position_config.margin = payload.margin end
-        if payload.custom_x then position_config.custom_x = payload.custom_x end
-        if payload.custom_y then position_config.custom_y = payload.custom_y end
-        
-        local instance_id = create_or_update_qr_instance(payload.asset_id, position_config)
-        
-        print("[QR_PACKAGE] Successfully created/updated QR instance for asset_id: " .. payload.asset_id .. " (instance: " .. instance_id .. ")")
-        
-        if payload.auto_show then
-            local instance = qr_code_instances[instance_id]
-            if instance then
-                print("[QR_PACKAGE] Attempting to auto-show QR instance: " .. instance_id .. " with trigger_data: " .. instance.trigger_data)
-                print("[QR_PACKAGE] Current setup_id: " .. tostring(current_setup_id))
-                local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
-                if new_draw_details then
-                    instance.draw_details = new_draw_details
-                    instance.is_visible = true
-                    print("[QR_PACKAGE] Auto-showing QR instance: " .. instance_id .. " - SUCCESS")
-                else
-                    print("[QR_PACKAGE] ERROR: Failed to generate QR for auto_show instance: " .. instance_id)
-                    print("[QR_PACKAGE] qrcode_overlay.handle_remote_trigger returned nil")
-                end
-            else
-                print("[QR_PACKAGE] ERROR: Instance not found for auto_show: " .. instance_id)
-            end
-        end
-    end,
-    
-    ["root/qr/instance/remove"] = function(data)
-        print("[QR_PACKAGE] root/qr/instance/remove handler called")
-        local payload = json.decode(data)
-        
-        if not payload.asset_id then
-            print("[QR_PACKAGE] ERROR: asset_id is required for removal")
-            return
-        end
-        
-        local success = remove_qr_instance(payload.asset_id)
-        if success then
-            print("[QR_PACKAGE] Successfully removed QR instance for asset_id: " .. payload.asset_id)
-        else
-            print("[QR_PACKAGE] No QR instance found for asset_id: " .. payload.asset_id)
-        end
-    end,
-    
-    ["root/qr/instance/list"] = function(data)
-        print("[QR_PACKAGE] root/qr/instance/list handler called")
-        local instances = list_qr_instances()
-        print("[QR_PACKAGE] Current QR instances:")
-        for id, info in pairs(instances) do
-            print("[QR_PACKAGE]   " .. id .. ": asset_id=" .. info.asset_id .. ", visible=" .. tostring(info.is_visible) .. 
-                  ", position=" .. (info.position_config.position or "unknown") .. 
-                  " (" .. (info.position_config.custom_x or 0) .. "%, " .. (info.position_config.custom_y or 0) .. "%)")
-        end
-        if not next(instances) then
-            print("[QR_PACKAGE]   No QR instances found")
-        end
-    end,
-    ["root/test"] = function(data)
-        print("[TEST] Package is running latest code! Data: " .. tostring(data))
-        print("[TEST] Current time: " .. tostring(sys.now()))
-        print("[TEST] Total QR instances: " .. table.getn(qr_code_instances))
-    end,
-    
-    ["root/debug_data"] = function(data)
-        
-        local success, parsed = pcall(function()
-            return json.decode(data)
-        end)
-        
-        if success then
-            if type(parsed) == "table" then
-                for k, v in pairs(parsed) do
-                end
-            end
-        else
-        end
-    end,
+		["logo/status"] = function(data)
+			log("logo_switch", "=== LOGO SYSTEM STATUS ===")
+			log("logo_switch", "Current: %s, Enabled: %s", 
+				coke_overlay.current_asset or "unknown", 
+				tostring(coke_overlay.enabled))
+			
+			local preloaded_count = 0
+			for asset_name, image in pairs(coke_overlay.preloaded_images) do
+				preloaded_count = preloaded_count + 1
+				log("logo_switch", "Preloaded: %s (%s)", asset_name, image and "ready" or "failed")
+			end
+			
+			log("logo_switch", "Total preloaded assets: %d", preloaded_count)
+			log("logo_switch", "Ready for instant switching: %s", preloaded_count > 0 and "YES" or "NO")
+			log("logo_switch", "========================")
+		end,
+		["logo/off"] = function(data)
+			load_overlay_system("transparent_2160x.png")
+			log("logo_off", "Toggled to transparent_2160x")
+		end,
 
-    ["logo/ping"] = function(data)
-        print("LOGO PING RECEIVED: " .. tostring(data))
-        log("logo_test", "PING received with data: %s", tostring(data))
-    end,
-    
-    ["stream/debug"] = function(data)
-        log("stream_debug", "=== STREAM DEBUG INFO ===")
-        local all_streams = streams._get_all_streams()
-        local stream_count = 0
-        for key, stream in pairs(all_streams) do
-            stream_count = stream_count + 1
-            log("stream_debug", "Stream %d: %s", stream_count, stream.url)
-            log("stream_debug", "  - UDP: %s", tostring(stream.is_udp))
-            log("stream_debug", "  - Last used: %d frames ago", frame - stream.last_used)
-        end
-        log("stream_debug", "Total active streams: %d", stream_count)
-        log("stream_debug", "Current frame: %d", frame)
-        log("stream_debug", "========================")
-    end,
-}
+		["logo/test"] = function(data)
+			log("logo_switch", "=== LOGO TEST ENDPOINT ===")
+			log("logo_switch", "API call received successfully!")
+			log("logo_switch", "Data: '%s'", tostring(data))
+			log("logo_switch", "Time: %s", tostring(sys.now()))
+			log("logo_switch", "=========================")
+		end,
+		
+		 ["qr/instance"] = function(data)
+			local payload = json.decode(data or "{}")
+			
+			if not payload.asset_id then
+				log("qr", "ERROR: asset_id required")
+				return
+			end
+			
+			local position_config = {}
+			if payload.position then position_config.position = payload.position end
+			if payload.margin then position_config.margin = payload.margin end
+			if payload.custom_x then position_config.custom_x = payload.custom_x end
+			if payload.custom_y then position_config.custom_y = payload.custom_y end
+			
+			local instance_id = create_or_update_qr_instance(payload.asset_id, position_config)
+			log("qr", "Created/updated QR instance: %s", instance_id)
+			
+			if payload.auto_show then
+				local instance = qr_code_instances[instance_id]
+				if instance then
+					local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
+					if new_draw_details then
+						instance.draw_details = new_draw_details
+						instance.is_visible = true
+						log("qr", "Auto-showing QR instance: %s", instance_id)
+					else
+						log("qr", "ERROR: Failed to generate QR for instance: %s", instance_id)
+					end
+				end
+			end
+		end,
+		
+		["qr/instance/remove"] = function(data)
+			local payload = json.decode(data)
+			if payload.asset_id and remove_qr_instance(payload.asset_id) then
+				log("qr", "Removed QR instance: %s", payload.asset_id)
+			end
+		end,
+		
+		["qr/instance/list"] = function(data)
+			local instances = list_qr_instances()
+			log("qr", "QR instances: %d", table.getn(instances))
+			for id, info in pairs(instances) do
+				log("qr", "  %s: %s (%s)", id, info.asset_id, info.position_config.position or "default")
+			end
+		end,
+		
+		["qr/instance/get"] = function(data)
+			local payload = json.decode(data)
+			
+			if not payload.asset_id then
+				print("[QR_PACKAGE] ERROR: asset_id is required")
+				return
+			end
+			
+			local instance = get_qr_instance(payload.asset_id)
+			if instance then
+				print("[QR_PACKAGE] QR instance for asset_id " .. payload.asset_id .. ":")
+				print("[QR_PACKAGE]   ID: " .. instance.id)
+				print("[QR_PACKAGE]   Visible: " .. tostring(instance.is_visible))
+				print("[QR_PACKAGE]   Position: " .. (instance.position_config.position or "unknown"))
+				print("[QR_PACKAGE]   Custom X/Y: " .. (instance.position_config.custom_x or 0) .. "%, " .. (instance.position_config.custom_y or 0) .. "%")
+				print("[QR_PACKAGE]   Margin: " .. (instance.position_config.margin or 20))
+			else
+				print("[QR_PACKAGE] No QR instance found for asset_id: " .. payload.asset_id)
+			end
+		end,
+		["setup/qr/instance"] = function(data)
+			local payload = json.decode(data)
+			
+			if not payload.asset_id then
+				log("QR_SETUP", "ERROR: asset_id is required")
+				return
+			end
+			
+			local position_config = {}
+			
+			if payload.position then position_config.position = payload.position end
+			if payload.margin then position_config.margin = payload.margin end
+			if payload.custom_x then position_config.custom_x = payload.custom_x end
+			if payload.custom_y then position_config.custom_y = payload.custom_y end
+			
+			local instance_id = create_or_update_qr_instance(payload.asset_id, position_config)
+			
+			log("QR_SETUP", "Setup-wide QR instance created/updated for asset_id: %s (instance: %s)", 
+				payload.asset_id, instance_id)
+			
+			if payload.auto_show then
+				local instance = qr_code_instances[instance_id]
+				if instance then
+					local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
+					if new_draw_details then
+						instance.draw_details = new_draw_details
+						instance.is_visible = true
+						log("QR_SETUP", "Auto-showing setup-wide QR instance: %s", instance_id)
+					else
+						log("QR_SETUP", "ERROR: Failed to generate QR for auto_show instance: %s", instance_id)
+					end
+				end
+			end
+		end,
+		
+		["setup/qr/instance/remove"] = function(data)
+			local payload = json.decode(data)
+			
+			if not payload.asset_id then
+				log("QR_SETUP", "ERROR: asset_id is required for removal")
+				return
+			end
+			
+			local success = remove_qr_instance(payload.asset_id)
+			if success then
+				log("QR_SETUP", "Successfully removed setup-wide QR instance for asset_id: %s", payload.asset_id)
+			else
+				log("QR_SETUP", "No QR instance found for asset_id: %s", payload.asset_id)
+			end
+		end,
+		
+		-- SETUP-WIDE: List all QR instances (same as device-level)
+		["setup/qr/instance/list"] = function(data)
+			local instances = list_qr_instances()
+			log("QR_SETUP", "Setup-wide QR instances:")
+			for id, info in pairs(instances) do
+				log("QR_SETUP", "  %s: asset_id=%s, visible=%s, position=%s (%.1f%%, %.1f%%)", 
+					id, info.asset_id, tostring(info.is_visible), 
+					info.position_config.position or "unknown",
+					info.position_config.custom_x or 0,
+					info.position_config.custom_y or 0)
+			end
+			if not next(instances) then
+				log("QR_SETUP", "  No QR instances found")
+			end
+		end,
+		["root/qr/instance"] = function(data)
+			print("[QR_PACKAGE] root/qr/instance handler called")
+			print("[QR_PACKAGE] Raw data type: " .. type(data))
+			print("[QR_PACKAGE] Raw data content: '" .. tostring(data) .. "'")
+			print("[QR_PACKAGE] Raw data length: " .. string.len(tostring(data)))
+			
+			local payload
+			local success, err = pcall(function()
+				if data == "" or data == nil then
+					-- If data is empty, maybe info-beamer doesn't pass the inner JSON
+					-- In this case, we'll assume the API call structure is different
+					print("[QR_PACKAGE] Data is empty - this might be normal for info-beamer API")
+					payload = {
+						asset_id = "3",  -- Default for testing
+						custom_x = 20,
+						custom_y = 30,
+						position = "custom",
+						auto_show = true
+					}
+				else
+					payload = json.decode(data)
+				end
+			end)
+			
+			if not success then
+				print("[QR_PACKAGE] JSON decode failed: " .. tostring(err))
+				return
+			end
+			
+			print("[QR_PACKAGE] Decoded payload type: " .. type(payload))
+			print("[QR_PACKAGE] Payload asset_id: " .. tostring(payload.asset_id))
+			
+			if not payload.asset_id then
+				print("[QR_PACKAGE] ERROR: asset_id is required")
+				return
+			end
+			
+			local position_config = {}
+			
+			if payload.position then position_config.position = payload.position end
+			if payload.margin then position_config.margin = payload.margin end
+			if payload.custom_x then position_config.custom_x = payload.custom_x end
+			if payload.custom_y then position_config.custom_y = payload.custom_y end
+			
+			local instance_id = create_or_update_qr_instance(payload.asset_id, position_config)
+			
+			print("[QR_PACKAGE] Successfully created/updated QR instance for asset_id: " .. payload.asset_id .. " (instance: " .. instance_id .. ")")
+			
+			if payload.auto_show then
+				local instance = qr_code_instances[instance_id]
+				if instance then
+					print("[QR_PACKAGE] Attempting to auto-show QR instance: " .. instance_id .. " with trigger_data: " .. instance.trigger_data)
+					print("[QR_PACKAGE] Current setup_id: " .. tostring(current_setup_id))
+					local new_draw_details = qrcode_overlay.handle_remote_trigger(instance.trigger_data, current_setup_id)
+					if new_draw_details then
+						instance.draw_details = new_draw_details
+						instance.is_visible = true
+						print("[QR_PACKAGE] Auto-showing QR instance: " .. instance_id .. " - SUCCESS")
+					else
+						print("[QR_PACKAGE] ERROR: Failed to generate QR for auto_show instance: " .. instance_id)
+						print("[QR_PACKAGE] qrcode_overlay.handle_remote_trigger returned nil")
+					end
+				else
+					print("[QR_PACKAGE] ERROR: Instance not found for auto_show: " .. instance_id)
+				end
+			end
+		end,
+		
+		["root/qr/instance/remove"] = function(data)
+			print("[QR_PACKAGE] root/qr/instance/remove handler called")
+			local payload = json.decode(data)
+			
+			if not payload.asset_id then
+				print("[QR_PACKAGE] ERROR: asset_id is required for removal")
+				return
+			end
+			
+			local success = remove_qr_instance(payload.asset_id)
+			if success then
+				print("[QR_PACKAGE] Successfully removed QR instance for asset_id: " .. payload.asset_id)
+			else
+				print("[QR_PACKAGE] No QR instance found for asset_id: " .. payload.asset_id)
+			end
+		end,
+		
+		["root/qr/instance/list"] = function(data)
+			print("[QR_PACKAGE] root/qr/instance/list handler called")
+			local instances = list_qr_instances()
+			print("[QR_PACKAGE] Current QR instances:")
+			for id, info in pairs(instances) do
+				print("[QR_PACKAGE]   " .. id .. ": asset_id=" .. info.asset_id .. ", visible=" .. tostring(info.is_visible) .. 
+					  ", position=" .. (info.position_config.position or "unknown") .. 
+					  " (" .. (info.position_config.custom_x or 0) .. "%, " .. (info.position_config.custom_y or 0) .. "%)")
+			end
+			if not next(instances) then
+				print("[QR_PACKAGE]   No QR instances found")
+			end
+		end,
+		["root/test"] = function(data)
+			print("[TEST] Package is running latest code! Data: " .. tostring(data))
+			print("[TEST] Current time: " .. tostring(sys.now()))
+			print("[TEST] Total QR instances: " .. table.getn(qr_code_instances))
+		end,
+		
+		["root/debug_data"] = function(data)
+			
+			local success, parsed = pcall(function()
+				return json.decode(data)
+			end)
+			
+			if success then
+				if type(parsed) == "table" then
+					for k, v in pairs(parsed) do
+					end
+				end
+			else
+			end
+		end,
+
+		["logo/ping"] = function(data)
+			print("LOGO PING RECEIVED: " .. tostring(data))
+			log("logo_test", "PING received with data: %s", tostring(data))
+		end,
+		
+		["stream/debug"] = function(data)
+			log("stream_debug", "=== STREAM DEBUG INFO ===")
+			local all_streams = streams._get_all_streams()
+			local stream_count = 0
+			for key, stream in pairs(all_streams) do
+				stream_count = stream_count + 1
+				log("stream_debug", "Stream %d: %s", stream_count, stream.url)
+				log("stream_debug", "  - UDP: %s", tostring(stream.is_udp))
+				log("stream_debug", "  - Last used: %d frames ago", frame - stream.last_used)
+			end
+			log("stream_debug", "Total active streams: %d", stream_count)
+			log("stream_debug", "Current frame: %d", frame)
+			log("stream_debug", "========================")
+		end,
+	}
+end
+
+local ExternalEvents = ExternalEvents()
 
 local function initialize_qr_codes()
     print("Initializing predefined QR codes...")
