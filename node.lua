@@ -2503,11 +2503,12 @@ local function init_streams(config)
 end
 
 -- Add to your config update handler
-util.json_watch("config.json", function(config)
+-- GWS 070726 moved to the end of the code to ensure proper initialization
+--[[util.json_watch("config.json", function(config)
     init_streams(config)  -- Initialize streams when config is loaded
     node.dispatch("config_updated", config)
     node.gc()
-end)
+end) ]]--
 
 local function update_qr_position(instance_id, settings)
     print("Attempting to update QR positioning for instance: " .. tostring(instance_id))
@@ -2620,11 +2621,11 @@ local coke_overlay = {
     image = nil,
     current_asset = "Courtside_logo.png",  -- Track current asset - default to Courtside
     position = "top-right",  -- top-left, top-right, bottom-left, bottom-right, center, custom
-    margin = 20,
-    scale = 0.2,  -- Make it bigger so it's more visible
-    alpha = 0.9,  -- 90% opacity
-    custom_x = 85,  -- 85% from left (only used if position = "custom")
-    custom_y = 5,   -- 5% from top (only used if position = "custom")
+    margin = 0, -- (GWS 070726 was 20)
+    scale = 1.0,  -- Make it bigger so it's more visible (GWS 070726: was 0.2)
+    alpha = 0.2,  -- 20% opacity (GWS 070726: was 90%)
+    custom_x = 0,  -- 85% from left (only used if position = "custom") (GWS 070726: Does not appear to be used in the code but setting to 0 anyway)
+    custom_y = 0,   -- 5% from top (only used if position = "custom") (GWS 070726: Does not appear to be used in the code but setting to 0 anyway)
     
     -- NEW: Preloaded images for instant switching
     preloaded_images = {},
@@ -3011,6 +3012,15 @@ local function draw_device_info()
 end
 
 -- === END OVERLAY SYSTEM DEFINITIONS ===
+
+-- GWS 070726: moved the function here to ensure proper initialization
+-- Add to your config update handler
+util.json_watch("config.json", function(config)
+    init_streams(config)  -- Initialize streams when config is loaded
+    node.dispatch("config_updated", config)
+    node.gc()
+end)
+
 local function ExternalEvents()
     local forward_keyboard = true
 

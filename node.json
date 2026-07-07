@@ -46,7 +46,7 @@
         "ui_width": 4,
         "name": "forward_keyboard",
         "type": "boolean",
-        "default": true
+        "default": false
     },{
         "title": "Default UDP Stream URL",
         "ui_width": 8,
