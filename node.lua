@@ -2622,7 +2622,7 @@ local coke_overlay = {
     current_asset = "transparent_red.png",  -- Track current asset - default to Courtside
     position = "top-left",  -- top-left, top-right, bottom-left, bottom-right, center, custom (GWS 070726: was top-right)
     margin = 0, -- (GWS 070726: was 20)
-    scale = 0.5,  -- Make it bigger so it's more visible (GWS 070726: was 0.2)
+    scale = 0.75,  -- Make it bigger so it's more visible (GWS 070726: was 0.2)
     alpha = 0.95,  -- 95% opacity
     custom_x = 0,  -- 85% from left (only used if position = "custom") (GWS 070726: Does not appear to be used in the code but setting to 0 anyway)
     custom_y = 0,   -- 5% from top (only used if position = "custom") (GWS 070726: Does not appear to be used in the code but setting to 0 anyway)
@@ -3813,13 +3813,13 @@ function node.render()
     draw_device_info()
 end
 
-load_qr_instances()
-preload_logo_assets()
-
--- GWS 070926: moved the function even later to ensure proper initialization
+-- GWS 070926: moved the function later but not as late to ensure proper initialization
 -- Add to your config update handler
 util.json_watch("config.json", function(config)
     init_streams(config)  -- Initialize streams when config is loaded
     node.dispatch("config_updated", config)
     node.gc()
 end)
+
+load_qr_instances()
+preload_logo_assets()
