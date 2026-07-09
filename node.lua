@@ -2619,10 +2619,10 @@ end
 local coke_overlay = {
     enabled = true,  -- Enable by default
     image = nil,
-    current_asset = "Courtside_logo.png",  -- Track current asset - default to Courtside
+    current_asset = "transparent_red.png",  -- Track current asset - default to Courtside
     position = "top-left",  -- top-left, top-right, bottom-left, bottom-right, center, custom (GWS 070726: was top-right)
     margin = 0, -- (GWS 070726: was 20)
-    scale = 1.0,  -- Make it bigger so it's more visible (GWS 070726: was 0.2)
+    scale = 0.5,  -- Make it bigger so it's more visible (GWS 070726: was 0.2)
     alpha = 0.95,  -- 95% opacity
     custom_x = 0,  -- 85% from left (only used if position = "custom") (GWS 070726: Does not appear to be used in the code but setting to 0 anyway)
     custom_y = 0,   -- 5% from top (only used if position = "custom") (GWS 070726: Does not appear to be used in the code but setting to 0 anyway)
@@ -2630,9 +2630,9 @@ local coke_overlay = {
     -- NEW: Preloaded images for instant switching
     preloaded_images = {},
     logos = {
-        ["1"] = "Courtside_logo.png",
---        ["2"] = "Coke_Zero_Revised_1_lowres.png"
-        ["2"] = "Coke_Zero_Revised_1_lowres.png",
+        ["1"] = "Courtside_Logo_2160x.png",
+--        ["2"] = "Coca_Cola_Zero_Sugar_hero_crop_2160x.png"
+        ["2"] = "Coca_Cola_Zero_Sugar_hero_crop_2160x.png",
 		["3"] = "transparent_2160x.png",
 		["4"] = "transparent_red.png",
 		["5"] = "Courtside_Logo_2160x.png",
@@ -2671,7 +2671,7 @@ end
 
 -- Optimized function for instant logo switching
 local function load_coke_overlay(asset_name)
-    local actual_asset = asset_name or "Courtside_logo.png"
+    local actual_asset = asset_name or "Courtside_Logo_2160x.png"
     
     -- Check if we have this asset preloaded
     if coke_overlay.preloaded_images[actual_asset] then
@@ -3014,12 +3014,7 @@ end
 -- === END OVERLAY SYSTEM DEFINITIONS ===
 
 -- GWS 070726: moved the function here to ensure proper initialization
--- Add to your config update handler
-util.json_watch("config.json", function(config)
-    init_streams(config)  -- Initialize streams when config is loaded
-    node.dispatch("config_updated", config)
-    node.gc()
-end)
+-- GWS 070926: moved the function even later to ensure proper initialization
 
 local function ExternalEvents()
     local forward_keyboard = true
@@ -3192,7 +3187,7 @@ local function ExternalEvents()
 			end
 		end,
 		["coke/load"] = function(data)
-			local asset_name = data and data ~= "" and data or "Coke_Zero_Revised_1_lowres.png"
+			local asset_name = data and data ~= "" and data or "Coca_Cola_Zero_Sugar_hero_crop_2160x.png"
 			load_coke_overlay(asset_name)
 			log("coke_overlay", "Load command received for asset: %s", asset_name)
 		end,
@@ -3327,11 +3322,11 @@ local function ExternalEvents()
 		
 
 		["logo/set"] = function(data)
-			local logo_name = data and data ~= "" and data or "Courtside_logo.png"
+			local logo_name = data and data ~= "" and data or "Courtside_Logo_2160x.png"
 			
---			if logo_name == "Courtside_logo.png" or logo_name == "Coke_Zero_Revised_1_lowres.png" then
-			if 	logo_name == "Courtside_logo.png" or 
-				logo_name == "Coke_Zero_Revised_1_lowres.png" or
+--			if logo_name == "Courtside_logo.png" or logo_name == "Coca_Cola_Zero_Sugar_hero_crop_2160x.png" then
+			if 	logo_name == "Courtside_Logo_2160x.png" or 
+				logo_name == "Coca_Cola_Zero_Sugar_hero_crop_2160x.png" or
 				logo_name == "transparent_2160x.png" or
 				logo_name == "transparent_red.png" or
 				logo_name == "Courtside_Logo_2160x.png" or
@@ -3347,13 +3342,13 @@ local function ExternalEvents()
 		
 
 		["logo/toggle"] = function(data)
-			local current_asset = coke_overlay.current_asset or "Courtside_logo.png"
+			local current_asset = coke_overlay.current_asset or "Courtside_Logo_2160x.png"
 			
-			if current_asset == "Courtside_logo.png" then
-				load_coke_overlay("Coke_Zero_Revised_1_lowres.png")
+			if current_asset == "Courtside_Logo_2160x.png" then
+				load_coke_overlay("Coca_Cola_Zero_Sugar_hero_crop_2160x.png")
 				log("logo_switch", "Toggled to Coke Zero logo")
 			else
-				load_coke_overlay("Courtside_logo.png")
+				load_coke_overlay("Courtside_Logo_2160x.png")
 				log("logo_switch", "Toggled to Courtside logo")
 			end
 		end,
@@ -3820,3 +3815,11 @@ end
 
 load_qr_instances()
 preload_logo_assets()
+
+-- GWS 070926: moved the function even later to ensure proper initialization
+-- Add to your config update handler
+util.json_watch("config.json", function(config)
+    init_streams(config)  -- Initialize streams when config is loaded
+    node.dispatch("config_updated", config)
+    node.gc()
+end)
