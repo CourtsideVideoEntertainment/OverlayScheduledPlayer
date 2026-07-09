@@ -2504,11 +2504,11 @@ end
 
 -- Add to your config update handler
 -- GWS 070726 moved to the end of the code to ensure proper initialization
---[[util.json_watch("config.json", function(config)
+util.json_watch("config.json", function(config)
     init_streams(config)  -- Initialize streams when config is loaded
     node.dispatch("config_updated", config)
     node.gc()
-end) ]]--
+end)
 
 local function update_qr_position(instance_id, settings)
     print("Attempting to update QR positioning for instance: " .. tostring(instance_id))
@@ -3815,11 +3815,11 @@ end
 
 -- GWS 070926: moved the function later but not as late to ensure proper initialization
 -- Add to your config update handler
-util.json_watch("config.json", function(config)
+--[[util.json_watch("config.json", function(config)
     init_streams(config)  -- Initialize streams when config is loaded
     node.dispatch("config_updated", config)
     node.gc()
-end)
+end) ]]--
 
 load_qr_instances()
 preload_logo_assets()
