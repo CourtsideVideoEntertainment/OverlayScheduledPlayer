@@ -3764,7 +3764,7 @@ function node.render()
 
             local qr_width = dimensions.total_width
             local qr_height = dimensions.total_height
-            local margin = pos_config.margin or 20 -- Default margin if not set
+            local margin = pos_config.margin or 0 -- 20  Default margin if not set
 
             local qr_draw_x, qr_draw_y
             if pos_config.position == "top-left" then
