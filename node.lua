@@ -2504,11 +2504,11 @@ end
 
 -- Add to your config update handler
 -- GWS 070726 moved to the end of the code to ensure proper initialization
-util.json_watch("config.json", function(config)
+--[[util.json_watch("config.json", function(config)
     init_streams(config)  -- Initialize streams when config is loaded
     node.dispatch("config_updated", config)
     node.gc()
-end)
+end)]]--
 
 local function update_qr_position(instance_id, settings)
     print("Attempting to update QR positioning for instance: " .. tostring(instance_id))
@@ -2620,7 +2620,7 @@ local coke_overlay = {
     enabled = true,  -- Enable by default
     image = nil,
     current_asset = "transparent_red.png",  -- Track current asset - default to Courtside
-    position = "top-left",  -- top-left, top-right, bottom-left, bottom-right, center, custom (GWS 070726: was top-right)
+    position = "bottom-left",  -- top-left, top-right, bottom-left, bottom-right, center, custom (GWS 070726: was top-right)
     margin = 0, -- (GWS 070726: was 20)
     scale = 0.75,  -- Make it bigger so it's more visible (GWS 070726: was 0.2)
     alpha = 0.95,  -- 95% opacity
@@ -3658,6 +3658,15 @@ local function ExternalEvents()
 end
 
 local ExternalEvents = ExternalEvents()
+
+-- Add to your config update handler
+-- GWS 070926 moved to the end of the code to ensure proper initialization
+util.json_watch("config.json", function(config)
+    init_streams(config)  -- Initialize streams when config is loaded
+    node.dispatch("config_updated", config)
+    node.gc()
+end)
+
 
 local function initialize_qr_codes()
     print("Initializing predefined QR codes...")
