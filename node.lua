@@ -264,9 +264,7 @@ local function Screen()
     end)
 
     node.event("config_updated", function(config)
-     --   rotation = config.rotation
-	      --   GWS 071226: Hardcoding rotation to see if the var is actually used
-		  rotation = 90
+        rotation = config.rotation
 
         local is_portrait = rotation == 90 or rotation == 270
         local width, height = config.resolution[1], config.resolution[2]
