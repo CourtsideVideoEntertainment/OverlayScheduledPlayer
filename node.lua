@@ -290,9 +290,9 @@ local function Screen()
             rotation = rotation,
         }
 
-        if is_portrait then
-            surface.width, surface.height = surface.height, surface.width
-        end
+    --  if is_portrait then
+    --     surface.width, surface.height = surface.height, surface.width
+    --  end
 
         placer = placement.Screen(target, surface)
     end)
