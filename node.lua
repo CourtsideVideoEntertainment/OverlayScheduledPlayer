@@ -264,8 +264,8 @@ local function Screen()
     end)
 
     node.event("config_updated", function(config)
---rotation = config.rotation
-		rotation = 270
+		rotation = config.rotation
+		-- rotation = 270
 		-- 0 for demo
         local is_portrait = rotation == 90 or rotation == 270
         local width, height = config.resolution[1], config.resolution[2]
@@ -291,9 +291,9 @@ local function Screen()
             rotation = rotation,
         }
 
-    --  if is_portrait then
-    --     surface.width, surface.height = surface.height, surface.width
-    --  end
+      if is_portrait then
+         surface.width, surface.height = surface.height, surface.width
+      end
 
         placer = placement.Screen(target, surface)
     end)
