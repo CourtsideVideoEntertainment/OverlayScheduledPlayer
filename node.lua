@@ -2621,7 +2621,7 @@ end
 local coke_overlay = {
     enabled = true,  -- Enable by default
     image = nil,
-    current_asset = "transparent_red.png",  -- Track current asset - default to Courtside
+    current_asset = "transparent_2160x.png",  -- Track current asset - default to Courtside
     position = "top-left",  -- top-left, top-right, bottom-left, bottom-right, center, custom (GWS 070726: was top-right)
     margin = 20, -- (GWS 070726: was 20)
     scale = 0.5,  -- Make it bigger so it's more visible (GWS 070726: was 0.2)
