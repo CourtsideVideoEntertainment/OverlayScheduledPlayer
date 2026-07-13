@@ -264,7 +264,8 @@ local function Screen()
     end)
 
     node.event("config_updated", function(config)
-		rotation = config.rotation
+--rotation = config.rotation
+		rotation = 270
         local is_portrait = rotation == 90 or rotation == 270
         local width, height = config.resolution[1], config.resolution[2]
         log("screen", "configured content resolution is %dx%d", width, height)
