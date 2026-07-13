@@ -2624,7 +2624,7 @@ local coke_overlay = {
     current_asset = "transparent_2160x.png",  -- Track current asset - default to Courtside
     position = "top-left",  -- top-left, top-right, bottom-left, bottom-right, center, custom (GWS 070726: was top-right)
     margin = 20, -- (GWS 070726: was 20)
-    scale = 0.5,  -- Make it bigger so it's more visible (GWS 070726: was 0.2)
+    scale = 0.75,  -- Make it bigger so it's more visible (GWS 070726: was 0.2)
     alpha = 0.95,  -- 95% opacity
     custom_x = 0,  -- 85% from left (only used if position = "custom") (GWS 070726: Does not appear to be used in the code but setting to 0 anyway)
     custom_y = 0,   -- 5% from top (only used if position = "custom") (GWS 070726: Does not appear to be used in the code but setting to 0 anyway)
@@ -2637,7 +2637,7 @@ local coke_overlay = {
         ["2"] = "Coca_Cola_Zero_Sugar_hero_crop_2160x.png",
 		["3"] = "transparent_2160x.png",
 		["4"] = "transparent_red.png",
-		["5"] = "Courtside_Logo_2160x.png",
+		["5"] = "Coca-Cola_Zero_Sugar_flat.png",
         ["6"] = "Philadelphia_76ers_logo_PhillyVerses_2160x_shadow.png",
         ["7"] = "Converse_Logo.wine_2160x.png",
         ["8"] = "CURE_Auto_Insurance_logo_2160x.png"
